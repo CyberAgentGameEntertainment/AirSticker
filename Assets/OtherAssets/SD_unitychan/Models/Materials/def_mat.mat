@@ -1,0 +1,69 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: def_mat
+  m_Shader: {fileID: 4800000, guid: 47efd71afd76654479b9b33bef0608af, type: 3}
+  m_ValidKeywords:
+  - _RENDER_TYPE_OPAQUE
+  m_InvalidKeywords:
+  - _CULLMODE_FRONT
+  - _RENDERTYPE_OPAQUE
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: 2000
+  stringTagMap:
+    RenderType: Opaque
+  disabledShaderPasses: []
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _EnvMapSampler:
+        m_Texture: {fileID: 2800000, guid: 44d020db90fd5ae4ea345969090687a3, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _FalloffSampler:
+        m_Texture: {fileID: 2800000, guid: 39083b0062b00af459504f23a97162b4, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _HueTex:
+        m_Texture: {fileID: 2800000, guid: 4fb0af613dd313140ababf18e6daf4e5, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MainTex:
+        m_Texture: {fileID: 2800000, guid: a07625f70724abc44a5da363e335d680, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _NormalMapSampler:
+        m_Texture: {fileID: 2800000, guid: 54a57c962fa43e14e9c13ad64e22b5ee, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _RimLightSampler:
+        m_Texture: {fileID: 2800000, guid: 8073bf8eba43a72439ddf804cec5b97a, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SpecularReflectionSampler:
+        m_Texture: {fileID: 2800000, guid: cff7600e2c49af944b50d9621671371e, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _BlendDst: 0
+    - _BlendSrc: 1
+    - _CullMode: 2
+    - _Cutoff: 1
+    - _EdgeThickness: 1
+    - _ObjectID: 1
+    - _RenderType: 0
+    - _ScaleFactor: 0.1
+    - _SpecularPower: 20
+    m_Colors:
+    - _Color: {r: 1, g: 1, b: 1, a: 1}
+    - _ShadowColor: {r: 0.8, g: 0.8, b: 1, a: 1}
+  m_BuildTextureStacks: []
