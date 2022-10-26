@@ -104,28 +104,14 @@ namespace CyDecal.Runtime.Scripts
         // Start is called before the first frame update
         void Start()
         {
-            Stopwatch sw = new Stopwatch();
-            sw.Start();
             _cyDecalMesh = CyRenderDecalFeature.Instance.GetDecalMesh(
                 gameObject, receiverObject, decalMaterial, out bool isNew);
             if (isNew)
             {
                 // レシーバーオブジェクトにデカール描画用のオブジェクトを追加する。
-                GameObject decalRenderer = new GameObject("CyDecalRenderer");
-                var meshRenderer = decalRenderer.AddComponent<MeshRenderer>();
-                meshRenderer.material = decalMaterial;
-                var meshFilter = decalRenderer.AddComponent<MeshFilter>();
-                meshFilter.mesh = _cyDecalMesh.Mesh;
-                if (!gameObject.isStatic)
-                {
-                    decalRenderer.transform.parent = receiverObject.transform;
-                }
-                decalRenderer.transform.localPosition = Vector3.zero;
-                decalRenderer.transform.localRotation = Quaternion.identity;
-                decalRenderer.transform.localScale = Vector3.one;
+                BuildDecalRendererObject();
             }
             _receiverMeshFilter = receiverObject.GetComponent<MeshFilter>();
-            
             ExecuteBroadphase();
             Vector3 hitPoint = new Vector3();
             if (IntersectRayToTrianglePolygons(ref hitPoint))
@@ -135,14 +121,26 @@ namespace CyDecal.Runtime.Scripts
                 SplitConvexPolygonsByPlanes();
                 BuildDecalMeshFromConvexPolygons(hitPoint);
             }
-            sw.Stop();
-            CyRenderDecalFeature.splitMeshTotalTime += sw.ElapsedMilliseconds;
+        }
+        /// <summary>
+        /// デカールメッシュのレンダラーオブジェクトを構築する。
+        /// </summary>
+        private void BuildDecalRendererObject()
+        {
+            GameObject decalRenderer = new GameObject("CyDecalRenderer");
+            var meshRenderer = decalRenderer.AddComponent<MeshRenderer>();
+            meshRenderer.material = decalMaterial;
+            var meshFilter = decalRenderer.AddComponent<MeshFilter>();
+            meshFilter.mesh = _cyDecalMesh.Mesh;
+            if (!gameObject.isStatic)
+            {
+                decalRenderer.transform.parent = receiverObject.transform;
+            }
+            decalRenderer.transform.localPosition = Vector3.zero;
+            decalRenderer.transform.localRotation = Quaternion.identity;
+            decalRenderer.transform.localScale = Vector3.one;
         }
 
-        // Update is called once per frame
-        void Update()
-        {
-        }
         /// <summary>
         /// デカール空間での規定軸を初期化。
         /// </summary>
