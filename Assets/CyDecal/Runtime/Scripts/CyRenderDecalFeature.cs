@@ -27,21 +27,21 @@ namespace CyDecal.Runtime.Scripts
         }
 
         public CyDecalMesh GetDecalMesh(
-            GameObject targetObject,
+            GameObject receiverObject,
             Material decalMaterial,
             out bool isNew)
         {
-            return _decalMeshPool.GetDecalMesh(targetObject, decalMaterial, out isNew);
+            return _decalMeshPool.GetDecalMesh(receiverObject, decalMaterial, out isNew);
         }
 
-        public void RegisterDecalTargetObject(GameObject targetObject)
+        public void RegisterDecalReceiverObject(GameObject receiverObject)
         {
-            _targetObjectTrianglePolygonsPool.RegisterConvexPolygons(targetObject);
+            _targetObjectTrianglePolygonsPool.RegisterConvexPolygons(receiverObject);
         }
 
-        public List<ConvexPolygonInfo> GetTrianglePolygons(GameObject targetObject)
+        public List<ConvexPolygonInfo> GetTrianglePolygons(GameObject receiverObject)
         {
-            return _targetObjectTrianglePolygonsPool.ConvexPolygonsPool[targetObject];
+            return _targetObjectTrianglePolygonsPool.ConvexPolygonsPool[receiverObject];
         }
     }
 }

@@ -183,7 +183,7 @@ namespace CyDecal.Runtime.Scripts
         void ExecuteBroadphase()
         {
             // オリジナルのメッシュを取得する。
-            CyRenderDecalFeature.Instance.RegisterDecalTargetObject(receiverObject);
+            CyRenderDecalFeature.Instance.RegisterDecalReceiverObject(receiverObject);
             _convexPolygonInfos = CyRenderDecalFeature.Instance.GetTrianglePolygons(receiverObject);
 
             Vector3 originPosInDecalSpace = transform.position;
