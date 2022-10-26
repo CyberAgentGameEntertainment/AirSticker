@@ -113,6 +113,7 @@ namespace CyDecal.Runtime.Scripts
             }
             _receiverMeshFilter = receiverObject.GetComponent<MeshFilter>();
             ExecuteBroadphase();
+            
             Vector3 hitPoint = new Vector3();
             if (IntersectRayToTrianglePolygons(ref hitPoint))
             {
