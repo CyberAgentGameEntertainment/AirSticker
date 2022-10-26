@@ -10,7 +10,6 @@ namespace CyDecal.Runtime.Scripts
     {
         public static float splitMeshTotalTime = 0.0f; 
         public static CyRenderDecalFeature Instance { get; private set; }
-        private CyRenderDecalPass _renderPass;
         private readonly CyDecalMeshPool _decalMeshPool = new CyDecalMeshPool();
         private readonly CyTargetObjectTrianglePolygonsPool _targetObjectTrianglePolygonsPool =
             new CyTargetObjectTrianglePolygonsPool(); 
@@ -21,17 +20,10 @@ namespace CyDecal.Runtime.Scripts
         }
         public override void Create()
         {
-            _renderPass = new CyRenderDecalPass();
-            _renderPass.renderPassEvent = RenderPassEvent.AfterRenderingOpaques;
         }
     
         public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData)
         {
-            if (_renderPass == null)
-            {
-                return;
-            }
-            renderer.EnqueuePass(_renderPass);
         }
 
         public CyDecalMesh GetDecalMesh(
@@ -50,11 +42,6 @@ namespace CyDecal.Runtime.Scripts
         public List<ConvexPolygonInfo> GetTrianglePolygons(GameObject targetObject)
         {
             return _targetObjectTrianglePolygonsPool.ConvexPolygonsPool[targetObject];
-        }
-
-        public void AddDecalMesh(CyDecalMesh cyDecalMesh)
-        {
-            _renderPass.AddDecalMesh(cyDecalMesh);
         }
     }
 }
