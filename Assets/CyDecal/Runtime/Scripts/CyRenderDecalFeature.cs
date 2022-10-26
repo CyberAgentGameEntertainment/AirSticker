@@ -27,11 +27,16 @@ namespace CyDecal.Runtime.Scripts
         }
 
         public CyDecalMesh GetDecalMesh(
+            GameObject projectorObject,
             GameObject receiverObject,
             Material decalMaterial,
             out bool isNew)
         {
-            return _decalMeshPool.GetDecalMesh(receiverObject, decalMaterial, out isNew);
+            return _decalMeshPool.GetDecalMesh(
+                projectorObject,
+                receiverObject,
+                decalMaterial, 
+                out isNew);
         }
 
         public void RegisterDecalReceiverObject(GameObject receiverObject)

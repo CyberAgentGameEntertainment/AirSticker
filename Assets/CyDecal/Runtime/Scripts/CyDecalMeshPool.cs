@@ -22,11 +22,13 @@ namespace CyDecal.Runtime.Scripts
         /// また、全く新規のターゲットオブジェクトとマテリアルであれば、
         /// 新規のデカールメッシュを作成します。
         /// </remarks>
+        /// <param name="_projectorObject">デカールプロジェクター</param>
         /// <param name="receiverObject">デカールを貼り付けるターゲットオブジェクト</param>
         /// <param name="decalMaterial">デカールマテリアル</param>
         /// <param name="isNew">新しくメッシュを生成した場合trueが設定される</param>
         /// <returns></returns>
         public CyDecalMesh GetDecalMesh( 
+            GameObject _projectorObject,
             GameObject receiverObject,
             Material decalMaterial,
             out bool isNew)
@@ -38,7 +40,7 @@ namespace CyDecal.Runtime.Scripts
             {
                 return _decalMeshes[hash];
             }
-            var newMesh = new CyDecalMesh(decalMaterial);
+            var newMesh = new CyDecalMesh(_projectorObject, receiverObject, decalMaterial);
             _decalMeshes.Add(hash, newMesh);
             isNew = true;
             return newMesh;

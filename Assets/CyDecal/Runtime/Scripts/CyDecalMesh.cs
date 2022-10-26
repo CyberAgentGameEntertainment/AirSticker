@@ -19,11 +19,18 @@ namespace CyDecal.Runtime.Scripts
         private readonly List<Vector3> _normalBuffer = new List<Vector3>();     // 法線。
         int _indexBase = 0;
         public Mesh Mesh { get => _mesh; }
-        public Material Material { get; set; } 
-        public CyDecalMesh(Material decalMaterial)
+        public Material Material { get; set; }
+        private GameObject _projectorObject;
+        private GameObject _receiverObject;
+        public CyDecalMesh(
+            GameObject projectorObject, 
+            GameObject receiverObject,
+            Material decalMaterial)
         {
             _mesh = new Mesh();
             Material = decalMaterial;
+            _projectorObject = projectorObject;
+            _receiverObject = receiverObject;
         }
 
         /// <summary>
@@ -49,6 +56,7 @@ namespace CyDecal.Runtime.Scripts
             float decalSpaceHeight
             )
         {
+            var toReceiverObjectSpaceMatrix = _receiverObject.transform.worldToLocalMatrix;
             Vector2 uv = new Vector2();
             foreach (var convexPolygon in convexPolygons)
             {
@@ -57,14 +65,21 @@ namespace CyDecal.Runtime.Scripts
                 {
                     Vector3 vertPos = convexPolygon.GetVertexPosition(vertNo);
                     Vector3 normal = convexPolygon.GetVertexNormal(vertNo);
-                    _normalBuffer.Add(normal);
+                    
                     // Zファイティング回避のために、デカールの投影方向の逆向きに少しオフセットを加える。
                     // TODO: この数値は後で調整できるようにする。
                     vertPos += decalSpaceNormalWS * 0.001f;
-                    _positionBuffer.Add(vertPos);
                     uv.x = Vector3.Dot(decalSpaceTangentWS, (vertPos - decalSPaceOriginPosWS))/decalSpaceWidth + 0.5f;
                     uv.y = Vector3.Dot(decalSpaceBiNormalWS, (vertPos - decalSPaceOriginPosWS))/decalSpaceHeight + 0.5f;
                     _uvBuffer.Add(uv);
+                    if (!_projectorObject.isStatic)
+                    {
+                        // プロジェクターオブジェクトが静的でない場合は、座標と回転を親の空間に変換する。
+                        vertPos = toReceiverObjectSpaceMatrix.MultiplyPoint3x4(vertPos);
+                        normal = toReceiverObjectSpaceMatrix.MultiplyVector(normal);
+                    }
+                    _positionBuffer.Add(vertPos);
+                    _normalBuffer.Add(normal);
                 }
 
                 // 多角形は頂点数-2の三角形によって構築されている。

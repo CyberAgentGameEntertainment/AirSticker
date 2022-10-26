@@ -107,7 +107,7 @@ namespace CyDecal.Runtime.Scripts
             Stopwatch sw = new Stopwatch();
             sw.Start();
             _cyDecalMesh = CyRenderDecalFeature.Instance.GetDecalMesh(
-                receiverObject, decalMaterial, out bool isNew);
+                gameObject, receiverObject, decalMaterial, out bool isNew);
             if (isNew)
             {
                 // レシーバーオブジェクトにデカール描画用のオブジェクトを追加する。
@@ -116,8 +116,13 @@ namespace CyDecal.Runtime.Scripts
                 meshRenderer.material = decalMaterial;
                 var meshFilter = decalRenderer.AddComponent<MeshFilter>();
                 meshFilter.mesh = _cyDecalMesh.Mesh;
-                // TODO:とりあえず仮。
-                decalRenderer.transform.position = Vector3.zero;
+                if (!gameObject.isStatic)
+                {
+                    decalRenderer.transform.parent = receiverObject.transform;
+                }
+                decalRenderer.transform.localPosition = Vector3.zero;
+                decalRenderer.transform.localRotation = Quaternion.identity;
+                decalRenderer.transform.localScale = Vector3.one;
             }
             _receiverMeshFilter = receiverObject.GetComponent<MeshFilter>();
             
