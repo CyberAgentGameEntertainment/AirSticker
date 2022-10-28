@@ -39,10 +39,9 @@ namespace CyDecal.Runtime.Scripts
         private float basePointToFarClipDistance = 0.0f;                    // デカールを貼り付ける基準地点から、ファークリップまでの距離。
         private float basePointToNearClipDistance = 0.0f;                   // デカールを貼り付ける基準地点から、ニアクリップまでの距離。
         private readonly Vector4[] _clipPlanes = new Vector4[(int)ClipPlane.Num];    // 分割平面
-        private MeshFilter _receiverMeshFilter;                             // デカールを受けるメッシュフィルタ
         static private List<ConvexPolygonInfo> _convexPolygonInfos;         // ブロードフェーズのジョブワーク用の凸ポリゴンのリスト
         private List<ConvexPolygonInfo> _broadPhaseConvexPolygonInfos = new List<ConvexPolygonInfo>();
-        private CyDecalMesh _cyDecalMesh;                       // デカールメッシュ。
+        private List<CyDecalMesh> _cyDecalMeshes;                // デカールメッシュ。
         private Vector3 _decalSpaceNormalWS;                    // デカール空間の法線( ワールドスペース )
         private Vector3 _decalSpaceTangentWS;                   // デカール空間の接ベクトル( ワールドスペース )
         private Vector3 _decalSpaceBiNormalWS;                  // デカール空間の従ベクトル( ワールドスペース )
@@ -104,16 +103,8 @@ namespace CyDecal.Runtime.Scripts
         // Start is called before the first frame update
         void Start()
         {
-            _cyDecalMesh = CyRenderDecalFeature.Instance.GetDecalMesh(
-                gameObject, receiverObject, decalMaterial, out bool isNew);
-            if (isNew)
-            {
-                // レシーバーオブジェクトにデカール描画用のオブジェクトを追加する。
-                BuildDecalRendererObject();
-            }
-            _receiverMeshFilter = receiverObject.GetComponent<MeshFilter>();
+            _cyDecalMeshes = CyRenderDecalFeature.Instance.GetDecalMeshes(gameObject, receiverObject, decalMaterial);
             ExecuteBroadphase();
-            
             Vector3 hitPoint = new Vector3();
             if (IntersectRayToTrianglePolygons(ref hitPoint))
             {
@@ -122,24 +113,6 @@ namespace CyDecal.Runtime.Scripts
                 SplitConvexPolygonsByPlanes();
                 BuildDecalMeshFromConvexPolygons(hitPoint);
             }
-        }
-        /// <summary>
-        /// デカールメッシュのレンダラーオブジェクトを構築する。
-        /// </summary>
-        private void BuildDecalRendererObject()
-        {
-            GameObject decalRenderer = new GameObject("CyDecalRenderer");
-            var meshRenderer = decalRenderer.AddComponent<MeshRenderer>();
-            meshRenderer.material = decalMaterial;
-            var meshFilter = decalRenderer.AddComponent<MeshFilter>();
-            meshFilter.mesh = _cyDecalMesh.Mesh;
-            if (!gameObject.isStatic)
-            {
-                decalRenderer.transform.parent = receiverObject.transform;
-            }
-            decalRenderer.transform.localPosition = Vector3.zero;
-            decalRenderer.transform.localRotation = Quaternion.identity;
-            decalRenderer.transform.localScale = Vector3.one;
         }
 
         /// <summary>
@@ -166,14 +139,18 @@ namespace CyDecal.Runtime.Scripts
                 }
                 convexPolygons.Add(convexPolyInfo.ConvexPolygon);
             }
-            _cyDecalMesh.AddPolygonsToDecalMesh(
-                convexPolygons, 
-                originPosInDecalSpace,
-                _decalSpaceNormalWS,
-                _decalSpaceTangentWS,
-                _decalSpaceBiNormalWS,
-                width,
-                height);
+
+            foreach (var cyDecalMesh in _cyDecalMeshes)
+            {
+                cyDecalMesh.AddPolygonsToDecalMesh(
+                    convexPolygons,
+                    originPosInDecalSpace,
+                    _decalSpaceNormalWS,
+                    _decalSpaceTangentWS,
+                    _decalSpaceBiNormalWS,
+                    width,
+                    height);
+            }
         }
         
         /// <summary>

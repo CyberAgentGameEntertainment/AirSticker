@@ -25,25 +25,53 @@ namespace CyDecal.Runtime.Scripts
         /// <param name="_projectorObject">デカールプロジェクター</param>
         /// <param name="receiverObject">デカールを貼り付けるターゲットオブジェクト</param>
         /// <param name="decalMaterial">デカールマテリアル</param>
-        /// <param name="isNew">新しくメッシュを生成した場合trueが設定される</param>
         /// <returns></returns>
-        public CyDecalMesh GetDecalMesh( 
+        public List<CyDecalMesh> GetDecalMeshes( 
             GameObject _projectorObject,
             GameObject receiverObject,
-            Material decalMaterial,
-            out bool isNew)
+            Material decalMaterial)
         {
-            isNew = false;
-            int hash = receiverObject.GetHashCode()
-                       + decalMaterial.name.GetHashCode();
-            if (_decalMeshes.ContainsKey(hash))
-            {
-                return _decalMeshes[hash];
+            var decalMeshes = new List<CyDecalMesh>();
+            var renderers = receiverObject.GetComponentsInChildren<Renderer>();
+            foreach( var renderer in renderers){
+                int hash = receiverObject.GetHashCode()
+                           + decalMaterial.name.GetHashCode()
+                           + renderer.GetHashCode();
+                if (_decalMeshes.ContainsKey(hash))
+                {
+                    decalMeshes.Add(_decalMeshes[hash]);
+                }
+
+                var newMesh = new CyDecalMesh(_projectorObject, receiverObject, decalMaterial, renderer);
+                GameObject decalRenderer = new GameObject("CyDecalRenderer");
+                if (renderer is MeshRenderer)
+                {
+                    var meshRenderer = decalRenderer.AddComponent<MeshRenderer>();
+                    meshRenderer.material = decalMaterial;
+                    var meshFilter = decalRenderer.AddComponent<MeshFilter>();
+                    meshFilter.mesh = newMesh.Mesh;
+                }else if (renderer is SkinnedMeshRenderer s)
+                {
+                    var skinnedMeshRenderer = decalRenderer.AddComponent<SkinnedMeshRenderer>();
+                    skinnedMeshRenderer.sharedMesh = newMesh.Mesh;
+                    skinnedMeshRenderer.material = decalMaterial;
+                    skinnedMeshRenderer.rootBone = s.rootBone;
+                    skinnedMeshRenderer.bones = s.bones;
+                }
+                
+                if (!_projectorObject.isStatic)
+                {
+                    decalRenderer.transform.parent = renderer.transform;
+                }
+
+                decalRenderer.transform.localPosition = Vector3.zero;
+                decalRenderer.transform.localRotation = Quaternion.identity;
+                decalRenderer.transform.localScale = Vector3.one;
+                decalRenderer.SetActive(false);
+                _decalMeshes.Add(hash, newMesh);
+                decalMeshes.Add(newMesh);
             }
-            var newMesh = new CyDecalMesh(_projectorObject, receiverObject, decalMaterial);
-            _decalMeshes.Add(hash, newMesh);
-            isNew = true;
-            return newMesh;
+            return decalMeshes;
         }
     }
 }

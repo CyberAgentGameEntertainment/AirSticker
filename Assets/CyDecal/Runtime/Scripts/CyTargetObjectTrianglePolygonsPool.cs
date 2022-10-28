@@ -13,6 +13,7 @@ namespace CyDecal.Runtime.Scripts
     {
         public CyConvexPolygon ConvexPolygon { get; set; }      // 凸多角形
         public bool IsOutsideClipSpace { get; set; } = false;   // クリップ平面の外側？
+        
     };
     
     
@@ -87,10 +88,14 @@ namespace CyDecal.Runtime.Scripts
             
             // 新規登録。
             var convexPolygonInfos = new List<ConvexPolygonInfo>();
+            var meshRenderers = receiverObject.GetComponentsInChildren<MeshRenderer>();
             var meshFilters = receiverObject.GetComponentsInChildren<MeshFilter>();
             
             Vector3[] vertices = new Vector3[3];
             Vector3[] normals = new Vector3[3];
+            BoneWeight[] boneWeights = new BoneWeight[3];
+            
+            int filterNo = 0;
             foreach (var meshFilter in meshFilters)
             {
                 var localToWorldMatrix = meshFilter.transform.localToWorldMatrix;
@@ -110,11 +115,21 @@ namespace CyDecal.Runtime.Scripts
                     normals[1] = localToWorldMatrix.MultiplyVector(mesh.normals[v1_no]);
                     normals[2] = localToWorldMatrix.MultiplyVector(mesh.normals[v2_no]);
                     
+                    boneWeights[0] = default;
+                    boneWeights[1] = default;
+                    boneWeights[2] = default;
+                    
                     convexPolygonInfos.Add(new ConvexPolygonInfo
                     {
-                        ConvexPolygon = new CyConvexPolygon(vertices, normals)
+                        ConvexPolygon = new CyConvexPolygon(
+                            vertices, 
+                            normals,
+                            boneWeights,
+                            meshRenderers[filterNo])
                     });
                 }
+
+                filterNo++;
             }
             
             var skinnedMeshRenderers = receiverObject.GetComponentsInChildren< SkinnedMeshRenderer>();
@@ -155,62 +170,66 @@ namespace CyDecal.Runtime.Scripts
                     if (skinnedMeshRenderer.rootBone != null)
                     {
                         var boneMatrices = boneMatricesList[skindMeshRendererNo];
-                        var boneWeights_0 = mesh.boneWeights[v0_no];
-                        var boneWeights_1 = mesh.boneWeights[v1_no];
-                        var boneWeights_2 = mesh.boneWeights[v2_no];
+                        boneWeights[0] = mesh.boneWeights[v0_no];
+                        boneWeights[1] = mesh.boneWeights[v1_no];
+                        boneWeights[2] = mesh.boneWeights[v2_no];
                         
                         Multiply(ref localToWorldMatrices[0],
-                            boneMatrices[boneWeights_0.boneIndex0],
-                            boneWeights_0.weight0);
+                            boneMatrices[boneWeights[0].boneIndex0],
+                            boneWeights[0].weight0);
                         MultiplyAdd(
                             ref localToWorldMatrices[0],
-                            boneMatrices[boneWeights_0.boneIndex1],
-                            boneWeights_0.weight1);
+                            boneMatrices[boneWeights[0].boneIndex1],
+                            boneWeights[0].weight1);
                         MultiplyAdd(
                             ref localToWorldMatrices[0],
-                            boneMatrices[boneWeights_0.boneIndex2],
-                            boneWeights_0.weight2);
+                            boneMatrices[boneWeights[0].boneIndex2],
+                            boneWeights[0].weight2);
                         MultiplyAdd(
                             ref localToWorldMatrices[0],
-                            boneMatrices[boneWeights_0.boneIndex3],
-                            boneWeights_0.weight3);
+                            boneMatrices[boneWeights[0].boneIndex3],
+                            boneWeights[0].weight3);
 
 
                         Multiply(ref localToWorldMatrices[1],
-                            boneMatrices[boneWeights_1.boneIndex0],
-                            boneWeights_1.weight0);
+                            boneMatrices[boneWeights[1].boneIndex0],
+                            boneWeights[1].weight0);
                         MultiplyAdd(
                             ref localToWorldMatrices[1],
-                            boneMatrices[boneWeights_1.boneIndex1],
-                            boneWeights_1.weight1);
+                            boneMatrices[boneWeights[1].boneIndex1],
+                            boneWeights[1].weight1);
                         MultiplyAdd(
                             ref localToWorldMatrices[1],
-                            boneMatrices[boneWeights_1.boneIndex2],
-                            boneWeights_1.weight2);
+                            boneMatrices[boneWeights[1].boneIndex2],
+                            boneWeights[1].weight2);
                         MultiplyAdd(
                             ref localToWorldMatrices[1],
-                            boneMatrices[boneWeights_1.boneIndex3],
-                            boneWeights_1.weight3);
+                            boneMatrices[boneWeights[1].boneIndex3],
+                            boneWeights[1].weight3);
 
                         Multiply(ref localToWorldMatrices[2],
-                            boneMatrices[boneWeights_2.boneIndex0],
-                            boneWeights_2.weight0);
+                            boneMatrices[boneWeights[2].boneIndex0],
+                            boneWeights[2].weight0);
                         MultiplyAdd(
                             ref localToWorldMatrices[2],
-                            boneMatrices[boneWeights_2.boneIndex1],
-                            boneWeights_2.weight1);
+                            boneMatrices[boneWeights[2].boneIndex1],
+                            boneWeights[2].weight1);
                         MultiplyAdd(
                             ref localToWorldMatrices[2],
-                            boneMatrices[boneWeights_2.boneIndex2],
-                            boneWeights_2.weight2);
+                            boneMatrices[boneWeights[2].boneIndex2],
+                            boneWeights[2].weight2);
                         MultiplyAdd(
                             ref localToWorldMatrices[2],
-                            boneMatrices[boneWeights_2.boneIndex3],
-                            boneWeights_2.weight3);
+                            boneMatrices[boneWeights[2].boneIndex3],
+                            boneWeights[2].weight3);
                         
                     }
                     else
                     {
+                        boneWeights[0] = default;
+                        boneWeights[1] = default;
+                        boneWeights[2] = default;
+                        
                         localToWorldMatrices[0] = localToWorldMatrix;
                         localToWorldMatrices[1] = localToWorldMatrix;
                         localToWorldMatrices[2] = localToWorldMatrix;
@@ -226,7 +245,11 @@ namespace CyDecal.Runtime.Scripts
                     
                     convexPolygonInfos.Add(new ConvexPolygonInfo
                     {
-                        ConvexPolygon = new CyConvexPolygon(vertices, normals)
+                        ConvexPolygon = new CyConvexPolygon(
+                            vertices, 
+                            normals,
+                            boneWeights,
+                            skinnedMeshRenderer)
                     });
                 }
 

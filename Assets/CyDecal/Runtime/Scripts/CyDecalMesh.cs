@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using JetBrains.Annotations;
 using UnityEngine;
+using UnityEngine.XR;
 using Vector3 = UnityEngine.Vector3;
 using Vector4 = UnityEngine.Vector4;
 
@@ -17,20 +18,30 @@ namespace CyDecal.Runtime.Scripts
         private readonly List<Vector3> _positionBuffer = new List<Vector3>();   // 頂点座標のバッファ
         private readonly List<Vector2> _uvBuffer = new List<Vector2>();         // UVバッファ
         private readonly List<Vector3> _normalBuffer = new List<Vector3>();     // 法線。
+        private readonly List<BoneWeight> _boneWeightsBuffer = new List<BoneWeight>();
+        private Matrix4x4[] _bindPoses; 
         int _indexBase = 0;
+        public Renderer ReceiverMeshRenderer => _recieverMeshRenderer;
         public Mesh Mesh { get => _mesh; }
         public Material Material { get; set; }
         private GameObject _projectorObject;
         private GameObject _receiverObject;
+        private Renderer _recieverMeshRenderer;
         public CyDecalMesh(
             GameObject projectorObject, 
             GameObject receiverObject,
-            Material decalMaterial)
+            Material decalMaterial,
+            Renderer receiverMeshRenderer)
         {
             _mesh = new Mesh();
             Material = decalMaterial;
             _projectorObject = projectorObject;
             _receiverObject = receiverObject;
+            _recieverMeshRenderer = receiverMeshRenderer;
+            if (_recieverMeshRenderer is SkinnedMeshRenderer skinnedMeshRenderer)
+            {
+                _bindPoses = skinnedMeshRenderer.sharedMesh.bindposes;
+            }
         }
 
         /// <summary>
@@ -56,10 +67,14 @@ namespace CyDecal.Runtime.Scripts
             float decalSpaceHeight
             )
         {
-            var toReceiverObjectSpaceMatrix = _receiverObject.transform.worldToLocalMatrix;
+            var toReceiverObjectSpaceMatrix = _recieverMeshRenderer.transform.worldToLocalMatrix;
             Vector2 uv = new Vector2();
             foreach (var convexPolygon in convexPolygons)
             {
+                if (convexPolygon.ReceiverMeshRenderer != _recieverMeshRenderer)
+                {
+                    continue;
+                }
                 int numVertex = convexPolygon.NumVertices;
                 for (int vertNo = 0; vertNo < numVertex; vertNo++)
                 {
@@ -80,6 +95,7 @@ namespace CyDecal.Runtime.Scripts
                     }
                     _positionBuffer.Add(vertPos);
                     _normalBuffer.Add(normal);
+                    _boneWeightsBuffer.Add(convexPolygon.GetBoneWeight(vertNo));
                 }
 
                 // 多角形は頂点数-2の三角形によって構築されている。
@@ -95,6 +111,10 @@ namespace CyDecal.Runtime.Scripts
             _mesh.SetVertices(_positionBuffer.ToArray());
             _mesh.SetIndices(_indexBuffer.ToArray(), MeshTopology.Triangles, 0);
             _mesh.SetNormals(_normalBuffer.ToArray(), 0, _normalBuffer.Count);
+            if (_bindPoses.Length > 0){
+                _mesh.boneWeights = _boneWeightsBuffer.ToArray();
+                _mesh.bindposes = _bindPoses;
+            }
             _mesh.RecalculateTangents();
             _mesh.SetUVs(0, _uvBuffer);
         }

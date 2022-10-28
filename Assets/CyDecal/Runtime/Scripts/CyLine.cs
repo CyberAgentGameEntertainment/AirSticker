@@ -14,6 +14,9 @@ namespace CyDecal.Runtime.Scripts
         public Vector3 startToEndVec { get; private set; }  // 始点から終点に向かって伸びるベクトル
         public Vector3 startNormal { get; private set; }    // 始点の法線
         public Vector3 endNormal { get; private set; }      // 終点の法線
+        public bool HasWeight { get; set; }
+        public BoneWeight startWeight { get; private set; } // 始点のボーンウェイト
+        public BoneWeight endWeight { get; private set; }  // 終点のボーンウェイト
         public CyLine(Vector3 startPosition, Vector3 endPosition, Vector3 startNormal, Vector3 endNormal)
         {
             this.startPosition = startPosition;
@@ -21,6 +24,9 @@ namespace CyDecal.Runtime.Scripts
             this.startNormal = startNormal;
             this.endNormal = endNormal;
             startToEndVec = this.endPosition - this.startPosition;
+            HasWeight = false;
+            startWeight = default;
+            endWeight = default;
         }
 
         /// <summary>
@@ -65,6 +71,38 @@ namespace CyDecal.Runtime.Scripts
             startNormal = newStartNormal;
             endNormal = newEndNormal;
             startToEndVec = endPosition - startPosition;
+        }
+
+        void CheckWeight()
+        {
+            if (startWeight.weight0 + startWeight.weight1 < 0.001f)
+            {
+                Debug.LogError("error");
+            }
+            if (endWeight.weight0 + endWeight.weight1 < 0.001f)
+            {
+                Debug.LogError("error");
+            }
+        }
+        public void SetStartEndBoneWeights(BoneWeight newStartWeight, BoneWeight newEndWeight)
+        {
+            HasWeight = true;
+            startWeight = newStartWeight;
+            endWeight = newEndWeight;
+            CheckWeight();
+        }
+
+        public void SetStartBoneWeight(BoneWeight newStartWeight)
+        {
+            HasWeight = true;
+            startWeight = newStartWeight;
+            CheckWeight();
+        }
+        public void SetEndBoneWeight(BoneWeight newEndWeight)
+        {
+            HasWeight = true;
+            endWeight = newEndWeight;
+            CheckWeight();
         }
     };
 }

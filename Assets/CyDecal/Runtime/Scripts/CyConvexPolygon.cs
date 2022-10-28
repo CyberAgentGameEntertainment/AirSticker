@@ -14,26 +14,117 @@ namespace CyDecal.Runtime.Scripts
         private readonly Vector3[] _vertices = new Vector3[MaxVertex];  // 頂点座標
         private readonly Vector3[] _normals = new Vector3[MaxVertex];   // 頂点法線
         private readonly CyLine[] _line = new CyLine[MaxVertex];        // 凸多角形を構成するエッジの情報
+        private readonly BoneWeight[] _boneWeights = new BoneWeight[MaxVertex]; 
         private int _numVertices;                                       // 頂点数
         public int NumVertices => _numVertices;
+        public Renderer ReceiverMeshRenderer { get; set; }
+         void CalculateNewVertexDataBySplitPlane(
+            out Vector3 newVert0,
+            out Vector3 newVert1,
+            out Vector3 newNormal0,
+            out Vector3 newNormal1,
+            out BoneWeight newBoneWeight0,
+            out BoneWeight newBoneWeight1,
+            CyLine l0,
+            CyLine l1,
+            Vector4 clipPlane)
+        {
+            bool hasWeight = l0.HasWeight && l1.HasWeight;
+            float t = Vector4.Dot(clipPlane, Vector3ToVector4(l0.endPosition))
+                      /Vector4.Dot(clipPlane,l0.startToEndVec);
+            newVert0 = Vector3.Lerp(l0.endPosition, l0.startPosition, t);
+            newNormal0 = Vector3.Lerp(l0.endNormal, l0.startNormal, t);
+            newNormal0.Normalize();
+            
+            t = Vector4.Dot(clipPlane, Vector3ToVector4(l1.startPosition))
+                /Vector4.Dot(clipPlane,l1.startPosition - l1.endPosition);
+                
+            newVert1 = Vector3.Lerp(l1.startPosition, l1.endPosition,t);
+            newNormal1 = Vector3.Lerp(l1.startNormal, l1.endNormal,t);
+            newNormal1.Normalize();
+            
+            newBoneWeight0 = new BoneWeight();
+            newBoneWeight1 = new BoneWeight();
+
+            /*if (t > 0.5f)
+            {
+                newBoneWeight0 = l0.startWeight ;
+                newBoneWeight1 = l1.endWeight;
+            }
+            else
+            {
+                newBoneWeight0 = l0.endWeight ;
+                newBoneWeight1 = l1.startWeight;
+            }*/
+
+            newBoneWeight0.weight0 = Mathf.Lerp(l0.endWeight.weight0, l0.startWeight.weight0, t);
+            newBoneWeight0.weight1 = Mathf.Lerp(l0.endWeight.weight1, l0.startWeight.weight1, t);
+            newBoneWeight0.weight2 = Mathf.Lerp(l0.endWeight.weight2, l0.startWeight.weight2, t);
+            newBoneWeight0.weight3 = Mathf.Lerp(l0.endWeight.weight3, l0.startWeight.weight3, t);
+            newBoneWeight0.boneIndex0 = t > 0.5f ? l0.startWeight.boneIndex0 : l0.endWeight.boneIndex0;
+            newBoneWeight0.boneIndex1 = t > 0.5f ? l0.startWeight.boneIndex1 : l0.endWeight.boneIndex1;
+            newBoneWeight0.boneIndex2 = t > 0.5f ? l0.startWeight.boneIndex2 : l0.endWeight.boneIndex2;
+            newBoneWeight0.boneIndex3 = t > 0.5f ? l0.startWeight.boneIndex3 : l0.endWeight.boneIndex3;
+            
+            newBoneWeight1.weight0 = Mathf.Lerp(l1.startWeight.weight0, l1.endWeight.weight0, t);
+            newBoneWeight1.weight1 = Mathf.Lerp(l1.startWeight.weight1, l1.endWeight.weight1, t);
+            newBoneWeight1.weight2 = Mathf.Lerp(l1.startWeight.weight2, l1.endWeight.weight2, t);
+            newBoneWeight1.weight3 = Mathf.Lerp(l1.startWeight.weight3, l1.endWeight.weight3, t);
+            newBoneWeight1.boneIndex0 = t > 0.5f ? l1.endWeight.boneIndex0 : l1.startWeight.boneIndex0;
+            newBoneWeight1.boneIndex1 = t > 0.5f ? l1.endWeight.boneIndex1 : l1.startWeight.boneIndex1;
+            newBoneWeight1.boneIndex2 = t > 0.5f ? l1.endWeight.boneIndex2 : l1.startWeight.boneIndex2;
+            newBoneWeight1.boneIndex3 = t > 0.5f ? l1.endWeight.boneIndex3 : l1.startWeight.boneIndex3;
+            
+            // 重みを正規化
+            /*var total = newBoneWeight0.weight0 + newBoneWeight0.weight1 + newBoneWeight0.weight2 +
+                        newBoneWeight0.weight3;
+            if (total > 0.0f)
+            {
+                newBoneWeight0.weight0 /= total;
+                newBoneWeight0.weight1 /= total;
+                newBoneWeight0.weight2 /= total;
+                newBoneWeight0.weight3 /= total;
+            }
+
+            total = newBoneWeight1.weight0 + newBoneWeight1.weight1 + newBoneWeight1.weight2 +
+                    newBoneWeight1.weight3;
+            if (total > 0.0f)
+            {
+                newBoneWeight1.weight0 /= total;
+                newBoneWeight1.weight1 /= total;
+                newBoneWeight1.weight2 /= total;
+                newBoneWeight1.weight3 /= total;
+            }*/
+
+
+        }
         /// <summary>
         /// コンストラクタ
         /// </summary>
         /// <param name="vertices">多角形を構築する頂点の座標</param>
         /// <param name="normals">多角形を構築する頂点の法線</param>
-        public CyConvexPolygon(Vector3[] vertices, Vector3[] normals)
+        public CyConvexPolygon(
+            Vector3[] vertices, 
+            Vector3[] normals,
+            BoneWeight[] boneWeights,
+            Renderer renderer)
         {
+            ReceiverMeshRenderer = renderer;
             _numVertices = vertices.Length;
             for (int vertNo = 0; vertNo < _numVertices; vertNo++)
             {
-                this._vertices[vertNo] = vertices[vertNo];
-                this._normals[vertNo] = normals[vertNo];
+                _vertices[vertNo] = vertices[vertNo];
+                _normals[vertNo] = normals[vertNo];
+                _boneWeights[vertNo] = boneWeights[vertNo];
                 int nextVertNo = (vertNo + 1) % _numVertices; 
                 _line[vertNo] = new CyLine( 
                     vertices[vertNo], 
                     vertices[nextVertNo],
                     normals[vertNo],
                     normals[nextVertNo]);
+                _line[vertNo].SetStartEndBoneWeights(
+                    boneWeights[vertNo],
+                    boneWeights[nextVertNo]);
             }
             FaceNormal = Vector3.Cross((vertices[1] - vertices[0]), (vertices[2] - vertices[0]));
             FaceNormal.Normalize();
@@ -44,12 +135,14 @@ namespace CyDecal.Runtime.Scripts
         /// <param name="srcConvecPolygon">コピー元となる凸多角形</param>
         public CyConvexPolygon(CyConvexPolygon srcConvecPolygon)
         {
+            ReceiverMeshRenderer = srcConvecPolygon.ReceiverMeshRenderer;
             _numVertices = srcConvecPolygon._numVertices;
             for (int i = 0; i < _numVertices; i++)
             {
-                this._vertices[i] = srcConvecPolygon._vertices[i];
-                this._normals[i] = srcConvecPolygon._normals[i];
-                this._line[i] = srcConvecPolygon._line[i];
+                _vertices[i] = srcConvecPolygon._vertices[i];
+                _normals[i] = srcConvecPolygon._normals[i];
+                _line[i] = srcConvecPolygon._line[i];
+                _boneWeights[i] = srcConvecPolygon._boneWeights[i];
             }
             FaceNormal = srcConvecPolygon.FaceNormal;
         }
@@ -155,31 +248,36 @@ namespace CyDecal.Runtime.Scripts
                 {
                     _vertices[vertNo] = _vertices[i];
                     _normals[vertNo] = _normals[i];
+                    _boneWeights[vertNo] = _boneWeights[i];
                     _line[vertNo] = _line[i];
                     vertNo++;
                 }
+                
+                
+                // 頂点を二つ追加する。
+                CalculateNewVertexDataBySplitPlane(
+                    out Vector3 newVert0,
+                    out Vector3 newVert1,
+                    out Vector3 newNormal0,
+                    out Vector3 newNormal1,
+                    out BoneWeight newBoneWeight0,
+                    out BoneWeight newBoneWeight1,
+                    l1,
+                    l0,
+                    clipPlane
+                );
+                
                 // 頂点を二つ追加する。
                 int newVertNo_0 = vertNo;
                 int newVertNo_1 = vertNo+1;
-                
-                float t = Vector4.Dot(clipPlane, Vector3ToVector4(l1.startPosition))
-                    /Vector4.Dot(clipPlane,l1.startPosition - l1.endPosition);
-                
-                var newVert0 = Vector3.Lerp(l1.startPosition, l1.endPosition, t);
-                var newNormal0 = Vector3.Lerp(l1.startNormal, l1.endNormal, t);
-                newNormal0.Normalize();
-                
-                t = Vector4.Dot(clipPlane, Vector3ToVector4(l0.endPosition))
-                          /Vector4.Dot(clipPlane,l0.startToEndVec);
-                var newVert1 = Vector3.Lerp(l0.endPosition, l0.startPosition,  t);
-                var newNormal1 = Vector3.Lerp(l0.endNormal, l0.startNormal,  t);
-                newNormal1.Normalize();
                 
                 _vertices[newVertNo_0] = newVert0;
                 _vertices[newVertNo_1] = newVert1;
                 _normals[newVertNo_0] = newNormal0;
                 _normals[newVertNo_1] = newNormal1;
-                
+                _boneWeights[newVertNo_0] = newBoneWeight0;
+                _boneWeights[newVertNo_1] = newBoneWeight1;
+
                 // ライン情報の構築。
                 _numVertices += deltaVerticesSize;
                 _line[newVertNo_0-1].SetEndAndCalcStartToEnd(newVert0, newNormal0);
@@ -194,10 +292,11 @@ namespace CyDecal.Runtime.Scripts
                     newNormal1,
                     _normals[(newVertNo_1+1)%_numVertices]);
                 
-                _line[newVertNo_1+1].SetStartAndCalcStartToEnd(
-                    _vertices[(newVertNo_1+1)%_numVertices],
-                    _normals[(newVertNo_1+1)%_numVertices]);
-                
+                _line[newVertNo_0-1].SetEndBoneWeight(newBoneWeight0);
+                _line[newVertNo_0].SetStartEndBoneWeights(newBoneWeight0, newBoneWeight1);
+                _line[newVertNo_1].SetStartEndBoneWeights(
+                    newBoneWeight1,
+                    _boneWeights[(newVertNo_1+1)%_numVertices]);
             }
             else
             {
@@ -212,6 +311,7 @@ namespace CyDecal.Runtime.Scripts
                     {
                         _vertices[i + deltaVerticesSize] = _vertices[i];
                         _normals[i + deltaVerticesSize] = _normals[i];
+                        _boneWeights[i + deltaVerticesSize] = _boneWeights[i];
                         _line[i + deltaVerticesSize] = _line[i];
                     }
                 }
@@ -222,29 +322,30 @@ namespace CyDecal.Runtime.Scripts
                     {
                         _vertices[i + deltaVerticesSize] = _vertices[i];
                         _normals[i + deltaVerticesSize] = _normals[i];
+                        _boneWeights[i + deltaVerticesSize] = _boneWeights[i];
                         _line[i + deltaVerticesSize] = _line[i];
                     }
                 }
                 // 頂点を二つ追加する。
+                CalculateNewVertexDataBySplitPlane(
+                    out Vector3 newVert0,
+                    out Vector3 newVert1,
+                    out Vector3 newNormal0,
+                    out Vector3 newNormal1,
+                    out BoneWeight newBoneWeight0,
+                    out BoneWeight newBoneWeight1,
+                    l0,
+                    l1,
+                    clipPlane);
                 int newVertNo_0 = removeVertStartNo;
                 int newVertNo_1 = removeVertStartNo+1;
-                float t = Vector4.Dot(clipPlane, Vector3ToVector4(l0.endPosition))
-                          /Vector4.Dot(clipPlane,l0.startToEndVec);
-                var newVert0 = Vector3.Lerp(l0.endPosition, l0.startPosition, t);
-                var newNormal0 = Vector3.Lerp(l0.endNormal, l0.startNormal, t);
-                newNormal0.Normalize();
-                
-                t = Vector4.Dot(clipPlane, Vector3ToVector4(l1.startPosition))
-                    /Vector4.Dot(clipPlane,l1.startPosition - l1.endPosition);
-                
-                var newVert1 = Vector3.Lerp(l1.startPosition, l1.endPosition,t);
-                var newNormal1 = Vector3.Lerp(l1.startNormal, l1.endNormal,t);
-                newNormal1.Normalize();
                 
                 _vertices[newVertNo_0] = newVert0;
                 _vertices[newVertNo_1] = newVert1;
                 _normals[newVertNo_0] = newNormal0;
                 _normals[newVertNo_1] = newNormal1;
+                _boneWeights[newVertNo_0] = newBoneWeight0;
+                _boneWeights[newVertNo_1] = newBoneWeight1;
                 
                 // ライン情報の構築。
                 _numVertices += deltaVerticesSize;
@@ -259,9 +360,12 @@ namespace CyDecal.Runtime.Scripts
                     _vertices[(newVertNo_1+1)%_numVertices],
                     newNormal1,
                     _normals[(newVertNo_1+1)%_numVertices]);
-                _line[newVertNo_1+1].SetStartAndCalcStartToEnd(
-                    _vertices[(newVertNo_1+1)%_numVertices],
-                    _normals[(newVertNo_1+1)%_numVertices]);
+                
+                _line[newVertNo_0-1].SetEndBoneWeight(newBoneWeight0);
+                _line[newVertNo_0].SetStartEndBoneWeights(newBoneWeight0, newBoneWeight1);
+                _line[newVertNo_1].SetStartEndBoneWeights(
+                    newBoneWeight1,
+                    _boneWeights[(newVertNo_1+1)%_numVertices]);
             }
         }
 
@@ -330,6 +434,11 @@ namespace CyDecal.Runtime.Scripts
             }
 
             return false;
+        }
+
+        public BoneWeight GetBoneWeight(int vertNo)
+        {       
+            return _boneWeights[vertNo];
         }
     }
     
