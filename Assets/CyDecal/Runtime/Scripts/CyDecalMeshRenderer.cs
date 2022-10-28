@@ -1,34 +1,33 @@
-using System;
-using System.Collections.Generic;
-using JetBrains.Annotations;
 using UnityEngine;
-using UnityEngine.XR;
-using Vector3 = UnityEngine.Vector3;
-using Vector4 = UnityEngine.Vector4;
 
 namespace CyDecal.Runtime.Scripts
 {
     /// <summary>
-    /// デカールメッシュのレンダラー
+    ///     デカールメッシュのレンダラー
     /// </summary>
     public class CyDecalMeshRenderer
     {
-        private Renderer _renderer;
+        private readonly Renderer _renderer;
+
         /// <summary>
-        /// コンストラクタ
+        ///     コンストラクタ
         /// </summary>
-        /// <param name="recieverRenderer">デカールメッシュのレシーバーオブジェクトのレンダラー</param>
-        public CyDecalMeshRenderer(Renderer recieverRenderer, Material decalMaterial, Mesh mesh, bool isStatic)
+        /// <param name="receiverRenderer">デカールメッシュのレシーバーオブジェクトのレンダラー</param>
+        /// <param name="decalMaterial">デカールマテリアル</param>
+        /// <param name="mesh">デカールメッシュ</param>
+        /// <param name="isStatic">静的オブジェクトフラグ</param>
+        public CyDecalMeshRenderer(Renderer receiverRenderer, Material decalMaterial, Mesh mesh, bool isStatic)
         {
-            GameObject decalRenderer = new GameObject("CyDecalRenderer");
-            if (recieverRenderer is MeshRenderer)
+            var decalRenderer = new GameObject("CyDecalRenderer");
+            if (receiverRenderer is MeshRenderer)
             {
                 var meshRenderer = decalRenderer.AddComponent<MeshRenderer>();
                 meshRenderer.material = decalMaterial;
                 var meshFilter = decalRenderer.AddComponent<MeshFilter>();
                 meshFilter.mesh = mesh;
                 _renderer = meshRenderer;
-            }else if (recieverRenderer is SkinnedMeshRenderer s)
+            }
+            else if (receiverRenderer is SkinnedMeshRenderer s)
             {
                 var skinnedMeshRenderer = decalRenderer.AddComponent<SkinnedMeshRenderer>();
                 skinnedMeshRenderer.sharedMesh = mesh;
@@ -37,26 +36,25 @@ namespace CyDecal.Runtime.Scripts
                 skinnedMeshRenderer.bones = s.bones;
                 _renderer = skinnedMeshRenderer;
             }
-                
-            if (!isStatic)
-            {
-                decalRenderer.transform.parent = recieverRenderer.transform;
-            }
+
+            if (!isStatic) decalRenderer.transform.parent = receiverRenderer.transform;
 
             decalRenderer.transform.localPosition = Vector3.zero;
             decalRenderer.transform.localRotation = Quaternion.identity;
             decalRenderer.transform.localScale = Vector3.one;
             decalRenderer.SetActive(false);
         }
+
         /// <summary>
-        /// デカールメッシュの編集が開始されたときに呼ばれる処理。
+        ///     デカールメッシュの編集が開始されたときに呼ばれる処理。
         /// </summary>
         public void OnBeginEditDecalMesh()
         {
             _renderer.gameObject.SetActive(false);
         }
+
         /// <summary>
-        /// デカールメッシュの編集が終了されたときに呼ばれる処理。
+        ///     デカールメッシュの編集が終了されたときに呼ばれる処理。
         /// </summary>
         public void OnEndEditDecalMesh()
         {

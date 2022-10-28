@@ -3,7 +3,6 @@
 // --------------------------------------------------------------
 
 using System.Collections.Generic;
-using CyDecal.Runtime.Scripts;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -11,7 +10,7 @@ public class FPSDisplay : MonoBehaviour
 {
     // Start is called before the first frame update
     [SerializeField] private GameObject fpsTextGameObject;
-    private readonly List<float> _fpsCounts = new List<float>();
+    private readonly List<float> _fpsCounts = new();
     private Text _fpsText;
     private int _frameCount;
 
@@ -39,7 +38,7 @@ public class FPSDisplay : MonoBehaviour
             _fpsText.text = $"FPS = {fps:0.00}";
             _fpsCounts.Add(fps);
         }
-       /*var time = CyRenderDecalFeature.splitMeshTotalTime;
-       _fpsText.text = $"{time} msec";*/
+        /*var time = CyRenderDecalFeature.splitMeshTotalTime;
+        _fpsText.text = $"{time} msec";*/
     }
 }

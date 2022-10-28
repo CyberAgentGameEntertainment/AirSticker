@@ -1,29 +1,25 @@
-using System;
 using System.Collections.Generic;
-using JetBrains.Annotations;
 using UnityEngine;
-using UnityEngine.XR;
-using Vector3 = UnityEngine.Vector3;
-using Vector4 = UnityEngine.Vector4;
 
 namespace CyDecal.Runtime.Scripts
 {
     /// <summary>
-    /// デカールメッシュ
+    ///     デカールメッシュ
     /// </summary>
-     public class CyDecalMesh 
+    public class CyDecalMesh
     {
-        private readonly Mesh _mesh;                                            // デカールテクスチャを貼り付けるためのデカールメッシュ
-        private readonly List<int> _indexBuffer = new List<int>();              // インデックスバッファ
-        private readonly List<Vector3> _positionBuffer = new List<Vector3>();   // 頂点座標のバッファ
-        private readonly List<Vector2> _uvBuffer = new List<Vector2>();         // UVバッファ
-        private readonly List<Vector3> _normalBuffer = new List<Vector3>();     // 法線。
-        private readonly List<BoneWeight> _boneWeightsBuffer = new List<BoneWeight>();
         private readonly Matrix4x4[] _bindPoses;
-        private int _indexBase = 0;
+        private readonly List<BoneWeight> _boneWeightsBuffer = new();
+        private readonly CyDecalMeshRenderer _decalMeshRenderer;
+        private readonly List<int> _indexBuffer = new(); // インデックスバッファ
+        private readonly Mesh _mesh; // デカールテクスチャを貼り付けるためのデカールメッシュ
+        private readonly List<Vector3> _normalBuffer = new(); // 法線。
+        private readonly List<Vector3> _positionBuffer = new(); // 頂点座標のバッファ
         private readonly GameObject _projectorObject;
         private readonly Renderer _receiverMeshRenderer;
-        private CyDecalMeshRenderer _decalMeshRenderer; 
+        private readonly List<Vector2> _uvBuffer = new(); // UVバッファ
+        private int _indexBase;
+
         public CyDecalMesh(
             GameObject projectorObject,
             Material decalMaterial,
@@ -33,36 +29,37 @@ namespace CyDecal.Runtime.Scripts
             _projectorObject = projectorObject;
             _receiverMeshRenderer = receiverMeshRenderer;
             if (_receiverMeshRenderer is SkinnedMeshRenderer skinnedMeshRenderer)
-            {
                 _bindPoses = skinnedMeshRenderer.sharedMesh.bindposes;
-            }
+
             // デカールメッシュレンダラーを作成。
             _decalMeshRenderer = new CyDecalMeshRenderer(
-                    _receiverMeshRenderer, 
-                    decalMaterial, 
-                    _mesh, 
-                    projectorObject.isStatic);
+                _receiverMeshRenderer,
+                decalMaterial,
+                _mesh,
+                projectorObject.isStatic);
         }
+
         /// <summary>
-        /// デカールメッシュの編集開始。
+        ///     デカールメッシュの編集開始。
         /// </summary>
         public void BeginEdit()
         {
             _decalMeshRenderer.OnBeginEditDecalMesh();
-            
         }
+
         /// <summary>
-        /// デカールメッシュの編集終了。
+        ///     デカールメッシュの編集終了。
         /// </summary>
         public void EndEdit()
         {
             _decalMeshRenderer.OnEndEditDecalMesh();
         }
+
         /// <summary>
-        /// 三角形ポリゴンをデカールメッシュを追加。
+        ///     三角形ポリゴンをデカールメッシュを追加。
         /// </summary>
         /// <remarks>
-        /// 凸ポリゴン情報から三角形ポリゴンの情報を追加で構築し、デカールメッシュに追加します。
+        ///     凸ポリゴン情報から三角形ポリゴンの情報を追加で構築し、デカールメッシュに追加します。
         /// </remarks>
         /// <param name="convexPolygons">凸ポリゴンのリスト</param>
         /// <param name="decalSPaceOriginPosWS">デカールスペースの原点(ワールド空間)</param>
@@ -74,32 +71,31 @@ namespace CyDecal.Runtime.Scripts
         public void AddPolygonsToDecalMesh(
             List<CyConvexPolygon> convexPolygons,
             Vector3 decalSPaceOriginPosWS,
-            Vector3 decalSpaceNormalWS, 
-            Vector3 decalSpaceTangentWS, 
+            Vector3 decalSpaceNormalWS,
+            Vector3 decalSpaceTangentWS,
             Vector3 decalSpaceBiNormalWS,
             float decalSpaceWidth,
             float decalSpaceHeight
-            )
+        )
         {
             var toReceiverObjectSpaceMatrix = _receiverMeshRenderer.transform.worldToLocalMatrix;
             var uv = new Vector2();
             foreach (var convexPolygon in convexPolygons)
             {
-                if (convexPolygon.ReceiverMeshRenderer != _receiverMeshRenderer)
-                {
-                    continue;
-                }
+                if (convexPolygon.ReceiverMeshRenderer != _receiverMeshRenderer) continue;
+
                 var numVertex = convexPolygon.NumVertices;
                 for (var vertNo = 0; vertNo < numVertex; vertNo++)
                 {
-                    Vector3 vertPos = convexPolygon.GetVertexPosition(vertNo);
-                    Vector3 normal = convexPolygon.GetVertexNormal(vertNo);
-                    
+                    var vertPos = convexPolygon.GetVertexPosition(vertNo);
+                    var normal = convexPolygon.GetVertexNormal(vertNo);
+
                     // Zファイティング回避のために、デカールの投影方向の逆向きに少しオフセットを加える。
                     // TODO: この数値は後で調整できるようにする。
-                    vertPos += decalSpaceNormalWS * 0.001f;
-                    uv.x = Vector3.Dot(decalSpaceTangentWS, (vertPos - decalSPaceOriginPosWS))/decalSpaceWidth + 0.5f;
-                    uv.y = Vector3.Dot(decalSpaceBiNormalWS, (vertPos - decalSPaceOriginPosWS))/decalSpaceHeight + 0.5f;
+                    // vertPos += decalSpaceNormalWS * 0.001f;
+                    uv.x = Vector3.Dot(decalSpaceTangentWS, vertPos - decalSPaceOriginPosWS) / decalSpaceWidth + 0.5f;
+                    uv.y = Vector3.Dot(decalSpaceBiNormalWS, vertPos - decalSPaceOriginPosWS) / decalSpaceHeight +
+                           0.5f;
                     _uvBuffer.Add(uv);
                     if (!_projectorObject.isStatic)
                     {
@@ -115,22 +111,26 @@ namespace CyDecal.Runtime.Scripts
                 }
 
                 // 多角形は頂点数-2の三角形によって構築されている。
-                var numTriangle = numVertex-2;
+                var numTriangle = numVertex - 2;
                 for (var triNo = 0; triNo < numTriangle; triNo++)
                 {
                     _indexBuffer.Add(_indexBase);
-                    _indexBuffer.Add(_indexBase+triNo+1);
-                    _indexBuffer.Add(_indexBase+triNo+2);
+                    _indexBuffer.Add(_indexBase + triNo + 1);
+                    _indexBuffer.Add(_indexBase + triNo + 2);
                 }
+
                 _indexBase += numVertex;
             }
+
             _mesh.SetVertices(_positionBuffer.ToArray());
             _mesh.SetIndices(_indexBuffer.ToArray(), MeshTopology.Triangles, 0);
             _mesh.SetNormals(_normalBuffer.ToArray(), 0, _normalBuffer.Count);
-            if (_bindPoses.Length > 0){
+            if (_bindPoses.Length > 0)
+            {
                 _mesh.boneWeights = _boneWeightsBuffer.ToArray();
                 _mesh.bindposes = _bindPoses;
             }
+
             _mesh.RecalculateTangents();
             _mesh.SetUVs(0, _uvBuffer);
             _mesh.Optimize();
