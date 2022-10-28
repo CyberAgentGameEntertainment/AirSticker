@@ -25,26 +25,38 @@ namespace CyDecal.Runtime.Scripts
         public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData)
         {
         }
-
-        public List<CyDecalMesh> GetDecalMeshes(
+        /// <summary>
+        /// デカールメッシュの編集開始
+        /// </summary>
+        /// <param name="projectorObject">プロジェクターオブジェクト</param>
+        /// <param name="receiverObject">デカールを貼り付けるレシーバーオブジェクト</param>
+        /// <param name="decalMaterial">デカールマテリアル</param>
+        /// <returns></returns>
+        public static List<CyDecalMesh> BeginEditDecalMeshes(
             GameObject projectorObject,
             GameObject receiverObject,
             Material decalMaterial)
         {
-            return _decalMeshPool.GetDecalMeshes(
+            Instance._decalMeshPool.BeginEditDecalMesh();
+            var decalMeshes = Instance._decalMeshPool.GetDecalMeshes(
                 projectorObject,
                 receiverObject,
                 decalMaterial);
+            return decalMeshes;
         }
-
-        public void RegisterDecalReceiverObject(GameObject receiverObject)
+        /// <summary>
+        /// デカールメッシュの編集完了。
+        /// </summary>
+        /// <param name="decalMeshes"></param>
+        /// <returns></returns>
+        public static void EndEditDecalMeshes(List<CyDecalMesh> decalMeshes)
         {
-            _targetObjectTrianglePolygonsPool.RegisterConvexPolygons(receiverObject);
+            Instance._decalMeshPool.EndEditDecalMesh();
         }
-
-        public List<ConvexPolygonInfo> GetTrianglePolygons(GameObject receiverObject)
+        public static List<ConvexPolygonInfo> GetTrianglePolygons(GameObject receiverObject)
         {
-            return _targetObjectTrianglePolygonsPool.ConvexPolygonsPool[receiverObject];
+            Instance._targetObjectTrianglePolygonsPool.RegisterConvexPolygons(receiverObject);
+            return Instance._targetObjectTrianglePolygonsPool.ConvexPolygonsPool[receiverObject];
         }
     }
 }

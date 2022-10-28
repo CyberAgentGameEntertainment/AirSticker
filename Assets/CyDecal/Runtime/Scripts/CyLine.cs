@@ -72,37 +72,23 @@ namespace CyDecal.Runtime.Scripts
             endNormal = newEndNormal;
             startToEndVec = endPosition - startPosition;
         }
-
-        void CheckWeight()
-        {
-            if (startWeight.weight0 + startWeight.weight1 < 0.001f)
-            {
-                Debug.LogError("error");
-            }
-            if (endWeight.weight0 + endWeight.weight1 < 0.001f)
-            {
-                Debug.LogError("error");
-            }
-        }
+        
         public void SetStartEndBoneWeights(BoneWeight newStartWeight, BoneWeight newEndWeight)
         {
             HasWeight = true;
             startWeight = newStartWeight;
             endWeight = newEndWeight;
-            CheckWeight();
         }
 
         public void SetStartBoneWeight(BoneWeight newStartWeight)
         {
             HasWeight = true;
             startWeight = newStartWeight;
-            CheckWeight();
         }
         public void SetEndBoneWeight(BoneWeight newEndWeight)
         {
             HasWeight = true;
             endWeight = newEndWeight;
-            CheckWeight();
         }
     };
 }
