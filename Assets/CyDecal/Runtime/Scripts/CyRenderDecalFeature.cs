@@ -7,9 +7,9 @@ namespace CyDecal.Runtime.Scripts
     public class CyRenderDecalFeature : ScriptableRendererFeature
     {
         public static float splitMeshTotalTime = 0.0f;
-        private readonly CyDecalMeshPool _decalMeshPool = new();
+        private readonly CyDecalMeshPool _decalMeshPool = new CyDecalMeshPool();
 
-        private readonly CyTargetObjectTrianglePolygonsPool _targetObjectTrianglePolygonsPool = new();
+        private readonly CyReceiverObjectTrianglePolygonsPool _receiverObjectTrianglePolygonsPool = new CyReceiverObjectTrianglePolygonsPool();
 
         public CyRenderDecalFeature()
         {
@@ -38,6 +38,7 @@ namespace CyDecal.Runtime.Scripts
             GameObject receiverObject,
             Material decalMaterial)
         {
+            if (Instance == null) return null;
             Instance._decalMeshPool.OnBeginEditDecalMesh();
             var decalMeshes = Instance._decalMeshPool.GetDecalMeshes(
                 projectorObject,
@@ -53,7 +54,7 @@ namespace CyDecal.Runtime.Scripts
         /// <returns></returns>
         public static void EndEditDecalMeshes(List<CyDecalMesh> decalMeshes)
         {
-            Instance._decalMeshPool.OnEndEditDecalMesh();
+            if(Instance) Instance._decalMeshPool.OnEndEditDecalMesh();
         }
         /// <summary>
         /// デカールを貼り付けるレシーバーオブジェクトの三角形ポリゴン情報を取得。
@@ -62,8 +63,35 @@ namespace CyDecal.Runtime.Scripts
         /// <returns></returns>
         public static List<ConvexPolygonInfo> GetTrianglePolygons(GameObject receiverObject)
         {
-            Instance._targetObjectTrianglePolygonsPool.RegisterConvexPolygons(receiverObject);
-            return Instance._targetObjectTrianglePolygonsPool.ConvexPolygonsPool[receiverObject];
+            if (Instance == null)
+            {
+                return null;
+            }
+            Instance._receiverObjectTrianglePolygonsPool.RegisterConvexPolygons(receiverObject);
+            var convexPolygonInfos =Instance._receiverObjectTrianglePolygonsPool.ConvexPolygonsPool[receiverObject];
+            foreach (var info in convexPolygonInfos)
+            {
+                info.IsOutsideClipSpace = false;
+            }
+            return convexPolygonInfos;
+        }
+
+        /// <summary>
+        /// デカールの描画で使っている全てのプールをクリア。
+        /// </summary>
+        public static void ClearALlPools()
+        {
+            if (Instance == null) return;
+            Instance._decalMeshPool.Clear();
+            Instance._receiverObjectTrianglePolygonsPool.Clear();
+        }
+        /// <summary>
+        /// レシーバーオブジェクトの三角形ポリゴンプールをクリア。
+        /// </summary>
+        public static void ClearReceiverObjectTrianglePolygonsPool()
+        {
+            if (Instance == null) return;
+            Instance._receiverObjectTrianglePolygonsPool.Clear();
         }
     }
 }

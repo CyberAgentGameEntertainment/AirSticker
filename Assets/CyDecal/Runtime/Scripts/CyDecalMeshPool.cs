@@ -10,6 +10,14 @@ namespace CyDecal.Runtime.Scripts
     {
         private readonly Dictionary<int, CyDecalMesh> _decalMeshes = new();
         /// <summary>
+        /// プールをクリア
+        /// </summary>
+        public void Clear()
+        {
+            _decalMeshes.Clear();
+        }
+
+        /// <summary>
         /// デカールメッシュの編集開始時に呼び出される関数。
         /// </summary>
         public void OnBeginEditDecalMesh()

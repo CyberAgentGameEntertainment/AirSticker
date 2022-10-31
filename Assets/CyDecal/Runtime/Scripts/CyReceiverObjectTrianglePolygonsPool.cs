@@ -16,10 +16,16 @@ namespace CyDecal.Runtime.Scripts
     /// <summary>
     ///     ターゲットオブジェクトの三角形ポリゴンブール
     /// </summary>
-    public class CyTargetObjectTrianglePolygonsPool
+    public class CyReceiverObjectTrianglePolygonsPool
     {
         public Dictionary<GameObject, List<ConvexPolygonInfo>> ConvexPolygonsPool { get; } = new Dictionary<GameObject, List<ConvexPolygonInfo>>();
-
+        /// <summary>
+        /// プールをクリア
+        /// </summary>
+        public void Clear()
+        {
+            ConvexPolygonsPool.Clear();
+        }
         /// <summary>
         ///     行列をスカラー倍する
         /// </summary>
@@ -122,19 +128,23 @@ namespace CyDecal.Runtime.Scripts
                 var localToWorldMatrix = skinnedMeshRenderer.localToWorldMatrix;
                 var mesh = skinnedMeshRenderer.sharedMesh;
                 var numPoly = mesh.triangles.Length / 3;
+                int[] meshTriangles = mesh.triangles;
+                Vector3[] meshVertices = mesh.vertices;
+                Vector3[] meshNormals = mesh.normals;
+                BoneWeight[] meshBoneWeights = mesh.boneWeights;
                 for (var i = 0; i < numPoly; i++)
                 {
-                    var v0_no = mesh.triangles[i * 3];
-                    var v1_no = mesh.triangles[i * 3 + 1];
-                    var v2_no = mesh.triangles[i * 3 + 2];
+                    var v0_no = meshTriangles[i * 3];
+                    var v1_no = meshTriangles[i * 3 + 1];
+                    var v2_no = meshTriangles[i * 3 + 2];
 
                     // ワールド行列を計算。
                     if (skinnedMeshRenderer.rootBone != null)
                     {
                         var boneMatrices = boneMatricesPallet[skindMeshRendererNo];
-                        boneWeights[0] = mesh.boneWeights[v0_no];
-                        boneWeights[1] = mesh.boneWeights[v1_no];
-                        boneWeights[2] = mesh.boneWeights[v2_no];
+                        boneWeights[0] = meshBoneWeights[v0_no];
+                        boneWeights[1] = meshBoneWeights[v1_no];
+                        boneWeights[2] = meshBoneWeights[v2_no];
 
                         Multiply(ref localToWorldMatrices[0],
                             boneMatrices[boneWeights[0].boneIndex0],
@@ -196,13 +206,13 @@ namespace CyDecal.Runtime.Scripts
                         localToWorldMatrices[2] = localToWorldMatrix;
                     }
 
-                    vertices[0] = localToWorldMatrices[0].MultiplyPoint3x4(mesh.vertices[v0_no]);
-                    vertices[1] = localToWorldMatrices[1].MultiplyPoint3x4(mesh.vertices[v1_no]);
-                    vertices[2] = localToWorldMatrices[2].MultiplyPoint3x4(mesh.vertices[v2_no]);
+                    vertices[0] = localToWorldMatrices[0].MultiplyPoint3x4(meshVertices[v0_no]);
+                    vertices[1] = localToWorldMatrices[1].MultiplyPoint3x4(meshVertices[v1_no]);
+                    vertices[2] = localToWorldMatrices[2].MultiplyPoint3x4(meshVertices[v2_no]);
 
-                    normals[0] = localToWorldMatrices[0].MultiplyVector(mesh.normals[v0_no]);
-                    normals[1] = localToWorldMatrices[1].MultiplyVector(mesh.normals[v1_no]);
-                    normals[2] = localToWorldMatrices[2].MultiplyVector(mesh.normals[v2_no]);
+                    normals[0] = localToWorldMatrices[0].MultiplyVector(meshNormals[v0_no]);
+                    normals[1] = localToWorldMatrices[1].MultiplyVector(meshNormals[v1_no]);
+                    normals[2] = localToWorldMatrices[2].MultiplyVector(meshNormals[v2_no]);
 
                     convexPolygonInfos.Add(new ConvexPolygonInfo
                     {

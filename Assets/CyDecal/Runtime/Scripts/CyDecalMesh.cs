@@ -10,33 +10,28 @@ namespace CyDecal.Runtime.Scripts
     {
         private readonly Matrix4x4[] _bindPoses;
         private readonly List<BoneWeight> _boneWeightsBuffer = new();
-        private readonly CyDecalMeshRenderer _decalMeshRenderer;
+        private CyDecalMeshRenderer _decalMeshRenderer;
         private readonly List<int> _indexBuffer = new(); // インデックスバッファ
         private readonly Mesh _mesh; // デカールテクスチャを貼り付けるためのデカールメッシュ
         private readonly List<Vector3> _normalBuffer = new(); // 法線。
         private readonly List<Vector3> _positionBuffer = new(); // 頂点座標のバッファ
-        private readonly GameObject _projectorObject;
         private readonly Renderer _receiverMeshRenderer;
         private readonly List<Vector2> _uvBuffer = new(); // UVバッファ
         private int _indexBase;
-
+        private Material _decalMaterial;
+        private bool _isStatic;
         public CyDecalMesh(
             GameObject projectorObject,
             Material decalMaterial,
             Renderer receiverMeshRenderer)
         {
             _mesh = new Mesh();
-            _projectorObject = projectorObject;
             _receiverMeshRenderer = receiverMeshRenderer;
+            _decalMaterial = decalMaterial;
+            _isStatic = projectorObject.isStatic;
             if (_receiverMeshRenderer is SkinnedMeshRenderer skinnedMeshRenderer)
                 _bindPoses = skinnedMeshRenderer.sharedMesh.bindposes;
-
-            // デカールメッシュレンダラーを作成。
-            _decalMeshRenderer = new CyDecalMeshRenderer(
-                _receiverMeshRenderer,
-                decalMaterial,
-                _mesh,
-                projectorObject.isStatic);
+            
         }
 
         /// <summary>
@@ -44,7 +39,7 @@ namespace CyDecal.Runtime.Scripts
         /// </summary>
         public void BeginEdit()
         {
-            _decalMeshRenderer.OnBeginEditDecalMesh();
+            _decalMeshRenderer?.OnBeginEditDecalMesh();
         }
 
         /// <summary>
@@ -52,7 +47,7 @@ namespace CyDecal.Runtime.Scripts
         /// </summary>
         public void EndEdit()
         {
-            _decalMeshRenderer.OnEndEditDecalMesh();
+            _decalMeshRenderer?.OnEndEditDecalMesh();
         }
 
         /// <summary>
@@ -97,14 +92,14 @@ namespace CyDecal.Runtime.Scripts
                     uv.y = Vector3.Dot(decalSpaceBiNormalWS, vertPos - decalSPaceOriginPosWS) / decalSpaceHeight +
                            0.5f;
                     _uvBuffer.Add(uv);
-                    if (!_projectorObject.isStatic)
+                    if (!_isStatic)
                     {
                         // プロジェクターオブジェクトが静的でない場合は、座標と回転を親の空間に変換する。
                         vertPos = toReceiverObjectSpaceMatrix.MultiplyPoint3x4(vertPos);
                         normal = toReceiverObjectSpaceMatrix.MultiplyVector(normal);
                     }
 
-                    vertPos += normal * 0.001f;
+                    vertPos += normal * 0.005f;
                     _positionBuffer.Add(vertPos);
                     _normalBuffer.Add(normal);
                     _boneWeightsBuffer.Add(convexPolygon.GetBoneWeight(vertNo));
@@ -121,7 +116,11 @@ namespace CyDecal.Runtime.Scripts
 
                 _indexBase += numVertex;
             }
+            // デカールメッシュレンダラーを作成。
+            _decalMeshRenderer?.Destroy();
 
+            if (_positionBuffer.Count <= 0) return;
+            
             _mesh.SetVertices(_positionBuffer.ToArray());
             _mesh.SetIndices(_indexBuffer.ToArray(), MeshTopology.Triangles, 0);
             _mesh.SetNormals(_normalBuffer.ToArray(), 0, _normalBuffer.Count);
@@ -134,6 +133,13 @@ namespace CyDecal.Runtime.Scripts
             _mesh.RecalculateTangents();
             _mesh.SetUVs(0, _uvBuffer);
             _mesh.Optimize();
+            _mesh.RecalculateBounds();
+
+            _decalMeshRenderer = new CyDecalMeshRenderer(
+                _receiverMeshRenderer,
+                _decalMaterial,
+                _mesh,
+                _isStatic);
         }
     }
 }

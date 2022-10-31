@@ -8,7 +8,9 @@ namespace CyDecal.Runtime.Scripts
     public class CyDecalMeshRenderer
     {
         private readonly Renderer _renderer;
-
+        private SkinnedMeshRenderer _skinnedMeshRenderer;
+        private MeshRenderer _meshRenderer;
+        private GameObject _gameObject;
         /// <summary>
         ///     コンストラクタ
         /// </summary>
@@ -18,33 +20,33 @@ namespace CyDecal.Runtime.Scripts
         /// <param name="isStatic">静的オブジェクトフラグ</param>
         public CyDecalMeshRenderer(Renderer receiverRenderer, Material decalMaterial, Mesh mesh, bool isStatic)
         {
-            var decalRenderer = new GameObject("CyDecalRenderer");
+            _gameObject = new GameObject("CyDecalRenderer");
             if (receiverRenderer is MeshRenderer)
             {
-                var meshRenderer = decalRenderer.AddComponent<MeshRenderer>();
-                meshRenderer.material = decalMaterial;
-                var meshFilter = decalRenderer.AddComponent<MeshFilter>();
+                _meshRenderer = _gameObject.AddComponent<MeshRenderer>();
+                _meshRenderer.material = decalMaterial;
+                var meshFilter = _gameObject.AddComponent<MeshFilter>();
                 meshFilter.mesh = mesh;
-                _renderer = meshRenderer;
+                _renderer = _meshRenderer;
             }
             else if (receiverRenderer is SkinnedMeshRenderer s)
             {
-                var skinnedMeshRenderer = decalRenderer.AddComponent<SkinnedMeshRenderer>();
-                skinnedMeshRenderer.sharedMesh = mesh;
-                skinnedMeshRenderer.material = decalMaterial;
-                skinnedMeshRenderer.rootBone = s.rootBone;
-                skinnedMeshRenderer.bones = s.bones;
-                _renderer = skinnedMeshRenderer;
+                _skinnedMeshRenderer = _gameObject.AddComponent<SkinnedMeshRenderer>();
+                _skinnedMeshRenderer.sharedMesh = mesh;
+                _skinnedMeshRenderer.material = decalMaterial;
+                _skinnedMeshRenderer.rootBone = s.rootBone;
+                _skinnedMeshRenderer.bones = s.bones;
+                _renderer = _skinnedMeshRenderer;
             }
 
-            if (!isStatic) decalRenderer.transform.parent = receiverRenderer.transform;
+            if (!isStatic) _gameObject.transform.parent = receiverRenderer.transform;
 
-            decalRenderer.transform.localPosition = Vector3.zero;
-            decalRenderer.transform.localRotation = Quaternion.identity;
-            decalRenderer.transform.localScale = Vector3.one;
-            decalRenderer.SetActive(false);
+            _gameObject.transform.localPosition = Vector3.zero;
+            _gameObject.transform.localRotation = Quaternion.identity;
+            _gameObject.transform.localScale = Vector3.one;
+            _gameObject.SetActive(false);
         }
-
+        
         /// <summary>
         ///     デカールメッシュの編集が開始されたときに呼ばれる処理。
         /// </summary>
@@ -59,6 +61,11 @@ namespace CyDecal.Runtime.Scripts
         public void OnEndEditDecalMesh()
         {
             _renderer.gameObject.SetActive(true);
+        }
+
+        public void Destroy()
+        {
+            Object.Destroy(_gameObject);
         }
     }
 }

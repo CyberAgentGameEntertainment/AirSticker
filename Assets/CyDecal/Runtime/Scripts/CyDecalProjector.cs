@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
+using UnityEngine.Serialization;
 
 namespace CyDecal.Runtime.Scripts
 {
@@ -10,10 +11,10 @@ namespace CyDecal.Runtime.Scripts
     public class CyDecalProjector : MonoBehaviour
     {
         private static List<ConvexPolygonInfo> _convexPolygonInfos; // ブロードフェーズのジョブワーク用の凸ポリゴンのリスト
-
+        
         [SerializeField] private float width; // デカールボックスの幅
         [SerializeField] private float height; // デカールボックスの高さ
-        [SerializeField] private float projectionDepth; // デカールボックスの奥行
+        [FormerlySerializedAs("projectionDepth")] [SerializeField] private float depth; // デカールボックスの奥行
         [SerializeField] private GameObject receiverObject; // デカールを貼り付けるターゲットとなるオブジェクト
         [SerializeField] private Material decalMaterial; // デカールマテリアル
         private readonly Vector4[] _clipPlanes = new Vector4[(int)ClipPlane.Num]; // 分割平面
@@ -22,7 +23,27 @@ namespace CyDecal.Runtime.Scripts
         private List<ConvexPolygonInfo> _broadPhaseConvexPolygonInfos = new();
         private List<CyDecalMesh> _cyDecalMeshes; // デカールメッシュ。
         private CyDecalSpace _decalSpace; // デカール空間。
-
+        /// <summary>
+        /// 初期化
+        /// </summary>
+        /// <param name="receiverObject">デカールを貼り付けるレシーバーオブジェクト</param>
+        /// <param name="decalMaterial">デカールマテリアル</param>
+        /// <param name="width">プロジェクターの幅</param>
+        /// <param name="height">プロジェクターの高さ</param>
+        /// <param name="depth">プロジェクターの深度</param>
+        public void Initialyze(
+            GameObject receiverObject,
+            Material decalMaterial, 
+            float width, 
+            float height, 
+            float depth)
+        {
+            this.width = width;
+            this.height = height;
+            this.depth = depth;
+            this.receiverObject = receiverObject;
+            this.decalMaterial = decalMaterial;
+        }
         //
         // Start is called before the first frame update
         private void Start()
@@ -42,9 +63,8 @@ namespace CyDecal.Runtime.Scripts
                 _decalSpace.Ez,
                 width,
                 height,
-                projectionDepth,
+                depth,
                 _convexPolygonInfos);
-
             // 三角形ポリゴンとレイとの衝突判定
             if (IntersectRayToTrianglePolygons(out var hitPoint))
             {
@@ -58,6 +78,8 @@ namespace CyDecal.Runtime.Scripts
 
             // デカールメッシュの編集終了。
             CyRenderDecalFeature.EndEditDecalMeshes(_cyDecalMeshes);
+            
+            Object.Destroy(gameObject);
         }
 
         /// <summary>
@@ -181,13 +203,13 @@ namespace CyDecal.Runtime.Scripts
             hitPoint = Vector3.zero;
             var trans = transform;
             var rayStartPos = trans.position;
-            var rayEndPos = rayStartPos + trans.forward * projectionDepth;
+            var rayEndPos = rayStartPos + trans.forward * depth;
 
             foreach (var triPolyInfo in _broadPhaseConvexPolygonInfos)
                 if (triPolyInfo.ConvexPolygon.IsIntersectRayToTriangle(out hitPoint, rayStartPos, rayEndPos))
                 {
                     _basePointToNearClipDistance = Vector3.Distance(rayStartPos, hitPoint);
-                    _basePointToFarClipDistance = projectionDepth - _basePointToNearClipDistance;
+                    _basePointToFarClipDistance = depth - _basePointToNearClipDistance;
                     return true;
                 }
 
