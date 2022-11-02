@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Diagnostics;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
 using UnityEngine.Serialization;
@@ -14,7 +15,7 @@ namespace CyDecal.Runtime.Scripts
         
         [SerializeField] private float width; // デカールボックスの幅
         [SerializeField] private float height; // デカールボックスの高さ
-        [FormerlySerializedAs("projectionDepth")] [SerializeField] private float depth; // デカールボックスの奥行
+        [SerializeField] private float depth; // デカールボックスの奥行
         [SerializeField] private GameObject receiverObject; // デカールを貼り付けるターゲットとなるオブジェクト
         [SerializeField] private Material decalMaterial; // デカールマテリアル
         private readonly Vector4[] _clipPlanes = new Vector4[(int)ClipPlane.Num]; // 分割平面
@@ -23,6 +24,7 @@ namespace CyDecal.Runtime.Scripts
         private List<ConvexPolygonInfo> _broadPhaseConvexPolygonInfos = new();
         private List<CyDecalMesh> _cyDecalMeshes; // デカールメッシュ。
         private CyDecalSpace _decalSpace; // デカール空間。
+        
         /// <summary>
         /// 初期化
         /// </summary>
@@ -50,13 +52,19 @@ namespace CyDecal.Runtime.Scripts
         {
             var urpProjector = gameObject.GetComponent<DecalProjector>();
             if (urpProjector != null) urpProjector.enabled = false;
-
+            var sw2 = new Stopwatch();
+            sw2.Start();
             // デカール空間の規定軸と原点を初期化する。
             InitializeOriginAxisInDecalSpace();
             // 作業を行うデカールメッシュの編集を開始する。
             _cyDecalMeshes = CyRenderDecalFeature.BeginEditDecalMeshes(gameObject, receiverObject, decalMaterial);
+            var sw = new Stopwatch();
+            sw.Start();
             // デカールを貼り付けるレシーバーオブジェクトから三角形ポリゴン情報を取得する。
             _convexPolygonInfos = CyRenderDecalFeature.GetTrianglePolygons(receiverObject);
+            sw.Stop();
+            DisplayLogForDemo2.Instance.BuildTrianglePolygons = sw.ElapsedMilliseconds;
+            
             // デカールを貼り付ける三角形ポリゴンの早期枝切を行う。
             _broadPhaseConvexPolygonInfos = CyBroadPhaseDetectionConvexPolygons.Execute(
                 transform.position,
@@ -78,7 +86,9 @@ namespace CyDecal.Runtime.Scripts
 
             // デカールメッシュの編集終了。
             CyRenderDecalFeature.EndEditDecalMeshes(_cyDecalMeshes);
-            
+
+            sw2.Stop();
+            DisplayLogForDemo2.Instance.FirstDecalTime = sw2.ElapsedMilliseconds;
             Object.Destroy(gameObject);
         }
 

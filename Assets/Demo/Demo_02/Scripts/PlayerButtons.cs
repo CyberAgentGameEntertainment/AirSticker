@@ -9,6 +9,7 @@ public class PlayerButtons : MonoBehaviour
     [SerializeField] private GameObject receiverObject;
     [SerializeField] private GameObject playAnimTextObject;
     [SerializeField] private GameObject playRotTextObject;
+    [SerializeField] private GameObject decalProjectorLauncherObject;
     private bool _isPlayAnim;
 
     private bool _isPlayRot;
@@ -24,14 +25,33 @@ public class PlayerButtons : MonoBehaviour
         
     }
 
+    public void OnClickChange()
+    {
+        // 止まった。
+        CyRenderDecalFeature.ClearReceiverObjectTrianglePolygonsPool();
+        
+        var launcher = decalProjectorLauncherObject.GetComponent<DecalProjectorLuncher>();
+        launcher.SetNextReceiverObject();
+    }
     public void OnClickPlayAnim()
     {
+        var launcher = decalProjectorLauncherObject.GetComponent<DecalProjectorLuncher>();
+        if (launcher.HasAnimatorInCurrentReceiverObject() == false)
+        {
+            return;
+        }
         var text = playAnimTextObject.GetComponent<Text>();
         text.text = _isPlayAnim ? "Play Anim" : "Stop Anim"; 
         _isPlayAnim = !_isPlayAnim;
-        var animator = receiverObject.GetComponent<Animator>(); 
-        animator.enabled = _isPlayAnim;
-        if(!_isPlayAnim) animator.Rebind();
+        
+        if (_isPlayAnim)
+        {
+            launcher.PlayAnimationToReceiverObject();
+        }
+        else
+        {
+            launcher.StopAnimationToReceiverObject();
+        }
     }
 
     public void OnClickRotate()
@@ -39,12 +59,14 @@ public class PlayerButtons : MonoBehaviour
         var text = playRotTextObject.GetComponent<Text>();
         text.text = _isPlayRot ? "Play Rot" : "Stop Rot"; 
         _isPlayRot = !_isPlayRot;
-        var rotate = receiverObject.GetComponent<Rotate>();
-        rotate.enabled = _isPlayRot;
+        var launcher = decalProjectorLauncherObject.GetComponent<DecalProjectorLuncher>();
         if (_isPlayRot)
         {
-            // 止まった。
-            CyRenderDecalFeature.ClearReceiverObjectTrianglePolygonsPool();
+            launcher.PlayRotateToCurrentReceiverObject();
+        }
+        else
+        {
+            launcher.StopRotateToCurrentReceiverObject();
         }
     }
 }

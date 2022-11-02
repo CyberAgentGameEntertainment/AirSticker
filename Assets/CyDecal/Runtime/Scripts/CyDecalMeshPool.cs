@@ -18,18 +18,18 @@ namespace CyDecal.Runtime.Scripts
         }
 
         /// <summary>
-        /// デカールメッシュの編集開始時に呼び出される関数。
+        /// デカールメッシュのレンダラーを無効にする。
         /// </summary>
-        public void OnBeginEditDecalMesh()
+        public void DisableDecalMeshRenderers()
         {
-            foreach (var decalMesh in _decalMeshes) decalMesh.Value.BeginEdit();
+            foreach (var decalMesh in _decalMeshes) decalMesh.Value.DisableDecalMeshRenderer();
         }
         /// <summary>
-        /// デカールメッシュの編集終了時に呼び出される関数。
+        /// デカールメッシュのレンダラーを有効にする。
         /// </summary>
-        public void OnEndEditDecalMesh()
+        public void EnableDecalMeshRenderers()
         {
-            foreach (var decalMesh in _decalMeshes) decalMesh.Value.EndEdit();
+            foreach (var decalMesh in _decalMeshes) decalMesh.Value.EnableDecalMeshRenderer();
         }
 
         /// <summary>

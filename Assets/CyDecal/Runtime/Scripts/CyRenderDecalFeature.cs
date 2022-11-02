@@ -39,7 +39,7 @@ namespace CyDecal.Runtime.Scripts
             Material decalMaterial)
         {
             if (Instance == null) return null;
-            Instance._decalMeshPool.OnBeginEditDecalMesh();
+            Instance._decalMeshPool.DisableDecalMeshRenderers();
             var decalMeshes = Instance._decalMeshPool.GetDecalMeshes(
                 projectorObject,
                 receiverObject,
@@ -54,7 +54,7 @@ namespace CyDecal.Runtime.Scripts
         /// <returns></returns>
         public static void EndEditDecalMeshes(List<CyDecalMesh> decalMeshes)
         {
-            if(Instance) Instance._decalMeshPool.OnEndEditDecalMesh();
+            if(Instance) Instance._decalMeshPool.EnableDecalMeshRenderers();
         }
         /// <summary>
         /// デカールを貼り付けるレシーバーオブジェクトの三角形ポリゴン情報を取得。
@@ -69,6 +69,7 @@ namespace CyDecal.Runtime.Scripts
             }
             Instance._receiverObjectTrianglePolygonsPool.RegisterConvexPolygons(receiverObject);
             var convexPolygonInfos =Instance._receiverObjectTrianglePolygonsPool.ConvexPolygonsPool[receiverObject];
+            
             foreach (var info in convexPolygonInfos)
             {
                 info.IsOutsideClipSpace = false;

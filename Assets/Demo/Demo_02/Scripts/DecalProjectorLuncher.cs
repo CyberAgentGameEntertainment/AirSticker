@@ -3,21 +3,78 @@ using System.Collections.Generic;
 using CyDecal.Runtime.Scripts;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
+using UnityEngine.Serialization;
 
 public class DecalProjectorLuncher : MonoBehaviour
 {
     [SerializeField] private Material[] decalMaterials;
     [SerializeField] private Material[] urpDecalMaterials;
     
-    [SerializeField] private GameObject receiverObject;
+    [FormerlySerializedAs("receiverObject")] [SerializeField] private GameObject[] receiverObjects;
     [SerializeField] private GameObject[] moveImageObjects;
+    
     public int CurrentDecalMaterialIndex { get; set; }
     private GameObject _currentProjectorObject;
     public bool IsLaunchReady { get; set; }
 
     private bool _isMouseLButtonPress;
-
+    private int _currentReceiverObjectNo;
     private Vector3 _projectorSize;
+    /// <summary>
+    /// レシーバーオブジェクトを次のオブジェクトにする。
+    /// </summary>
+    public void SetNextReceiverObject()
+    {
+        if (HasAnimatorInCurrentReceiverObject())
+        {
+            var animator = receiverObjects[_currentReceiverObjectNo].GetComponent<Animator>();
+            animator.Rebind();
+        }
+        receiverObjects[_currentReceiverObjectNo].SetActive(false);
+        _currentReceiverObjectNo = (_currentReceiverObjectNo + 1) % receiverObjects.Length;
+        receiverObjects[_currentReceiverObjectNo].SetActive(true);
+    }
+    /// <summary>
+    /// 現在のレシーバーオブジェクトがアニメーターを保持しているか調べる。
+    /// </summary>
+    /// <returns></returns>
+    public bool HasAnimatorInCurrentReceiverObject()
+    {
+        return receiverObjects[_currentReceiverObjectNo].GetComponent<Animator>() != null;
+    }
+    /// <summary>
+    /// レシーバーオブジェクトのアニメーションを再生する。
+    /// </summary>
+    public void PlayAnimationToReceiverObject()
+    {
+        var animator = receiverObjects[_currentReceiverObjectNo].GetComponent<Animator>();
+        if (animator)
+        {
+            animator.enabled = true;
+        }
+    }
+    /// <summary>
+    /// レシーバーオブジェクトのアニメーションを再生する。
+    /// </summary>
+    public void StopAnimationToReceiverObject()
+    {
+        var animator = receiverObjects[_currentReceiverObjectNo].GetComponent<Animator>();
+        if (animator)
+        {
+            animator.enabled = false;
+            animator.Rebind();
+        }
+    }
+
+    public void PlayRotateToCurrentReceiverObject()
+    {
+        receiverObjects[_currentReceiverObjectNo].GetComponent<Rotate>().enabled = true;
+    }
+    public void StopRotateToCurrentReceiverObject()
+    {
+        receiverObjects[_currentReceiverObjectNo].GetComponent<Rotate>().enabled = false;
+        CyRenderDecalFeature.ClearReceiverObjectTrianglePolygonsPool();
+    }
     // Start is called before the first frame update
     void Start()
     {
@@ -82,7 +139,7 @@ public class DecalProjectorLuncher : MonoBehaviour
             {
                 var projector = _currentProjectorObject.AddComponent<CyDecalProjector>();
                 projector.Initialyze(
-                    receiverObject, 
+                    receiverObjects[_currentReceiverObjectNo], 
                     decalMaterials[CurrentDecalMaterialIndex], 
                     _projectorSize.x, 
                     _projectorSize.y, 

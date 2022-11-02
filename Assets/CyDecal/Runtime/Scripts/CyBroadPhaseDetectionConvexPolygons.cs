@@ -14,8 +14,6 @@ namespace CyDecal.Runtime.Scripts
     /// </remarks>
     public static class CyBroadPhaseDetectionConvexPolygons
     {
-        private static List<ConvexPolygonInfo> _convexPolygonInfos;
-
         /// <summary>
         ///     ブロードフェーズを実行。
         /// </summary>
@@ -27,38 +25,36 @@ namespace CyDecal.Runtime.Scripts
             float projectionDepth,
             List<ConvexPolygonInfo> convexPolygonInfos)
         {
-            _convexPolygonInfos = convexPolygonInfos;
             var broadPhaseConvexPolygonInfos = new List<ConvexPolygonInfo>();
             var threshold = Mathf.Max(width, height, projectionDepth);
             threshold *= threshold;
             broadPhaseConvexPolygonInfos.Capacity = convexPolygonInfos.Count;
 
-            var numThread = 4; // 4スレッド使う
-            if (convexPolygonInfos.Count < 20)
-                // 20ポリゴン以下ならシングルスレッドで実行する。
-                numThread = 1;
-
-            var numWorkOne = convexPolygonInfos.Count / numThread;
-
-            var workJobs = new BuildBroadPhaseConvexPolygonInfosJob[numThread];
-            var startIndex = 0;
-            for (var i = 0; i < numThread; i++)
+            foreach (var convexPolygonInfo in convexPolygonInfos)
             {
-                workJobs[i] = new BuildBroadPhaseConvexPolygonInfosJob();
-                workJobs[i].beginIndex = startIndex;
-                workJobs[i].endIndex = Mathf.Min(workJobs[i].beginIndex + numWorkOne, convexPolygonInfos.Count);
-                workJobs[i].thresholdRange = threshold;
-                workJobs[i].decalSpaceOriginPosisionWS = originPosInDecalSpace;
-                workJobs[i].decalSpaceNormalWS = decalSpaceNormalWS;
-                startIndex += numWorkOne + 1;
+                if (Vector3.Dot(decalSpaceNormalWS, convexPolygonInfo.ConvexPolygon.FaceNormal) < 0)
+                {
+                    // 枝切りの印をつける。
+                    convexPolygonInfo.IsOutsideClipSpace = true;
+                    continue;
+                }
+
+                var v0 = convexPolygonInfo.ConvexPolygon.GetVertexPosition(0);
+                v0 -= originPosInDecalSpace;
+                if (v0.sqrMagnitude > threshold)
+                {
+                    var v1 = convexPolygonInfo.ConvexPolygon.GetVertexPosition(1);
+                    v1 -= originPosInDecalSpace;
+                    if (v1.sqrMagnitude > threshold)
+                    {
+                        var v2 = convexPolygonInfo.ConvexPolygon.GetVertexPosition(2);
+                        v2 -= originPosInDecalSpace;
+                        if (v2.sqrMagnitude > threshold)
+                            // 枝切りの印をつける。
+                            convexPolygonInfo.IsOutsideClipSpace = true;
+                    }
+                }
             }
-
-            var jobHandles = new JobHandle[numThread];
-            // ジョブをスケジューリング
-            for (var i = 0; i < numThread; i++) jobHandles[i] = workJobs[i].Schedule();
-
-            // ジョブの完了待ち
-            for (var i = 0; i < numThread; i++) jobHandles[i].Complete();
 
             foreach (var convexPolygonInfo in convexPolygonInfos)
             {
@@ -71,66 +67,8 @@ namespace CyDecal.Runtime.Scripts
 
                 convexPolygonInfo.IsOutsideClipSpace = false;
             }
-
-            _convexPolygonInfos = null;
+            
             return broadPhaseConvexPolygonInfos;
-        }
-
-        /// <summary>
-        ///     ジョブから凸多角形のリストにアクセスするためのヘルパー関数
-        /// </summary>
-        /// <returns></returns>
-        private static List<ConvexPolygonInfo> GetConvexPolygonInfosHelper()
-        {
-            return _convexPolygonInfos;
-        }
-
-        /// <summary>
-        ///     処理を行う凸多角形の早期枝切りを行うためのジョブ。
-        /// </summary>
-        private struct BuildBroadPhaseConvexPolygonInfosJob : IJob
-        {
-            public int beginIndex; // 枝切り調査の開始インデックス
-            public int endIndex; // 枝切り調査の終端インデックス（終端は含まない)
-            public Vector3 decalSpaceOriginPosisionWS; // デカール空間の起点の座標(ワールドスペース)
-            public float thresholdRange; // 枝切りの閾値となる境界球の範囲
-            public Vector3 decalSpaceNormalWS; // デカール空間の法線。
-
-            /// <summary>
-            ///     枝切りを実行。
-            /// </summary>
-            public void Execute()
-            {
-                // static関数を利用すると、ジョブからマネージドオブジェクトにアクセスできるので
-                // ヘルパー関数を利用する。
-                var convexPolygonInfos = GetConvexPolygonInfosHelper();
-                for (var i = beginIndex; i < endIndex; i++)
-                {
-                    var convexPolyInfo = convexPolygonInfos[i];
-                    if (Vector3.Dot(decalSpaceNormalWS, convexPolyInfo.ConvexPolygon.FaceNormal) < 0)
-                    {
-                        // 枝切りの印をつける。
-                        convexPolyInfo.IsOutsideClipSpace = true;
-                        continue;
-                    }
-
-                    var v0 = convexPolyInfo.ConvexPolygon.GetVertexPosition(0);
-                    v0 -= decalSpaceOriginPosisionWS;
-                    if (v0.sqrMagnitude > thresholdRange)
-                    {
-                        var v1 = convexPolyInfo.ConvexPolygon.GetVertexPosition(1);
-                        v1 -= decalSpaceOriginPosisionWS;
-                        if (v1.sqrMagnitude > thresholdRange)
-                        {
-                            var v2 = convexPolyInfo.ConvexPolygon.GetVertexPosition(2);
-                            v2 -= decalSpaceOriginPosisionWS;
-                            if (v2.sqrMagnitude > thresholdRange)
-                                // 枝切りの印をつける。
-                                convexPolyInfo.IsOutsideClipSpace = true;
-                        }
-                    }
-                }
-            }
         }
     }
 }

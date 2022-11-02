@@ -35,19 +35,19 @@ namespace CyDecal.Runtime.Scripts
         }
 
         /// <summary>
-        ///     デカールメッシュの編集開始。
+        ///     デカールメッシュレンダラーを無効にする。
         /// </summary>
-        public void BeginEdit()
+        public void DisableDecalMeshRenderer()
         {
-            _decalMeshRenderer?.OnBeginEditDecalMesh();
+            _decalMeshRenderer?.DisableDecalMeshRenderer();
         }
 
         /// <summary>
-        ///     デカールメッシュの編集終了。
+        ///     デカールメッシュレンダラーを有効にする。
         /// </summary>
-        public void EndEdit()
+        public void EnableDecalMeshRenderer()
         {
-            _decalMeshRenderer?.OnEndEditDecalMesh();
+            _decalMeshRenderer?.EnableDecalMeshRenderer();
         }
 
         /// <summary>
@@ -124,7 +124,7 @@ namespace CyDecal.Runtime.Scripts
             _mesh.SetVertices(_positionBuffer.ToArray());
             _mesh.SetIndices(_indexBuffer.ToArray(), MeshTopology.Triangles, 0);
             _mesh.SetNormals(_normalBuffer.ToArray(), 0, _normalBuffer.Count);
-            if (_bindPoses.Length > 0)
+            if (_bindPoses != null && _bindPoses.Length > 0)
             {
                 _mesh.boneWeights = _boneWeightsBuffer.ToArray();
                 _mesh.bindposes = _bindPoses;

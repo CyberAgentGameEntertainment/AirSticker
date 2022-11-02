@@ -10,24 +10,28 @@ public class DisplayLogForDemo2 : MonoBehaviour
 {
     // Start is called before the first frame update
     [SerializeField] private GameObject fpsTextGameObject;
-    private readonly List<float> _fpsCounts = new();
-    private Text _fpsText;
-    private int _frameCount;
+    private Text _logText;
+    public float FirstDecalTime { get; set; }
+    public float BuildTrianglePolygons { get; set; }
+    public static DisplayLogForDemo2 Instance { get; set; }
 
+    public DisplayLogForDemo2()
+    {
+        Instance = this;
+    }
     private void Start()
     {
         Application.targetFrameRate = 120;
-        _fpsText = fpsTextGameObject.GetComponent<Text>();
+        _logText = fpsTextGameObject.GetComponent<Text>();
     }
 
     // Update is called once per frame
     private void Update()
     {
-        _frameCount++;
-  
         var fps = 1.0f / Time.deltaTime;
-        _fpsText.text = $"FPS = {fps:0.00}";
-        
+        _logText.text = $"FPS = {fps:0.00}\n";
+        _logText.text += $"First decal time = {FirstDecalTime}\n";
+        _logText.text += $"Build tri poly time = {BuildTrianglePolygons}";
         /*var time = CyRenderDecalFeature.splitMeshTotalTime;
         _fpsText.text = $"{time} msec";*/
     }

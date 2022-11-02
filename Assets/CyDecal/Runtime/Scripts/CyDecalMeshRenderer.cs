@@ -48,17 +48,17 @@ namespace CyDecal.Runtime.Scripts
         }
         
         /// <summary>
-        ///     デカールメッシュの編集が開始されたときに呼ばれる処理。
+        ///     デカールメッシュレンダラーを無効にする。
         /// </summary>
-        public void OnBeginEditDecalMesh()
+        public void DisableDecalMeshRenderer()
         {
             _renderer.gameObject.SetActive(false);
         }
 
         /// <summary>
-        ///     デカールメッシュの編集が終了されたときに呼ばれる処理。
+        ///     デカールメッシュレンダラーを有効にする。
         /// </summary>
-        public void OnEndEditDecalMesh()
+        public void EnableDecalMeshRenderer()
         {
             _renderer.gameObject.SetActive(true);
         }
