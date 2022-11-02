@@ -44,7 +44,6 @@ namespace CyDecal.Runtime.Scripts
             _gameObject.transform.localPosition = Vector3.zero;
             _gameObject.transform.localRotation = Quaternion.identity;
             _gameObject.transform.localScale = Vector3.one;
-            _gameObject.SetActive(false);
         }
         
         /// <summary>

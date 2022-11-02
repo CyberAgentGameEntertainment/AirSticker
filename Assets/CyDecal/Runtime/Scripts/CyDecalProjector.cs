@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using UnityEngine;
@@ -48,24 +49,31 @@ namespace CyDecal.Runtime.Scripts
         }
         //
         // Start is called before the first frame update
-        private void Start()
+        private IEnumerator Start()
         {
-            var urpProjector = gameObject.GetComponent<DecalProjector>();
-            if (urpProjector != null) urpProjector.enabled = false;
-            var sw2 = new Stopwatch();
-            sw2.Start();
-            // デカール空間の規定軸と原点を初期化する。
             InitializeOriginAxisInDecalSpace();
-            // 作業を行うデカールメッシュの編集を開始する。
-            _cyDecalMeshes = CyRenderDecalFeature.BeginEditDecalMeshes(gameObject, receiverObject, decalMaterial);
-            var sw = new Stopwatch();
-            sw.Start();
-            // デカールを貼り付けるレシーバーオブジェクトから三角形ポリゴン情報を取得する。
-            _convexPolygonInfos = CyRenderDecalFeature.GetTrianglePolygons(receiverObject);
-            sw.Stop();
-            DisplayLogForDemo2.Instance.BuildTrianglePolygons = sw.ElapsedMilliseconds;
             
-            // デカールを貼り付ける三角形ポリゴンの早期枝切を行う。
+            // レシーバーオブジェクトのレンダラーのみを収集したいのだが、
+            // レシーバーオブジェクトにデカールメッシュのレンダラーがぶら下がっているので
+            // 一旦無効にする。
+            CyRenderDecalFeature.DisableDecalMeshRenderers();
+            _cyDecalMeshes = CyRenderDecalFeature.GetDecalMeshes(gameObject, receiverObject, decalMaterial);
+            var skinMeshRenderers = receiverObject.GetComponentsInChildren<SkinnedMeshRenderer>();
+            var meshRenderers = receiverObject.GetComponentsInChildren<MeshRenderer>();
+            var meshFilters = receiverObject.GetComponentsInChildren<MeshFilter>();
+            // 無効にしたレンダラーを戻す。
+            CyRenderDecalFeature.EnableDecalMeshRenderers();
+            
+            if (CyRenderDecalFeature.ExistTrianglePolygons(receiverObject) == false)
+            {
+                yield return CyRenderDecalFeature.RegisterTrianglePolygons(
+                    receiverObject, meshFilters, meshRenderers, skinMeshRenderers);
+            }
+
+            _convexPolygonInfos = CyRenderDecalFeature.GetTrianglePolygons(
+                receiverObject,
+                meshFilters,
+                skinMeshRenderers);
             _broadPhaseConvexPolygonInfos = CyBroadPhaseDetectionConvexPolygons.Execute(
                 transform.position,
                 _decalSpace.Ez,
@@ -73,23 +81,26 @@ namespace CyDecal.Runtime.Scripts
                 height,
                 depth,
                 _convexPolygonInfos);
-            // 三角形ポリゴンとレイとの衝突判定
             if (IntersectRayToTrianglePolygons(out var hitPoint))
             {
-                // クリップ平面を構築。
                 BuildClipPlanes(hitPoint);
-                // クリップ平面で凸多角形ポリゴンを分割していく。
                 SplitConvexPolygonsByPlanes();
-                // 分割された凸多角形情報から三角形ポリゴンをデカールメッシュに追加していく。
                 AddTrianglePolygonsToDecalMeshFromConvexPolygons(hitPoint);
             }
 
-            // デカールメッシュの編集終了。
-            CyRenderDecalFeature.EndEditDecalMeshes(_cyDecalMeshes);
+            DisableURPProjector();
 
-            sw2.Stop();
-            DisplayLogForDemo2.Instance.FirstDecalTime = sw2.ElapsedMilliseconds;
             Object.Destroy(gameObject);
+
+            yield return null;
+        }
+        /// <summary>
+        /// URPプロジェクターを無効にする。
+        /// </summary>
+        private void DisableURPProjector()
+        {
+            var urpProjector = gameObject.GetComponent<DecalProjector>();
+            if (urpProjector != null) urpProjector.enabled = false;
         }
 
         /// <summary>
