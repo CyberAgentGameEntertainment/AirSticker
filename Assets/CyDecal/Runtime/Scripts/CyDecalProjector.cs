@@ -1,9 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
-using UnityEngine.Serialization;
 
 namespace CyDecal.Runtime.Scripts
 {
@@ -13,7 +11,7 @@ namespace CyDecal.Runtime.Scripts
     public class CyDecalProjector : MonoBehaviour
     {
         private static List<ConvexPolygonInfo> _convexPolygonInfos; // ブロードフェーズのジョブワーク用の凸ポリゴンのリスト
-        
+
         [SerializeField] private float width; // デカールボックスの幅
         [SerializeField] private float height; // デカールボックスの高さ
         [SerializeField] private float depth; // デカールボックスの奥行
@@ -24,35 +22,15 @@ namespace CyDecal.Runtime.Scripts
         private float _basePointToNearClipDistance; // デカールを貼り付ける基準地点から、ニアクリップまでの距離。
         private List<ConvexPolygonInfo> _broadPhaseConvexPolygonInfos = new();
         private List<CyDecalMesh> _cyDecalMeshes; // デカールメッシュ。
+
         private CyDecalSpace _decalSpace; // デカール空間。
-        
-        /// <summary>
-        /// 初期化
-        /// </summary>
-        /// <param name="receiverObject">デカールを貼り付けるレシーバーオブジェクト</param>
-        /// <param name="decalMaterial">デカールマテリアル</param>
-        /// <param name="width">プロジェクターの幅</param>
-        /// <param name="height">プロジェクターの高さ</param>
-        /// <param name="depth">プロジェクターの深度</param>
-        public void Initialyze(
-            GameObject receiverObject,
-            Material decalMaterial, 
-            float width, 
-            float height, 
-            float depth)
-        {
-            this.width = width;
-            this.height = height;
-            this.depth = depth;
-            this.receiverObject = receiverObject;
-            this.decalMaterial = decalMaterial;
-        }
+
         //
         // Start is called before the first frame update
         private IEnumerator Start()
         {
             InitializeOriginAxisInDecalSpace();
-            
+
             // レシーバーオブジェクトのレンダラーのみを収集したいのだが、
             // レシーバーオブジェクトにデカールメッシュのレンダラーがぶら下がっているので
             // 一旦無効にする。
@@ -63,17 +41,13 @@ namespace CyDecal.Runtime.Scripts
             var meshFilters = receiverObject.GetComponentsInChildren<MeshFilter>();
             // 無効にしたレンダラーを戻す。
             CyRenderDecalFeature.EnableDecalMeshRenderers();
-            
+
             if (CyRenderDecalFeature.ExistTrianglePolygons(receiverObject) == false)
-            {
                 yield return CyRenderDecalFeature.RegisterTrianglePolygons(
                     receiverObject, meshFilters, meshRenderers, skinMeshRenderers);
-            }
 
             _convexPolygonInfos = CyRenderDecalFeature.GetTrianglePolygons(
-                receiverObject,
-                meshFilters,
-                skinMeshRenderers);
+                receiverObject);
             _broadPhaseConvexPolygonInfos = CyBroadPhaseDetectionConvexPolygons.Execute(
                 transform.position,
                 _decalSpace.Ez,
@@ -90,12 +64,35 @@ namespace CyDecal.Runtime.Scripts
 
             DisableURPProjector();
 
-            Object.Destroy(gameObject);
+            Destroy(gameObject);
 
             yield return null;
         }
+
         /// <summary>
-        /// URPプロジェクターを無効にする。
+        ///     初期化
+        /// </summary>
+        /// <param name="receiverObject">デカールを貼り付けるレシーバーオブジェクト</param>
+        /// <param name="decalMaterial">デカールマテリアル</param>
+        /// <param name="width">プロジェクターの幅</param>
+        /// <param name="height">プロジェクターの高さ</param>
+        /// <param name="depth">プロジェクターの深度</param>
+        public void Initialize(
+            GameObject receiverObject,
+            Material decalMaterial,
+            float width,
+            float height,
+            float depth)
+        {
+            this.width = width;
+            this.height = height;
+            this.depth = depth;
+            this.receiverObject = receiverObject;
+            this.decalMaterial = decalMaterial;
+        }
+
+        /// <summary>
+        ///     URPプロジェクターを無効にする。
         /// </summary>
         private void DisableURPProjector()
         {

@@ -7,45 +7,42 @@ namespace CyDecal.Runtime.Scripts
     /// </summary>
     public class CyDecalMeshRenderer
     {
+        private readonly GameObject _gameObject;
         private readonly Renderer _renderer;
-        private SkinnedMeshRenderer _skinnedMeshRenderer;
-        private MeshRenderer _meshRenderer;
-        private GameObject _gameObject;
+
         /// <summary>
         ///     コンストラクタ
         /// </summary>
         /// <param name="receiverRenderer">デカールメッシュのレシーバーオブジェクトのレンダラー</param>
         /// <param name="decalMaterial">デカールマテリアル</param>
         /// <param name="mesh">デカールメッシュ</param>
-        /// <param name="isStatic">静的オブジェクトフラグ</param>
-        public CyDecalMeshRenderer(Renderer receiverRenderer, Material decalMaterial, Mesh mesh, bool isStatic)
+        public CyDecalMeshRenderer(Renderer receiverRenderer, Material decalMaterial, Mesh mesh)
         {
             _gameObject = new GameObject("CyDecalRenderer");
             if (receiverRenderer is MeshRenderer)
             {
-                _meshRenderer = _gameObject.AddComponent<MeshRenderer>();
-                _meshRenderer.material = decalMaterial;
+                var meshRenderer = _gameObject.AddComponent<MeshRenderer>();
+                meshRenderer.material = decalMaterial;
                 var meshFilter = _gameObject.AddComponent<MeshFilter>();
                 meshFilter.mesh = mesh;
-                _renderer = _meshRenderer;
+                _renderer = meshRenderer;
             }
             else if (receiverRenderer is SkinnedMeshRenderer s)
             {
-                _skinnedMeshRenderer = _gameObject.AddComponent<SkinnedMeshRenderer>();
-                _skinnedMeshRenderer.sharedMesh = mesh;
-                _skinnedMeshRenderer.material = decalMaterial;
-                _skinnedMeshRenderer.rootBone = s.rootBone;
-                _skinnedMeshRenderer.bones = s.bones;
-                _renderer = _skinnedMeshRenderer;
+                var skinnedMeshRenderer = _gameObject.AddComponent<SkinnedMeshRenderer>();
+                skinnedMeshRenderer.sharedMesh = mesh;
+                skinnedMeshRenderer.material = decalMaterial;
+                skinnedMeshRenderer.rootBone = s.rootBone;
+                skinnedMeshRenderer.bones = s.bones;
+                _renderer = skinnedMeshRenderer;
             }
 
-            if (!isStatic) _gameObject.transform.parent = receiverRenderer.transform;
-
+            _gameObject.transform.parent = receiverRenderer.transform;
             _gameObject.transform.localPosition = Vector3.zero;
             _gameObject.transform.localRotation = Quaternion.identity;
             _gameObject.transform.localScale = Vector3.one;
         }
-        
+
         /// <summary>
         ///     デカールメッシュレンダラーを無効にする。
         /// </summary>

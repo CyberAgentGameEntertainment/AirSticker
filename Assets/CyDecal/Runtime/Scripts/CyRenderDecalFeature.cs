@@ -1,6 +1,5 @@
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
 
@@ -8,17 +7,16 @@ namespace CyDecal.Runtime.Scripts
 {
     public class CyRenderDecalFeature : ScriptableRendererFeature
     {
-        public static float splitMeshTotalTime = 0.0f;
-        private readonly CyDecalMeshPool _decalMeshPool = new CyDecalMeshPool();
+        private readonly CyDecalMeshPool _decalMeshPool = new();
 
-        private readonly CyReceiverObjectTrianglePolygonsPool _receiverObjectTrianglePolygonsPool = new CyReceiverObjectTrianglePolygonsPool();
+        private readonly CyReceiverObjectTrianglePolygonsPool _receiverObjectTrianglePolygonsPool = new();
 
         public CyRenderDecalFeature()
         {
             Instance = this;
         }
 
-        public static CyRenderDecalFeature Instance { get; private set; }
+        private static CyRenderDecalFeature Instance { get; set; }
 
         public override void Create()
         {
@@ -27,17 +25,32 @@ namespace CyDecal.Runtime.Scripts
         public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData)
         {
         }
-        
+
+        /// <summary>
+        ///     デカールメッシュレンダラーを無効にします。
+        /// </summary>
         public static void DisableDecalMeshRenderers()
         {
-            if (Instance == null) return ;
+            if (Instance == null) return;
             Instance._decalMeshPool.DisableDecalMeshRenderers();
         }
+
+        /// <summary>
+        ///     デカールメッシュレンダラーを有効にします。
+        /// </summary>
         public static void EnableDecalMeshRenderers()
         {
-            if (Instance == null) return ;
+            if (Instance == null) return;
             Instance._decalMeshPool.EnableDecalMeshRenderers();
         }
+
+        /// <summary>
+        ///     デカールメッシュの取得。
+        /// </summary>
+        /// <param name="projectorObject">デカールプロジェクターオブジェクト</param>
+        /// <param name="receiverObject">レシーバーオブジェクト</param>
+        /// <param name="decalMaterial">デカールマテリアル</param>
+        /// <returns></returns>
         public static List<CyDecalMesh> GetDecalMeshes(
             GameObject projectorObject,
             GameObject receiverObject,
@@ -51,51 +64,60 @@ namespace CyDecal.Runtime.Scripts
             return decalMeshes;
         }
 
+        /// <summary>
+        ///     レシーバーオブジェクトのポリゴン情報がすでに存在しているか判定します。
+        /// </summary>
+        /// <param name="receiverObject"></param>
+        /// <returns></returns>
         public static bool ExistTrianglePolygons(GameObject receiverObject)
         {
             return Instance._receiverObjectTrianglePolygonsPool.ExistConvexPolygons(receiverObject);
         }
+
+        /// <summary>
+        ///     レシーバーオブジェクトのポリゴン情報を登録します。
+        /// </summary>
+        /// <remarks>
+        ///     事前条件: 本科数を呼び出す前に、ExistTrianglePolygons()を使用して未登録データであることを確認してください。
+        /// </remarks>
+        /// <param name="receiverObject">レシーバーオブジェクト</param>
+        /// <param name="meshFilters">レシーバーオブジェクトのメッシュフィルター</param>
+        /// <param name="meshRenderers">レシーバーオブジェクトのメッシュレンダラー</param>
+        /// <param name="skinnedMeshRenderers">レシーバーオブジェクトのスキンメッシュレンダラー</param>
+        /// <returns></returns>
         public static IEnumerator RegisterTrianglePolygons(
-            GameObject receiverObject, 
+            GameObject receiverObject,
             MeshFilter[] meshFilters,
             MeshRenderer[] meshRenderers,
             SkinnedMeshRenderer[] skinnedMeshRenderers)
         {
-            if (Instance == null)
-            {
-                yield break;
-            }
+            if (Instance == null) yield break;
             yield return Instance._receiverObjectTrianglePolygonsPool.RegisterConvexPolygons(
                 receiverObject,
                 meshFilters,
                 meshRenderers,
                 skinnedMeshRenderers);
         }
+
         /// <summary>
-        /// デカールを貼り付けるレシーバーオブジェクトの三角形ポリゴン情報を取得。
+        ///     デカールを貼り付けるレシーバーオブジェクトの三角形ポリゴン情報を取得。
         /// </summary>
+        /// <remarks>
+        ///     事前条件: RegisterTrianglePolygons()を呼び出してポリゴン情報が登録済みである必要があります。
+        /// </remarks>
         /// <param name="receiverObject">レシーバーオブジェクト</param>
         /// <returns></returns>
-        public static List<ConvexPolygonInfo> GetTrianglePolygons(
-            GameObject receiverObject,
-            MeshFilter[] meshFilters,
-            SkinnedMeshRenderer[] skinnedMeshRenderers)
+        public static List<ConvexPolygonInfo> GetTrianglePolygons(GameObject receiverObject)
         {
-            if (Instance == null)
-            {
-                return null;
-            }
-       
-            var convexPolygonInfos =Instance._receiverObjectTrianglePolygonsPool.ConvexPolygonsPool[receiverObject];
-            foreach (var info in convexPolygonInfos)
-            {
-                info.IsOutsideClipSpace = false;
-            }
+            if (Instance == null) return null;
+
+            var convexPolygonInfos = Instance._receiverObjectTrianglePolygonsPool.ConvexPolygonsPool[receiverObject];
+            foreach (var info in convexPolygonInfos) info.IsOutsideClipSpace = false;
             return convexPolygonInfos;
         }
 
         /// <summary>
-        /// デカールの描画で使っている全てのプールをクリア。
+        ///     デカールの描画で使っている全てのプールをクリア。
         /// </summary>
         public static void ClearALlPools()
         {
@@ -103,8 +125,9 @@ namespace CyDecal.Runtime.Scripts
             Instance._decalMeshPool.Clear();
             Instance._receiverObjectTrianglePolygonsPool.Clear();
         }
+
         /// <summary>
-        /// レシーバーオブジェクトの三角形ポリゴンプールをクリア。
+        ///     レシーバーオブジェクトの三角形ポリゴンプールをクリア。
         /// </summary>
         public static void ClearReceiverObjectTrianglePolygonsPool()
         {

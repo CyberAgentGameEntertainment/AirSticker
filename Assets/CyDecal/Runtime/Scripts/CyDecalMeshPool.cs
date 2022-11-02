@@ -9,8 +9,9 @@ namespace CyDecal.Runtime.Scripts
     public class CyDecalMeshPool
     {
         private readonly Dictionary<int, CyDecalMesh> _decalMeshes = new();
+
         /// <summary>
-        /// プールをクリア
+        ///     プールをクリア
         /// </summary>
         public void Clear()
         {
@@ -18,14 +19,15 @@ namespace CyDecal.Runtime.Scripts
         }
 
         /// <summary>
-        /// デカールメッシュのレンダラーを無効にする。
+        ///     デカールメッシュのレンダラーを無効にする。
         /// </summary>
         public void DisableDecalMeshRenderers()
         {
             foreach (var decalMesh in _decalMeshes) decalMesh.Value.DisableDecalMeshRenderer();
         }
+
         /// <summary>
-        /// デカールメッシュのレンダラーを有効にする。
+        ///     デカールメッシュのレンダラーを有効にする。
         /// </summary>
         public void EnableDecalMeshRenderers()
         {

@@ -2,7 +2,6 @@
 // Copyright 2022 CyberAgent, Inc.
 // --------------------------------------------------------------
 
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -11,14 +10,16 @@ public class DisplayLogForDemo2 : MonoBehaviour
     // Start is called before the first frame update
     [SerializeField] private GameObject fpsTextGameObject;
     private Text _logText;
-    public float FirstDecalTime { get; set; }
-    public float BuildTrianglePolygons { get; set; }
-    public static DisplayLogForDemo2 Instance { get; set; }
 
     public DisplayLogForDemo2()
     {
         Instance = this;
     }
+
+    public float FirstDecalTime { get; set; }
+    public float BuildTrianglePolygons { get; set; }
+    public static DisplayLogForDemo2 Instance { get; set; }
+
     private void Start()
     {
         Application.targetFrameRate = 120;

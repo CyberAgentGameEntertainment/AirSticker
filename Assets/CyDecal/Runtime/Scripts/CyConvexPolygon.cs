@@ -67,16 +67,19 @@ namespace CyDecal.Runtime.Scripts
 
             _faceNormal = srcConvexPolygon._faceNormal;
         }
+
         /// <summary>
-        /// 面法線プロパティ
+        ///     面法線プロパティ
         /// </summary>
         public Vector3 FaceNormal => _faceNormal;
+
         /// <summary>
-        /// 頂点数プロパティ
+        ///     頂点数プロパティ
         /// </summary>
         public int NumVertices { get; private set; }
+
         /// <summary>
-        /// デカールを貼り付けられるレシーバーメッシュのレンダラー。
+        ///     デカールを貼り付けられるレシーバーメッシュのレンダラー。
         /// </summary>
         public Renderer ReceiverMeshRenderer { get; }
 
@@ -305,35 +308,35 @@ namespace CyDecal.Runtime.Scripts
                 );
 
                 // 頂点を二つ追加する。
-                var newVertNo_0 = vertNo;
-                var newVertNo_1 = vertNo + 1;
+                var newVertNo0 = vertNo;
+                var newVertNo1 = vertNo + 1;
 
-                _vertices[newVertNo_0] = newVert0;
-                _vertices[newVertNo_1] = newVert1;
-                _normals[newVertNo_0] = newNormal0;
-                _normals[newVertNo_1] = newNormal1;
-                _boneWeights[newVertNo_0] = newBoneWeight0;
-                _boneWeights[newVertNo_1] = newBoneWeight1;
+                _vertices[newVertNo0] = newVert0;
+                _vertices[newVertNo1] = newVert1;
+                _normals[newVertNo0] = newNormal0;
+                _normals[newVertNo1] = newNormal1;
+                _boneWeights[newVertNo0] = newBoneWeight0;
+                _boneWeights[newVertNo1] = newBoneWeight1;
 
                 // ライン情報の構築。
                 NumVertices += deltaVerticesSize;
-                _line[newVertNo_0 - 1].SetEndAndCalcStartToEnd(newVert0, newNormal0);
-                _line[newVertNo_0].SetStartEndAndCalcStartToEnd(
+                _line[newVertNo0 - 1].SetEndAndCalcStartToEnd(newVert0, newNormal0);
+                _line[newVertNo0].SetStartEndAndCalcStartToEnd(
                     newVert0,
                     newVert1,
                     newNormal0,
                     newNormal1);
-                _line[newVertNo_1].SetStartEndAndCalcStartToEnd(
+                _line[newVertNo1].SetStartEndAndCalcStartToEnd(
                     newVert1,
-                    _vertices[(newVertNo_1 + 1) % NumVertices],
+                    _vertices[(newVertNo1 + 1) % NumVertices],
                     newNormal1,
-                    _normals[(newVertNo_1 + 1) % NumVertices]);
+                    _normals[(newVertNo1 + 1) % NumVertices]);
 
-                _line[newVertNo_0 - 1].SetEndBoneWeight(newBoneWeight0);
-                _line[newVertNo_0].SetStartEndBoneWeights(newBoneWeight0, newBoneWeight1);
-                _line[newVertNo_1].SetStartEndBoneWeights(
+                _line[newVertNo0 - 1].SetEndBoneWeight(newBoneWeight0);
+                _line[newVertNo0].SetStartEndBoneWeights(newBoneWeight0, newBoneWeight1);
+                _line[newVertNo1].SetStartEndBoneWeights(
                     newBoneWeight1,
-                    _boneWeights[(newVertNo_1 + 1) % NumVertices]);
+                    _boneWeights[(newVertNo1 + 1) % NumVertices]);
             }
             else
             {
@@ -418,41 +421,41 @@ namespace CyDecal.Runtime.Scripts
             hitPoint = Vector3.zero;
             if (NumVertices != 3) return false;
 
-            var v0_pos = _vertices[0];
-            var v1_pos = _vertices[1];
-            var v2_pos = _vertices[2];
+            var v0Pos = _vertices[0];
+            var v1Pos = _vertices[1];
+            var v2Pos = _vertices[2];
 
             // 平面とレイの交差を調べる。
-            var v0_to_rayStart = rayStartPos - v0_pos;
-            var v0_to_rayEnd = rayEndPos - v0_pos;
-            var v0_to_rayStartNorm = v0_to_rayStart.normalized;
-            var v0_to_rayEndNorm = v0_to_rayEnd.normalized;
-            var t = Vector3.Dot(v0_to_rayStartNorm, FaceNormal)
-                    * Vector3.Dot(v0_to_rayEndNorm, FaceNormal);
+            var v0ToRayStart = rayStartPos - v0Pos;
+            var v0ToRayEnd = rayEndPos - v0Pos;
+            var v0ToRayStartNorm = v0ToRayStart.normalized;
+            var v0ToRayEndNorm = v0ToRayEnd.normalized;
+            var t = Vector3.Dot(v0ToRayStartNorm, FaceNormal)
+                    * Vector3.Dot(v0ToRayEndNorm, FaceNormal);
             if (t < 0.0f)
             {
                 // 交差している。
                 // 次は交点を計算。
-                var t0 = Mathf.Abs(Vector3.Dot(v0_to_rayStart, FaceNormal));
-                var t1 = Mathf.Abs(Vector3.Dot(v0_to_rayEnd, FaceNormal));
+                var t0 = Mathf.Abs(Vector3.Dot(v0ToRayStart, FaceNormal));
+                var t1 = Mathf.Abs(Vector3.Dot(v0ToRayEnd, FaceNormal));
                 var intersectPoint = Vector3.Lerp(rayStartPos, rayEndPos, t0 / (t0 + t1));
                 // 続いて、交点が三角形の中かどうかを調べる。
-                var v0_to_intersectPos = intersectPoint - v0_pos;
-                var v1_to_intersectPos = intersectPoint - v1_pos;
-                var v2_to_intersectPos = intersectPoint - v2_pos;
-                v0_to_intersectPos.Normalize();
-                v1_to_intersectPos.Normalize();
-                v2_to_intersectPos.Normalize();
-                var v0_to_v1 = _line[0].StartToEndVec;
-                var v1_to_v2 = _line[1].StartToEndVec;
-                var v2_to_v0 = _line[2].StartToEndVec;
-                v0_to_v1.Normalize();
-                v1_to_v2.Normalize();
-                v2_to_v0.Normalize();
+                var v0ToIntersectPos = intersectPoint - v0Pos;
+                var v1ToIntersectPos = intersectPoint - v1Pos;
+                var v2ToIntersectPos = intersectPoint - v2Pos;
+                v0ToIntersectPos.Normalize();
+                v1ToIntersectPos.Normalize();
+                v2ToIntersectPos.Normalize();
+                var v0ToV1 = _line[0].StartToEndVec;
+                var v1ToV2 = _line[1].StartToEndVec;
+                var v2ToV0 = _line[2].StartToEndVec;
+                v0ToV1.Normalize();
+                v1ToV2.Normalize();
+                v2ToV0.Normalize();
 
-                var a0 = Vector3.Cross(v0_to_v1, v0_to_intersectPos);
-                var a1 = Vector3.Cross(v1_to_v2, v1_to_intersectPos);
-                var a2 = Vector3.Cross(v2_to_v0, v2_to_intersectPos);
+                var a0 = Vector3.Cross(v0ToV1, v0ToIntersectPos);
+                var a1 = Vector3.Cross(v1ToV2, v1ToIntersectPos);
+                var a2 = Vector3.Cross(v2ToV0, v2ToIntersectPos);
                 a0.Normalize();
                 a1.Normalize();
                 a2.Normalize();

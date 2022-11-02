@@ -19,9 +19,10 @@ namespace CyDecal.Runtime.Scripts
     /// </summary>
     public class CyReceiverObjectTrianglePolygonsPool
     {
-        public Dictionary<GameObject, List<ConvexPolygonInfo>> ConvexPolygonsPool { get; } = new Dictionary<GameObject, List<ConvexPolygonInfo>>();
+        public Dictionary<GameObject, List<ConvexPolygonInfo>> ConvexPolygonsPool { get; } = new();
+
         /// <summary>
-        /// プールをクリア
+        ///     プールをクリア
         /// </summary>
         public void Clear()
         {
@@ -32,8 +33,9 @@ namespace CyDecal.Runtime.Scripts
         ///     デカールを貼り付けるレシーバーオブジェクトの情報から凸多角形ポリゴンを登録する。
         /// </summary>
         /// <param name="receiverObject">デカールが貼り付けられるレシーバーオブジェクト</param>
-        /// <param name="meshFilters"></param>
-        /// <param name="skinnedMeshRenderers"></param>
+        /// <param name="meshFilters">レシーバーオブジェクトのメッシュフィルター</param>
+        /// <param name="meshRenderer">レシーバーオブジェクトのメッシュレンダラー</param>
+        /// <param name="skinnedMeshRenderers">レシーバーオブジェクトのスキンメッシュレンダラー</param>
         public IEnumerator RegisterConvexPolygons(
             GameObject receiverObject,
             MeshFilter[] meshFilters,
@@ -49,10 +51,11 @@ namespace CyDecal.Runtime.Scripts
                 convexPolygonInfos);
             ConvexPolygonsPool.Add(receiverObject, convexPolygonInfos);
         }
+
         /// <summary>
-        /// すでにプールに凸ポリゴン情報が登録されているか判定
+        ///     すでにプールに凸ポリゴン情報が登録されているか判定
         /// </summary>
-        /// <param name="receiverObject"></param>
+        /// <param name="receiverObject">レシーバーオブジェクト</param>
         /// <returns></returns>
         public bool ExistConvexPolygons(GameObject receiverObject)
         {

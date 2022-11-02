@@ -1,11 +1,8 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
-using Unity.Collections;
 using Unity.Jobs;
 using UnityEngine;
-using Debug = UnityEngine.Debug;
 
 namespace CyDecal.Runtime.Scripts
 {
@@ -14,13 +11,14 @@ namespace CyDecal.Runtime.Scripts
     /// </summary>
     public static class CyTrianglePolygonsFactory
     {
-        private static readonly int MaxGeneratedPolygonPerFrame = 100;   // 
+        private static readonly int MaxGeneratedPolygonPerFrame = 100; // 
+
         /// <summary>
         ///     行列をスカラー倍する
         /// </summary>
         /// <remarks>
-        /// 下記の計算が行われます。<br/>
-        /// mOut = m * s;
+        ///     下記の計算が行われます。<br />
+        ///     mOut = m * s;
         /// </remarks>
         /// <param name="mOut">計算結果の格納先</param>
         /// <param name="m">行列</param>
@@ -48,12 +46,13 @@ namespace CyDecal.Runtime.Scripts
             mOut.m32 *= s;
             mOut.m33 *= s;
         }
+
         /// <summary>
-        /// 行列をスカラー倍して加算する。
+        ///     行列をスカラー倍して加算する。
         /// </summary>
         /// <remarks>
-        /// 下記の計算が行われます。<br/>
-        /// mOut *= m * s;
+        ///     下記の計算が行われます。<br />
+        ///     mOut *= m * s;
         /// </remarks>
         /// <param name="mOut">計算結果の格納先</param>
         /// <param name="m">行列</param>
@@ -82,13 +81,13 @@ namespace CyDecal.Runtime.Scripts
         }
 
         /// <summary>
-        /// デカールを貼り付けられるレシーバーオブジェクトの情報から凸ポリゴン情報を登録する。
+        ///     デカールを貼り付けられるレシーバーオブジェクトの情報から凸ポリゴン情報を登録する。
         /// </summary>
         /// <param name="convexPolygonInfos">凸ポリゴン情報の格納先</param>
         public static IEnumerator BuildFromReceiverObject(
             MeshFilter[] meshFilters,
             MeshRenderer[] meshRenderers,
-            SkinnedMeshRenderer[] skinnedMeshRenderers, 
+            SkinnedMeshRenderer[] skinnedMeshRenderers,
             List<ConvexPolygonInfo> convexPolygonInfos)
         {
             CalculateCapacityConvexPolygonInfos(meshFilters, skinnedMeshRenderers, convexPolygonInfos);
@@ -99,7 +98,7 @@ namespace CyDecal.Runtime.Scripts
         }
 
         /// <summary>
-        /// SkinModelRendererコンポーネントからポリゴン数を取得する。
+        ///     SkinModelRendererコンポーネントからポリゴン数を取得する。
         /// </summary>
         /// <param name="skinnedMeshRenderers">スキンモデルレンダラー</param>
         /// <returns></returns>
@@ -114,8 +113,9 @@ namespace CyDecal.Runtime.Scripts
 
             return numPolygon;
         }
+
         /// <summary>
-        /// メッシュフィルターからポリゴン数を取得する。
+        ///     メッシュフィルターからポリゴン数を取得する。
         /// </summary>
         /// <param name="meshFilters"></param>
         /// <returns></returns>
@@ -133,17 +133,18 @@ namespace CyDecal.Runtime.Scripts
         }
 
         /// <summary>
-        /// 凸ポリゴン情報のリストのキャパシティを計算する
+        ///     凸ポリゴン情報のリストのキャパシティを計算する
         /// </summary>
         /// <remarks>
-        /// キャパシティを設定すると、その分のメモリ確保が一気に行われるため、
-        /// Addの際の配列拡張によるメモリ確保を防ぐことができるので、事前に計算する。
+        ///     キャパシティを設定すると、その分のメモリ確保が一気に行われるため、
+        ///     Addの際の配列拡張によるメモリ確保を防ぐことができるので、事前に計算する。
         /// </remarks>
         /// <param name="skinnedMeshRenderers"></param>
         /// <param name="convexPolygonInfos"></param>
         /// <param name="meshFilters"></param>
         /// <exception cref="NotImplementedException"></exception>
-        private static void CalculateCapacityConvexPolygonInfos(MeshFilter[] meshFilters, SkinnedMeshRenderer[] skinnedMeshRenderers, List<ConvexPolygonInfo> convexPolygonInfos)
+        private static void CalculateCapacityConvexPolygonInfos(MeshFilter[] meshFilters,
+            SkinnedMeshRenderer[] skinnedMeshRenderers, List<ConvexPolygonInfo> convexPolygonInfos)
         {
             var capacity = 0;
             capacity += GetNumPolygonsFromMeshFilters(meshFilters);
@@ -152,11 +153,12 @@ namespace CyDecal.Runtime.Scripts
         }
 
         /// <summary>
-        /// MeshFilterから凸ポリゴン情報を登録する。
+        ///     MeshFilterから凸ポリゴン情報を登録する。
         /// </summary>
         /// <param name="receiverObject">デカールを貼り付けるレシーバーオブジェクト</param>
         /// <param name="convexPolygonInfos">凸ポリゴン情報の格納先</param>
-        private static IEnumerator BuildFromMeshFilter(MeshFilter[] meshFilters, MeshRenderer[] meshRenderers, List<ConvexPolygonInfo> convexPolygonInfos)
+        private static IEnumerator BuildFromMeshFilter(MeshFilter[] meshFilters, MeshRenderer[] meshRenderers,
+            List<ConvexPolygonInfo> convexPolygonInfos)
         {
             var numBuildConvexPolygon = GetNumPolygonsFromMeshFilters(meshFilters);
             var newConvexPolygonInfos = new ConvexPolygonInfo[numBuildConvexPolygon];
@@ -176,11 +178,9 @@ namespace CyDecal.Runtime.Scripts
                 var meshNormals = mesh.normals;
                 for (var i = 0; i < numPoly; i++)
                 {
-                    if ((newConvexPolygonNo + 1) % MaxGeneratedPolygonPerFrame　== 0)
-                    {
+                    if ((newConvexPolygonNo + 1) % MaxGeneratedPolygonPerFrame == 0)
                         // 1フレームに処理するポリゴンは最大で100まで
                         yield return null;
-                    }
                     var v0_no = meshTriangles[i * 3];
                     var v1_no = meshTriangles[i * 3 + 1];
                     var v2_no = meshTriangles[i * 3 + 2];
@@ -206,17 +206,20 @@ namespace CyDecal.Runtime.Scripts
                     };
                     newConvexPolygonNo++;
                 }
+
                 rendererNo++;
             }
 
             convexPolygonInfos.AddRange(newConvexPolygonInfos);
         }
+
         /// <summary>
-        /// SkinModelRendererから凸ポリゴン情報を登録する
+        ///     SkinModelRendererから凸ポリゴン情報を登録する
         /// </summary>
         /// <param name="receiverObject">デカールを貼り付けるレシーバーオブジェクト</param>
         /// <param name="convexPolygonInfos">凸ポリゴン情報の格納先</param>
-        private static IEnumerator BuildFromSkinMeshRenderer(SkinnedMeshRenderer[] skinnedMeshRenderers, List<ConvexPolygonInfo> convexPolygonInfos)
+        private static IEnumerator BuildFromSkinMeshRenderer(SkinnedMeshRenderer[] skinnedMeshRenderers,
+            List<ConvexPolygonInfo> convexPolygonInfos)
         {
             var numBuildConvexPolygon = GetNumPolygonsFromSkinModelRenderers(skinnedMeshRenderers);
             var newConvexPolygonInfos = new ConvexPolygonInfo[numBuildConvexPolygon];
@@ -224,14 +227,13 @@ namespace CyDecal.Runtime.Scripts
             var normals = new Vector3[3];
             var boneWeights = new BoneWeight[3];
             var localToWorldMatrices = new Matrix4x4[3];
-            var boneMatricesPallet = CalculateMatricesPallet(skinnedMeshRenderers);   
+            var boneMatricesPallet = CalculateMatricesPallet(skinnedMeshRenderers);
             var skindMeshRendererNo = 0;
             var newConvexPolygonNo = 0;
             var startWOrkingListIndex = 0;
             var jobHandles = new List<JobHandle>();
             foreach (var skinnedMeshRenderer in skinnedMeshRenderers)
             {
-
                 var localToWorldMatrix = skinnedMeshRenderer.localToWorldMatrix;
                 var mesh = skinnedMeshRenderer.sharedMesh;
                 var numPoly = mesh.triangles.Length / 3;
@@ -239,14 +241,12 @@ namespace CyDecal.Runtime.Scripts
                 var meshVertices = mesh.vertices;
                 var meshNormals = mesh.normals;
                 var meshBoneWeights = mesh.boneWeights;
-                
+
                 for (var i = 0; i < numPoly; i++)
                 {
-                    if ((newConvexPolygonNo + 1) % MaxGeneratedPolygonPerFrame　== 0)
-                    {
+                    if ((newConvexPolygonNo + 1) % MaxGeneratedPolygonPerFrame == 0)
                         // 1フレームに処理するポリゴンは最大で100まで
                         yield return null;
-                    }
                     var v0_no = meshTriangles[i * 3];
                     var v1_no = meshTriangles[i * 3 + 1];
                     var v2_no = meshTriangles[i * 3 + 2];
@@ -339,14 +339,13 @@ namespace CyDecal.Runtime.Scripts
 
                 skindMeshRendererNo++;
             }
-            
+
             convexPolygonInfos.AddRange(newConvexPolygonInfos);
         }
 
-        
 
         /// <summary>
-        /// スキニングのための行列パレットを計算
+        ///     スキニングのための行列パレットを計算
         /// </summary>
         /// <param name="skinnedMeshRenderers"></param>
         /// <returns></returns>

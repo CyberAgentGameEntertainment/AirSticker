@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using Unity.Jobs;
 using UnityEngine;
 
 namespace CyDecal.Runtime.Scripts
@@ -19,7 +18,7 @@ namespace CyDecal.Runtime.Scripts
         /// </summary>
         public static List<ConvexPolygonInfo> Execute(
             Vector3 originPosInDecalSpace,
-            Vector3 decalSpaceNormalWS,
+            Vector3 decalSpaceNormalWs,
             float width,
             float height,
             float projectionDepth,
@@ -32,7 +31,7 @@ namespace CyDecal.Runtime.Scripts
 
             foreach (var convexPolygonInfo in convexPolygonInfos)
             {
-                if (Vector3.Dot(decalSpaceNormalWS, convexPolygonInfo.ConvexPolygon.FaceNormal) < 0)
+                if (Vector3.Dot(decalSpaceNormalWs, convexPolygonInfo.ConvexPolygon.FaceNormal) < 0)
                 {
                     // 枝切りの印をつける。
                     convexPolygonInfo.IsOutsideClipSpace = true;
@@ -67,7 +66,7 @@ namespace CyDecal.Runtime.Scripts
 
                 convexPolygonInfo.IsOutsideClipSpace = false;
             }
-            
+
             return broadPhaseConvexPolygonInfos;
         }
     }
