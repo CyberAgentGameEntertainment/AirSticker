@@ -1,43 +1,31 @@
 using UnityEngine;
 
-public class DecalButtons : MonoBehaviour
+namespace Demo.Demo_00.Scripts
 {
-    [SerializeField] private GameObject decalProjectorLauncher;
-
-    private DecalProjectorLuncher _decalProjector;
-
-    // Start is called before the first frame update
-    private void Start()
+    public class DecalButtons : MonoBehaviour
     {
-        _decalProjector = decalProjectorLauncher.GetComponent<DecalProjectorLuncher>();
-    }
+        [SerializeField] private GameObject decalProjectorLauncher;
+        [SerializeField] private GameObject playerButtonsGameObject;
+        private DecalProjectorLauncher _decalProjector;
 
-    // Update is called once per frame
-    private void Update()
-    {
-    }
+        // Start is called before the first frame update
+        private void Start()
+        {
+            _decalProjector = decalProjectorLauncher.GetComponent<DecalProjectorLauncher>();
+        }
 
-    public void OnSelectImage_0()
-    {
-        _decalProjector.CurrentDecalMaterialIndex = 0;
-        _decalProjector.IsLaunchReady = true;
-    }
+        // Update is called once per frame
+        private void Update()
+        {
+        }
 
-    public void OnSelectImage_1()
-    {
-        _decalProjector.CurrentDecalMaterialIndex = 1;
-        _decalProjector.IsLaunchReady = true;
-    }
-
-    public void OnSelectImage_2()
-    {
-        _decalProjector.CurrentDecalMaterialIndex = 2;
-        _decalProjector.IsLaunchReady = true;
-    }
-
-    public void OnSelectImage_3()
-    {
-        _decalProjector.CurrentDecalMaterialIndex = 3;
-        _decalProjector.IsLaunchReady = true;
+        public void OnSelectImage(int imageNo)
+        {
+            _decalProjector.CurrentDecalMaterialIndex = imageNo;
+            _decalProjector.IsLaunchReady = true;
+            var playerButtons = playerButtonsGameObject.GetComponent<PlayerButtons>();
+            playerButtons.StopAnimation();
+            playerButtons.StopRotation();
+        }
     }
 }

@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using CyDecal.Runtime.Scripts.Core;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
 
@@ -10,8 +11,6 @@ namespace CyDecal.Runtime.Scripts
     /// </summary>
     public class CyDecalProjector : MonoBehaviour
     {
-        private static List<ConvexPolygonInfo> _convexPolygonInfos; // ブロードフェーズのジョブワーク用の凸ポリゴンのリスト
-
         [SerializeField] private float width; // デカールボックスの幅
         [SerializeField] private float height; // デカールボックスの高さ
         [SerializeField] private float depth; // デカールボックスの奥行
@@ -22,8 +21,12 @@ namespace CyDecal.Runtime.Scripts
         private float _basePointToNearClipDistance; // デカールを貼り付ける基準地点から、ニアクリップまでの距離。
         private List<ConvexPolygonInfo> _broadPhaseConvexPolygonInfos = new();
         private List<CyDecalMesh> _cyDecalMeshes; // デカールメッシュ。
-
         private CyDecalSpace _decalSpace; // デカール空間。
+
+        private CyDecalProjector()
+        {
+            CyRenderDecalFeature.DecalProjectorCount++;
+        }
 
         //
         // Start is called before the first frame update
@@ -46,7 +49,7 @@ namespace CyDecal.Runtime.Scripts
                 yield return CyRenderDecalFeature.RegisterTrianglePolygons(
                     receiverObject, meshFilters, meshRenderers, skinMeshRenderers);
 
-            _convexPolygonInfos = CyRenderDecalFeature.GetTrianglePolygons(
+            var convexPolygonInfos = CyRenderDecalFeature.GetTrianglePolygons(
                 receiverObject);
             _broadPhaseConvexPolygonInfos = CyBroadPhaseDetectionConvexPolygons.Execute(
                 transform.position,
@@ -54,7 +57,7 @@ namespace CyDecal.Runtime.Scripts
                 width,
                 height,
                 depth,
-                _convexPolygonInfos);
+                convexPolygonInfos);
             if (IntersectRayToTrianglePolygons(out var hitPoint))
             {
                 BuildClipPlanes(hitPoint);
@@ -67,6 +70,11 @@ namespace CyDecal.Runtime.Scripts
             Destroy(gameObject);
 
             yield return null;
+        }
+
+        private void OnDestroy()
+        {
+            CyRenderDecalFeature.DecalProjectorCount--;
         }
 
         /// <summary>

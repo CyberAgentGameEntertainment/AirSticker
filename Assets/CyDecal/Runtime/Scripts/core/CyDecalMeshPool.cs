@@ -1,14 +1,14 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace CyDecal.Runtime.Scripts
+namespace CyDecal.Runtime.Scripts.Core
 {
     /// <summary>
     ///     デカールメッシュのプール
     /// </summary>
     public class CyDecalMeshPool
     {
-        private readonly Dictionary<int, CyDecalMesh> _decalMeshes = new();
+        private readonly Dictionary<int, CyDecalMesh> _decalMeshes = new Dictionary<int, CyDecalMesh>();
 
         /// <summary>
         ///     プールをクリア

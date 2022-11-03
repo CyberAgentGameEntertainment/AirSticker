@@ -2,58 +2,83 @@ using CyDecal.Runtime.Scripts;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class PlayerButtons : MonoBehaviour
+namespace Demo.Demo_00.Scripts
 {
-    [SerializeField] private GameObject receiverObject;
-    [SerializeField] private GameObject playAnimTextObject;
-    [SerializeField] private GameObject playRotTextObject;
-    [SerializeField] private GameObject decalProjectorLauncherObject;
-    private bool _isPlayAnim;
-
-    private bool _isPlayRot;
-
-    // Start is called before the first frame update
-    private void Start()
+    public class PlayerButtons : MonoBehaviour
     {
-    }
+        [SerializeField] private GameObject receiverObject;
+        [SerializeField] private GameObject playAnimTextObject;
+        [SerializeField] private GameObject playRotTextObject;
+        [SerializeField] private GameObject decalProjectorLauncherObject;
+        private bool _isPlayAnim;
 
-    // Update is called once per frame
-    private void Update()
-    {
-    }
+        private bool _isPlayRot;
 
-    public void OnClickChange()
-    {
-        // 止まった。
-        CyRenderDecalFeature.ClearReceiverObjectTrianglePolygonsPool();
+        // Start is called before the first frame update
+        private void Start()
+        {
+        }
 
-        var launcher = decalProjectorLauncherObject.GetComponent<DecalProjectorLuncher>();
-        launcher.SetNextReceiverObject();
-    }
+        // Update is called once per frame
+        private void Update()
+        {
+        }
 
-    public void OnClickPlayAnim()
-    {
-        var launcher = decalProjectorLauncherObject.GetComponent<DecalProjectorLuncher>();
-        if (launcher.HasAnimatorInCurrentReceiverObject() == false) return;
-        var text = playAnimTextObject.GetComponent<Text>();
-        text.text = _isPlayAnim ? "Play Anim" : "Stop Anim";
-        _isPlayAnim = !_isPlayAnim;
+        public void OnClickChange()
+        {
+            // 止まった。
+            CyRenderDecalFeature.ClearReceiverObjectTrianglePolygonsPool();
+            StopAnimation();
+            StopRotation();
+            var launcher = decalProjectorLauncherObject.GetComponent<DecalProjectorLauncher>();
+            launcher.SetNextReceiverObject();
+        }
 
-        if (_isPlayAnim)
-            launcher.PlayAnimationToReceiverObject();
-        else
+        public void OnClickPlayAnim()
+        {
+            var launcher = decalProjectorLauncherObject.GetComponent<DecalProjectorLauncher>();
+            if (launcher.HasAnimatorInCurrentReceiverObject() == false) return;
+            var text = playAnimTextObject.GetComponent<Text>();
+            text.text = _isPlayAnim ? "Play Anim" : "Stop Anim";
+            _isPlayAnim = !_isPlayAnim;
+
+            if (_isPlayAnim)
+                launcher.PlayAnimationToReceiverObject();
+            else
+                launcher.StopAnimationToReceiverObject();
+        }
+
+        public void OnClickRotate()
+        {
+            var text = playRotTextObject.GetComponent<Text>();
+            text.text = _isPlayRot ? "Play Rot" : "Stop Rot";
+            _isPlayRot = !_isPlayRot;
+            var launcher = decalProjectorLauncherObject.GetComponent<DecalProjectorLauncher>();
+            if (_isPlayRot)
+                launcher.PlayRotateToCurrentReceiverObject();
+            else
+                launcher.StopRotateToCurrentReceiverObject();
+        }
+
+        public void StopAnimation()
+        {
+            if (!_isPlayAnim) return;
+            _isPlayAnim = false;
+            var launcher = decalProjectorLauncherObject.GetComponent<DecalProjectorLauncher>();
+            if (launcher.HasAnimatorInCurrentReceiverObject() == false) return;
+            var text = playAnimTextObject.GetComponent<Text>();
+            text.text = "Play Anim";
             launcher.StopAnimationToReceiverObject();
-    }
+        }
 
-    public void OnClickRotate()
-    {
-        var text = playRotTextObject.GetComponent<Text>();
-        text.text = _isPlayRot ? "Play Rot" : "Stop Rot";
-        _isPlayRot = !_isPlayRot;
-        var launcher = decalProjectorLauncherObject.GetComponent<DecalProjectorLuncher>();
-        if (_isPlayRot)
-            launcher.PlayRotateToCurrentReceiverObject();
-        else
+        public void StopRotation()
+        {
+            if (!_isPlayRot) return;
+            var text = playRotTextObject.GetComponent<Text>();
+            text.text = "Play Rot";
+            _isPlayRot = false;
+            var launcher = decalProjectorLauncherObject.GetComponent<DecalProjectorLauncher>();
             launcher.StopRotateToCurrentReceiverObject();
+        }
     }
 }

@@ -4,17 +4,16 @@
 
 using UnityEngine;
 
-public class Rotate : MonoBehaviour
+namespace Demo.Demo_00.Scripts
 {
-    // Start is called before the first frame update
-    private void Start()
+    public class Rotate : MonoBehaviour
     {
-    }
-
-    // Update is called once per frame
-    private void Update()
-    {
-        var rot = Quaternion.AngleAxis(0.25f, Vector3.up);
-        transform.localRotation = rot * transform.localRotation;
+        // Update is called once per frame
+        private void Update()
+        {
+            var rot = Quaternion.AngleAxis(0.25f, Vector3.up);
+            var transform1 = transform;
+            transform1.localRotation = rot * transform1.localRotation;
+        }
     }
 }

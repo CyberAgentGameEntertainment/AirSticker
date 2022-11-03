@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using CyDecal.Runtime.Scripts.Core;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
 
@@ -15,6 +16,8 @@ namespace CyDecal.Runtime.Scripts
         {
             Instance = this;
         }
+
+        public static int DecalProjectorCount { get; set; }
 
         private static CyRenderDecalFeature Instance { get; set; }
 

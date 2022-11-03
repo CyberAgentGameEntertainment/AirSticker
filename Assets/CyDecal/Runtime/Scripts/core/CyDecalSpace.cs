@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace CyDecal.Runtime.Scripts
+namespace CyDecal.Runtime.Scripts.Core
 {
     /// <summary>
     ///     デカール空間

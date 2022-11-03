@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace CyDecal.Runtime.Scripts
+namespace CyDecal.Runtime.Scripts.Core
 {
     /// <summary>
     ///     凸多角形ポリゴン
@@ -8,8 +8,8 @@ namespace CyDecal.Runtime.Scripts
     public class CyConvexPolygon
     {
         private const int MaxVertex = 64; // 凸多角形の最大頂点
-        private readonly BoneWeight[] _boneWeights = new BoneWeight[MaxVertex];
-        private readonly Vector3 _faceNormal;
+        private readonly BoneWeight[] _boneWeights = new BoneWeight[MaxVertex]; // ボーンウェイト
+        private readonly Vector3 _faceNormal; // 面法線
         private readonly CyLine[] _line = new CyLine[MaxVertex]; // 凸多角形を構成するエッジの情報
         private readonly Vector3[] _normals = new Vector3[MaxVertex]; // 頂点法線
         private readonly Vector3[] _vertices = new Vector3[MaxVertex]; // 頂点座標
@@ -476,7 +476,7 @@ namespace CyDecal.Runtime.Scripts
         ///     ボーンウェイトを取得
         /// </summary>
         /// <param name="vertNo">頂点番号</param>
-        /// <returns></returns>
+        /// <returns>ボーンウェイト</returns>
         public BoneWeight GetBoneWeight(int vertNo)
         {
             return _boneWeights[vertNo];

@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace CyDecal.Runtime.Scripts
+namespace CyDecal.Runtime.Scripts.Core
 {
     /// <summary>
     ///     大まかな当たり判定を行い、デカール対象となるメッシュを大幅に枝切りする。

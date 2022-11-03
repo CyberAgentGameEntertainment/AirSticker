@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace CyDecal.Runtime.Scripts
+namespace CyDecal.Runtime.Scripts.Core
 {
     /// <summary>
     ///     凸多角形情報
