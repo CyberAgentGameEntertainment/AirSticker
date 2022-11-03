@@ -423,49 +423,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 100348312}
   m_CullTransparentMesh: 1
---- !u!1 &101891527
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 101891529}
-  - component: {fileID: 101891528}
-  m_Layer: 0
-  m_Name: Decal Projector
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &101891528
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 101891527}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0777d029ed3dffa4692f417d4aba19ca, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
---- !u!4 &101891529
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 101891527}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_RootOrder: 7
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &196251329 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 100144, guid: e39dd657be7298d408f1a135c76c3d9a, type: 3}
@@ -603,7 +560,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: -8679921383154817045, guid: 2e91d76535fe08b4bb2f8f2789df4740, type: 3}
       propertyPath: m_RootOrder
-      value: 8
+      value: 7
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 2e91d76535fe08b4bb2f8f2789df4740, type: 3}
       propertyPath: m_LocalScale.x
@@ -756,6 +713,10 @@ PrefabInstance:
     - {fileID: 11400084, guid: e39dd657be7298d408f1a135c76c3d9a, type: 3}
     - {fileID: 11400086, guid: e39dd657be7298d408f1a135c76c3d9a, type: 3}
     - {fileID: 11400088, guid: e39dd657be7298d408f1a135c76c3d9a, type: 3}
+    - {fileID: 11400010, guid: e39dd657be7298d408f1a135c76c3d9a, type: 3}
+    - {fileID: 11400018, guid: e39dd657be7298d408f1a135c76c3d9a, type: 3}
+    - {fileID: 11400016, guid: e39dd657be7298d408f1a135c76c3d9a, type: 3}
+    - {fileID: 11400014, guid: e39dd657be7298d408f1a135c76c3d9a, type: 3}
   m_SourcePrefab: {fileID: 100100000, guid: e39dd657be7298d408f1a135c76c3d9a, type: 3}
 --- !u!1 &289244484 stripped
 GameObject:
