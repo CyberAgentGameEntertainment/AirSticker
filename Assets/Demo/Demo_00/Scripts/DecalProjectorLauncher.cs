@@ -48,24 +48,26 @@ namespace Demo.Demo_00.Scripts
 
                     if (is_hit)
                     {
+#if UNITY_2021_1_OR_NEWER
                         moveImageObjects[CurrentDecalMaterialIndex].SetActive(false);
+#endif
                         // デカールプロジェクターを生成
                         if (_currentProjectorObject == null)
                         {
                             _currentProjectorObject = new GameObject("Decal Projector");
-                            var urpDecaleProjector = _currentProjectorObject.AddComponent<DecalProjector>();
                             _projectorSize = new Vector3();
                             _projectorSize.x = 0.05f;
                             _projectorSize.y = 0.05f;
                             if (CurrentDecalMaterialIndex == 3) _projectorSize.x *= 4.496f;
-
-
                             _projectorSize.z = 0.2f;
+#if UNITY_2021_1_OR_NEWER
+                            var urpDecaleProjector = _currentProjectorObject.AddComponent<DecalProjector>();
                             urpDecaleProjector.size = _projectorSize;
                             var pivot = new Vector3();
                             pivot.z = _projectorSize.z * 0.5f;
                             urpDecaleProjector.pivot = pivot;
                             urpDecaleProjector.material = urpDecalMaterials[CurrentDecalMaterialIndex];
+#endif
                         }
 
                         _currentProjectorObject.transform.localPosition =
@@ -85,7 +87,6 @@ namespace Demo.Demo_00.Scripts
                         _projectorSize.y,
                         _projectorSize.z);
                 }
-
                 moveImageObjects[CurrentDecalMaterialIndex].SetActive(false);
                 IsLaunchReady = false;
                 _currentProjectorObject = null;
