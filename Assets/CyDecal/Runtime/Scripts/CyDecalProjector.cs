@@ -19,7 +19,7 @@ namespace CyDecal.Runtime.Scripts
         private readonly Vector4[] _clipPlanes = new Vector4[(int)ClipPlane.Num]; // 分割平面
         private float _basePointToFarClipDistance; // デカールを貼り付ける基準地点から、ファークリップまでの距離。
         private float _basePointToNearClipDistance; // デカールを貼り付ける基準地点から、ニアクリップまでの距離。
-        private List<ConvexPolygonInfo> _broadPhaseConvexPolygonInfos = new();
+        private List<ConvexPolygonInfo> _broadPhaseConvexPolygonInfos = new List<ConvexPolygonInfo>();
         private List<CyDecalMesh> _cyDecalMeshes; // デカールメッシュ。
         private CyDecalSpace _decalSpace; // デカール空間。
 
@@ -104,8 +104,10 @@ namespace CyDecal.Runtime.Scripts
         /// </summary>
         private void DisableURPProjector()
         {
+#if UNITY_2021
             var urpProjector = gameObject.GetComponent<DecalProjector>();
             if (urpProjector != null) urpProjector.enabled = false;
+#endif
         }
 
         /// <summary>

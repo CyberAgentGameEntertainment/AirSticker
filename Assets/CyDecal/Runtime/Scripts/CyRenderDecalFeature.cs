@@ -8,9 +8,9 @@ namespace CyDecal.Runtime.Scripts
 {
     public class CyRenderDecalFeature : ScriptableRendererFeature
     {
-        private readonly CyDecalMeshPool _decalMeshPool = new();
+        private readonly CyDecalMeshPool _decalMeshPool = new CyDecalMeshPool();
 
-        private readonly CyReceiverObjectTrianglePolygonsPool _receiverObjectTrianglePolygonsPool = new();
+        private readonly CyReceiverObjectTrianglePolygonsPool _receiverObjectTrianglePolygonsPool = new CyReceiverObjectTrianglePolygonsPool();
 
         public CyRenderDecalFeature()
         {

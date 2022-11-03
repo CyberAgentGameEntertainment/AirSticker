@@ -19,7 +19,7 @@ namespace CyDecal.Runtime.Scripts.Core
     /// </summary>
     public class CyReceiverObjectTrianglePolygonsPool
     {
-        public Dictionary<GameObject, List<ConvexPolygonInfo>> ConvexPolygonsPool { get; } = new();
+        public Dictionary<GameObject, List<ConvexPolygonInfo>> ConvexPolygonsPool { get; } = new Dictionary<GameObject, List<ConvexPolygonInfo>>();
 
         /// <summary>
         ///     プールをクリア
