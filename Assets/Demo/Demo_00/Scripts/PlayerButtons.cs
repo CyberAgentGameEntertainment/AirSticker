@@ -1,8 +1,6 @@
 using CyDecal.Runtime.Scripts;
-using CyDecal.Runtime.Scripts.Core;
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.WSA;
 
 namespace Demo.Demo_00.Scripts
 {
@@ -15,16 +13,6 @@ namespace Demo.Demo_00.Scripts
         private bool _isPlayAnim;
 
         private bool _isPlayRot;
-
-        // Start is called before the first frame update
-        private void Start()
-        {
-        }
-
-        // Update is called once per frame
-        private void Update()
-        {
-        }
 
         public void OnClickChange()
         {
