@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using CyDecal.Runtime.Scripts;
+using CyDecal.Runtime.Scripts.Core;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
 using UnityEngine.Serialization;
@@ -19,7 +21,7 @@ namespace Demo.Demo_00.Scripts
 
         private bool _isMouseLButtonPress;
         private Vector3 _projectorSize;
-
+        private List<List<CyDecalMesh>> _cyDecalMeshesList = new List<List<CyDecalMesh>>();
         public int CurrentDecalMaterialIndex { get; set; }
 
         public bool IsLaunchReady { get; set; }
@@ -86,13 +88,27 @@ namespace Demo.Demo_00.Scripts
                         _projectorSize.x,
                         _projectorSize.y,
                         _projectorSize.z);
+                    _cyDecalMeshesList.Add(projector.DecalMeshes);
                 }
                 moveImageObjects[CurrentDecalMaterialIndex].SetActive(false);
                 IsLaunchReady = false;
                 _currentProjectorObject = null;
             }
         }
-
+        /// <summary>
+        /// デカールメッシュをクリア
+        /// </summary>
+        public void ClearDecalMesh()
+        {
+            foreach (var decalMeshes in _cyDecalMeshesList)
+            {
+                foreach (var decalMesh in decalMeshes)
+                {
+                    decalMesh.Clear();
+                }
+            }
+            _cyDecalMeshesList.Clear();
+        }
         /// <summary>
         ///     レシーバーオブジェクトを次のオブジェクトにする。
         /// </summary>

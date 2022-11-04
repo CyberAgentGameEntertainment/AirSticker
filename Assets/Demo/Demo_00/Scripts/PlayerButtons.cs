@@ -1,6 +1,8 @@
 using CyDecal.Runtime.Scripts;
+using CyDecal.Runtime.Scripts.Core;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.WSA;
 
 namespace Demo.Demo_00.Scripts
 {
@@ -48,6 +50,11 @@ namespace Demo.Demo_00.Scripts
                 launcher.StopAnimationToReceiverObject();
         }
 
+        public void OnClickClear()
+        {
+            var launcher = decalProjectorLauncherObject.GetComponent<DecalProjectorLauncher>();
+            launcher.ClearDecalMesh();
+        }
         public void OnClickRotate()
         {
             var text = playRotTextObject.GetComponent<Text>();

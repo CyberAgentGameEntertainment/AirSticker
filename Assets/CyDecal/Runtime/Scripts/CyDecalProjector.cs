@@ -20,9 +20,13 @@ namespace CyDecal.Runtime.Scripts
         private float _basePointToFarClipDistance; // デカールを貼り付ける基準地点から、ファークリップまでの距離。
         private float _basePointToNearClipDistance; // デカールを貼り付ける基準地点から、ニアクリップまでの距離。
         private List<ConvexPolygonInfo> _broadPhaseConvexPolygonInfos = new List<ConvexPolygonInfo>();
-        private List<CyDecalMesh> _cyDecalMeshes; // デカールメッシュ。
+        private readonly List<CyDecalMesh> _cyDecalMeshes = new List<CyDecalMesh>(); // デカールメッシュ。
         private CyDecalSpace _decalSpace; // デカール空間。
 
+        /// <summary>
+        /// 生成されたデカールメッシュのリストのプロパティ
+        /// </summary>
+        public List<CyDecalMesh> DecalMeshes => _cyDecalMeshes;
         private CyDecalProjector()
         {
             CyRenderDecalFeature.DecalProjectorCount++;
@@ -38,7 +42,7 @@ namespace CyDecal.Runtime.Scripts
             // レシーバーオブジェクトにデカールメッシュのレンダラーがぶら下がっているので
             // 一旦無効にする。
             CyRenderDecalFeature.DisableDecalMeshRenderers();
-            _cyDecalMeshes = CyRenderDecalFeature.GetDecalMeshes(gameObject, receiverObject, decalMaterial);
+            CyRenderDecalFeature.GetDecalMeshes(_cyDecalMeshes, gameObject, receiverObject, decalMaterial);
             var skinMeshRenderers = receiverObject.GetComponentsInChildren<SkinnedMeshRenderer>();
             var meshRenderers = receiverObject.GetComponentsInChildren<MeshRenderer>();
             var meshFilters = receiverObject.GetComponentsInChildren<MeshFilter>();

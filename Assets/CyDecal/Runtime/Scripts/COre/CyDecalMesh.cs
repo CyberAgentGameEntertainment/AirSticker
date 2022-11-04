@@ -9,17 +9,18 @@ namespace CyDecal.Runtime.Scripts.Core
     public class CyDecalMesh
     {
         private readonly Matrix4x4[] _bindPoses; // バインドポーズ行列
-        private readonly List<BoneWeight> _boneWeightsBuffer = new　List<BoneWeight>(); // ボーンウェイトバッファ
+        
         private readonly Material _decalMaterial;
+        private Mesh _mesh; // デカールテクスチャを貼り付けるためのデカールメッシュ
+        private readonly Renderer _receiverMeshRenderer;
+        private readonly List<BoneWeight> _boneWeightsBuffer = new　List<BoneWeight>(); // ボーンウェイトバッファ
         private readonly List<int> _indexBuffer = new　List<int>(); // インデックスバッファ
-        private readonly Mesh _mesh; // デカールテクスチャを貼り付けるためのデカールメッシュ
         private readonly List<Vector3> _normalBuffer = new　List<Vector3>(); // 法線。
         private readonly List<Vector3> _positionBuffer = new　List<Vector3>(); // 頂点座標のバッファ
-        private readonly Renderer _receiverMeshRenderer;
         private readonly List<Vector2> _uvBuffer = new List<Vector2>(); // UVバッファ
         private CyDecalMeshRenderer _decalMeshRenderer;
         private int _indexBase;
-
+        
         public CyDecalMesh(
             GameObject projectorObject,
             Material decalMaterial,
@@ -32,6 +33,19 @@ namespace CyDecal.Runtime.Scripts.Core
                 _bindPoses = skinnedMeshRenderer.sharedMesh.bindposes;
         }
 
+        public void Clear()
+        {
+            _decalMeshRenderer?.Destroy();
+            _indexBuffer.Clear();
+            _positionBuffer.Clear();
+            _uvBuffer.Clear();
+            _normalBuffer.Clear();
+            _boneWeightsBuffer.Clear();
+            _indexBase = 0;
+            Object.Destroy(_mesh);
+            _decalMeshRenderer = null;
+            _mesh = new Mesh();
+        }
         /// <summary>
         ///     デカールメッシュレンダラーを無効にする。
         /// </summary>

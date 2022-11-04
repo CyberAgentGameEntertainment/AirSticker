@@ -50,21 +50,22 @@ namespace CyDecal.Runtime.Scripts
         /// <summary>
         ///     デカールメッシュの取得。
         /// </summary>
+        /// <param name="decalMeshes">デカールメッシュの格納先</param>
         /// <param name="projectorObject">デカールプロジェクターオブジェクト</param>
         /// <param name="receiverObject">レシーバーオブジェクト</param>
         /// <param name="decalMaterial">デカールマテリアル</param>
-        /// <returns></returns>
-        public static List<CyDecalMesh> GetDecalMeshes(
+        public static void GetDecalMeshes(
+            List<CyDecalMesh> decalMeshes, 
             GameObject projectorObject,
             GameObject receiverObject,
             Material decalMaterial)
         {
-            if (Instance == null) return null;
-            var decalMeshes = Instance._decalMeshPool.GetDecalMeshes(
+            if (Instance == null) return ;
+            Instance._decalMeshPool.GetDecalMeshes(
+                decalMeshes,
                 projectorObject,
                 receiverObject,
                 decalMaterial);
-            return decalMeshes;
         }
 
         /// <summary>

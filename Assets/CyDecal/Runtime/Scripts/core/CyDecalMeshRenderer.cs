@@ -7,9 +7,9 @@ namespace CyDecal.Runtime.Scripts.Core
     /// </summary>
     public class CyDecalMeshRenderer
     {
-        private readonly GameObject _gameObject;
+        private readonly GameObject _owner;
         private readonly Renderer _renderer;
-
+        public GameObject Owner => _owner;
         /// <summary>
         ///     コンストラクタ
         /// </summary>
@@ -18,18 +18,18 @@ namespace CyDecal.Runtime.Scripts.Core
         /// <param name="mesh">デカールメッシュ</param>
         public CyDecalMeshRenderer(Renderer receiverRenderer, Material decalMaterial, Mesh mesh)
         {
-            _gameObject = new GameObject("CyDecalRenderer");
+            _owner = new GameObject("CyDecalRenderer");
             if (receiverRenderer is MeshRenderer)
             {
-                var meshRenderer = _gameObject.AddComponent<MeshRenderer>();
+                var meshRenderer = _owner.AddComponent<MeshRenderer>();
                 meshRenderer.material = decalMaterial;
-                var meshFilter = _gameObject.AddComponent<MeshFilter>();
+                var meshFilter = _owner.AddComponent<MeshFilter>();
                 meshFilter.mesh = mesh;
                 _renderer = meshRenderer;
             }
             else if (receiverRenderer is SkinnedMeshRenderer s)
             {
-                var skinnedMeshRenderer = _gameObject.AddComponent<SkinnedMeshRenderer>();
+                var skinnedMeshRenderer = _owner.AddComponent<SkinnedMeshRenderer>();
                 skinnedMeshRenderer.sharedMesh = mesh;
                 skinnedMeshRenderer.material = decalMaterial;
                 skinnedMeshRenderer.rootBone = s.rootBone;
@@ -37,10 +37,10 @@ namespace CyDecal.Runtime.Scripts.Core
                 _renderer = skinnedMeshRenderer;
             }
 
-            _gameObject.transform.parent = receiverRenderer.transform;
-            _gameObject.transform.localPosition = Vector3.zero;
-            _gameObject.transform.localRotation = Quaternion.identity;
-            _gameObject.transform.localScale = Vector3.one;
+            _owner.transform.parent = receiverRenderer.transform;
+            _owner.transform.localPosition = Vector3.zero;
+            _owner.transform.localRotation = Quaternion.identity;
+            _owner.transform.localScale = Vector3.one;
         }
 
         /// <summary>
@@ -61,7 +61,7 @@ namespace CyDecal.Runtime.Scripts.Core
 
         public void Destroy()
         {
-            Object.Destroy(_gameObject);
+            Object.Destroy(_owner);
         }
     }
 }
