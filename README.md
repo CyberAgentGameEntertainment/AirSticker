@@ -96,6 +96,12 @@ CyDecalProjectorコンポーネントには5つのパラメータを設定する
 |Receiver Object| デカールテクスチャを貼り付ける対象となるオブジェクト。|
 |Decal Material| デカールマテリアル。<br/>URPのデカールマテリアルとは意味あいが違うので注意してください。<br/>URPデカールではShader Graphs/Decalシェーダーが割り当てられたマテリアルしか使えません。<br/>しかし、CyDecalでは通常のマテリアルが使えます。<br/>つまり、ビルトインのLitシェーダー、Unlitシェーダー、そして、ユーザーカスタムの独自シェーダーも利用できます。|
 
+次の動画はCyDecalProjectorをシーンに設置して使用する方法です。
+<p align="center">
+<img width="80%" src="Documentation/fig-001.gif" alt="CyDecalProjectorの使用方法"><br>
+<font color="grey">CyDecalProjectorの使用方法</font>
+</p>
+
 > 現在、CyDecalProjectorは投影範囲の可視化に対応していないため、シーンビューで配置する場合はURPプロジェクターと併用すると、視覚的に分かりやすくなります。
 
 
