@@ -244,12 +244,44 @@ private bool IntersectRayToTrianglePolygons(out Vector3 hitPoint)
 
 ### 3.5 デカールボックスの情報から分割平面を定義
 続いて、衝突点の情報とデカールボックスの幅、高さなどの情報を元に、デカールボックスを構築する6平面の情報を構築します。分割平面の定義の詳細は「ゲームプログラミングのための3D数学」の「9.2.1 デカールメッシュの構築」を参照してください。
+
+[**分割平面を定義しているコード**]
+```C#
+private void BuildClipPlanes(Vector3 basePoint)
+{
+    var trans = transform;
+    var decalSpaceTangentWS = _decalSpace.Ex;
+    var decalSpaceBiNormalWS = _decalSpace.Ey;
+    var decalSpaceNormalWS = _decalSpace.Ez;
+    // Build left plane.
+    _clipPlanes[(int)ClipPlane.Left] = new Vector4
+    {
+        x = decalSpaceTangentWS.x,
+        y = decalSpaceTangentWS.y,
+        z = decalSpaceTangentWS.z,
+        w = width / 2.0f - Vector3.Dot(decalSpaceTangentWS, basePoint)
+    };
+        ・
+        ・
+       省略
+        ・
+        ・
+    // Build back plane.
+    _clipPlanes[(int)ClipPlane.Back] = new Vector4
+    {
+        x = decalSpaceNormalWS.x,
+        y = decalSpaceNormalWS.y,
+        z = decalSpaceNormalWS.z,
+        w = _basePointToFarClipDistance - Vector3.Dot(decalSpaceNormalWS, basePoint)
+    };
+}
+```
 >関連ソースコード<br/>Assets/Script/Runtime/CyDecalProjector.cs
 
 ### 3.6 5で定義した分割平面で衝突する三角形ポリゴンを分割して、多角形ポリゴンにしていく
 ここでは、三角形ポリゴンの各辺と６枚の分割平面との交差を判定を行って分割していき、凸多角形ポリゴンにしていきます。三角形ポリゴンの分割の詳細は「ゲームプログラミングのための3D数学」の「9.2.2 ポリゴンのクリッピング」を参照してください。
 <p align="center">
-<img width="60%" src="Documentation/fig-007.png" alt="凸多角形ポリゴンを三角形ポリゴンとして扱う"><br>
+<img width="80%" src="Documentation/fig-007.png" alt="凸多角形ポリゴンを三角形ポリゴンとして扱う"><br>
 <font color="grey">凸多角形ポリゴンを三角形ポリゴンとして扱う</font>
 </p>
 
@@ -258,7 +290,7 @@ private bool IntersectRayToTrianglePolygons(out Vector3 hitPoint)
 ### 3.7 6で作られた多角形ポリゴン情報を元に、デカールメッシュを生成
 三角形ポリゴンの分割で得られた、凸多角形ポリゴンの頂点情報を元に、三角形ポリゴンを生成していき、最終的なデカールメッシュを生成します。凸多角形ポリゴンはトライアングルファンの三角形の集合と扱うことができるため、この特性を利用して、デカールメッシュに新たな三角形を追加していきます。凸多角形ポリゴンから三角形ポリゴンの構築の詳細は「ゲームプログラミングのための3D数学」の「9.2.2 ポリゴンのクリッピング」を参照してください。
 <p align="center">
-<img width="60%" src="Documentation/fig-006.png" alt="凸多角形ポリゴンを三角形ポリゴンとして扱う"><br>
+<img width="80%" src="Documentation/fig-006.png" alt="凸多角形ポリゴンを三角形ポリゴンとして扱う"><br>
 <font color="grey">凸多角形ポリゴンを三角形ポリゴンとして扱う</font>
 </p>
 
