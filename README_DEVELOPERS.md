@@ -82,9 +82,7 @@ public void GetDecalMeshes(
     var renderers = receiverObject.GetComponentsInChildren<Renderer>();
     foreach (var renderer in renderers)
     {
-        var hash = receiverObject.GetHashCode()
-                    + decalMaterial.name.GetHashCode()
-                    + renderer.GetHashCode();
+        var hash = $"{receiverObject.GetHashCode()}_{decalMaterial.name.GetHashCode()}_{renderer.GetHashCode()}".GetHashCode();
         if (_decalMeshes.ContainsKey(hash))
         {
             decalMeshes.Add(_decalMeshes[hash]);
@@ -103,10 +101,9 @@ public void GetDecalMeshes(
 
 ### 3.2 デカールを貼り付けるレシーバーオブジェクトの三角形ポリゴンスープを取得
 CyRenderDecalFeatureが保持している三角形ポリゴンスープのプールからレシーバオブジェクトの三角形ポリゴンスープを取得します。<br/>
-このプールはレシーバーオブジェクトをキーとして、三角形ポリゴンスープが登録されており、すでに登録済みの場合は、使いまわしされます。<br/>
-また、新規のレシーバーオブジェクトであれば、レンダラーの情報から三角形ポリゴンスープが作成されます。<br/>
-また、ポリゴンスープはワールド空間の頂点を保持しているため、メッシュの全頂点をワールド空間に変換しています。そのため、特にスキンメッシュのモデルは非常に時間のかかる処理となっています。そのため数フレームにわたって分割して処理が実行されます。<br/>
-この処理が実行されるため、初めてデカールテクスチャを貼り付けるレシーバーオブジェクトが登録されるときのみ、デカール貼り付け完了までに遅延が発生します。ただし、レシーバーオブジェクトがワールド空間上移動した場合は再作成を行う必要があります。<br/>
+このプールはレシーバーオブジェクトをキーとして、三角形ポリゴンスープが登録されており、すでに登録済みの場合は、使いまわしされます。また、新規のレシーバーオブジェクトであれば、レンダラーの情報から三角形ポリゴンスープが作成されます。<br/><br/>
+ポリゴンスープが保持している頂点はワールド空間に変換されている必要があるため、メッシュの全頂点を空間変換するための行列演算が行われます。そのため、この処理は(特にスキンメッシュのモデル)非常に時間のかかるものとなっています。この処理によるスパイクを隠ぺいするために、ポリゴンスープの作成は数フレームにわたって分割して処理が実行されます。<br/><br/>
+この処理が実行されるため、初めてデカールテクスチャを貼り付けるレシーバーオブジェクトが登録されるときのみ、デカール貼り付け完了までに遅延が発生します。ただし、レシーバーオブジェクトがワールド空間上移動した場合は再作成を行う必要があるため、再度遅延が発生します。<br/><br/>
 次の図はポリゴンスーププールを可視化したものです。
 
 <p align="center">
@@ -172,7 +169,14 @@ private static IEnumerator BuildFromMeshFilter(MeshFilter[] meshFilters, MeshRen
 >関連ソースコード<br/>Assets/Script/Runtime/Core/CyReceiverObjectTrianglePolygonsPool.cs<br/>Assets/Script/Runtime/Core/CyTrianglePolygonsFactory.cs<br/>Assets/Script/Runtime/Core/CyConvexPolygon.cs
 
 ### 3.3 デカールを貼り付ける三角形ポリゴンの早期枝切り(ブロードフェーズ)
-このステップでは、デカールボックスの起点となる座標から各ポリゴンの頂点の距離の計算により、このステップ以降に処理する三角形ポリゴンを早期枝切りするための処理が実行されます。
+このステップでは、デカールボックスの起点となる座標と各ポリゴンの頂点との距離の計算により、このステップ以降に処理する三角形ポリゴンを早期枝切りするためのブロードフェーズが実行されます。<br/>
+ブロードフェーズによる安価な計算による早期枝切りが行われることによって、後のステップの複雑な処理の計算量を下げることができるため、大幅な高速化が期待できます。
+
+また、デカールボックスとは、デカールを貼り付ける空間を現わすボックスです。<br/>
+<p align="center">
+<img width="60%" src="Documentation/fig-011.png" alt="デカールボックス"><br>
+<font color="grey">デカールボックス</font>
+</p>
 
 [**早期枝切を行っているコード**]
 ```C#
@@ -208,11 +212,6 @@ foreach (var convexPolygonInfo in convexPolygonInfos)
 ### 3.4 デカールボックスと三角形ポリゴンとの衝突判定
 このステップでは、デカールボックスの起点からボックスが向いている方向に向かってレイを飛ばして、衝突点を検出します<br/>
 ここで衝突しない場合は以下の処理はスキップされて、デカールは貼り付けられません。<br/>
-また、デカールボックスとは、デカールを貼り付ける空間を現わすボックスです。<br/>
-<p align="center">
-<img width="60%" src="Documentation/fig-011.png" alt="デカールボックス"><br>
-<font color="grey">デカールボックス</font>
-</p>
 
 [**衝突判定しているコード**]
 ```C#
