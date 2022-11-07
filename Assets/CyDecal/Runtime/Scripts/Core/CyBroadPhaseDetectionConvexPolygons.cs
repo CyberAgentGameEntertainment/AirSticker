@@ -17,7 +17,7 @@ namespace CyDecal.Runtime.Scripts.Core
         ///     ブロードフェーズを実行。
         /// </summary>
         public static List<ConvexPolygonInfo> Execute(
-            Vector3 originPosInDecalSpace,
+            Vector3 centerPosInDecalBox,
             Vector3 decalSpaceNormalWs,
             float width,
             float height,
@@ -25,7 +25,9 @@ namespace CyDecal.Runtime.Scripts.Core
             List<ConvexPolygonInfo> convexPolygonInfos)
         {
             var broadPhaseConvexPolygonInfos = new List<ConvexPolygonInfo>();
-            var threshold = Mathf.Max(width, height, projectionDepth);
+            var threshold = Mathf.Max(width/2, height/2, projectionDepth);
+            // ボックスの対角線の長さにする。
+            threshold *= 1.414f;
             threshold *= threshold;
             broadPhaseConvexPolygonInfos.Capacity = convexPolygonInfos.Count;
 
@@ -39,15 +41,15 @@ namespace CyDecal.Runtime.Scripts.Core
                 }
 
                 var v0 = convexPolygonInfo.ConvexPolygon.GetVertexPosition(0);
-                v0 -= originPosInDecalSpace;
+                v0 -= centerPosInDecalBox;
                 if (v0.sqrMagnitude > threshold)
                 {
                     var v1 = convexPolygonInfo.ConvexPolygon.GetVertexPosition(1);
-                    v1 -= originPosInDecalSpace;
+                    v1 -= centerPosInDecalBox;
                     if (v1.sqrMagnitude > threshold)
                     {
                         var v2 = convexPolygonInfo.ConvexPolygon.GetVertexPosition(2);
-                        v2 -= originPosInDecalSpace;
+                        v2 -= centerPosInDecalBox;
                         if (v2.sqrMagnitude > threshold)
                             // 枝切りの印をつける。
                             convexPolygonInfo.IsOutsideClipSpace = true;
