@@ -98,13 +98,41 @@ CyDecalProjectorコンポーネントには5つのパラメータを設定する
 
 次の動画はCyDecalProjectorをシーンに設置して使用する方法です。
 <p align="center">
-<img width="80%" src="Documentation/fig-001.gif" alt="CyDecalProjectorの使用方法"><br>
+<img width="80%" src="Documentation/fig-012.gif" alt="CyDecalProjectorの使用方法"><br>
 <font color="grey">CyDecalProjectorの使用方法</font>
 </p>
 
 > 現在、CyDecalProjectorは投影範囲の可視化に対応していないため、シーンビューで配置する場合はURPプロジェクターと併用すると、視覚的に分かりやすくなります。
 
+### 3.3 ランタイムでの使用方法
+デカールのランタイムでの使用例として、FPSなどの弾痕を背景に貼り付ける処理があります。このような処理は背景と銃弾との衝突判定を行い、衝突点の情報を元にCyDecalProjectorを設置することで実現できます。<br/>
+次のコードは、弾痕の後を背景に貼り付けるための疑似コードです。<br/>
+なお、CyDecalProjectorコンポーネントがつけられたオブジェクトはデカールの貼り付けが完了すると、自動的に削除されるため、ユーザーがライフサイクルを管理する必要はありません。
+```C#
+// hitPosition    弾丸と背景の衝突点
+// hitNormal      衝突した面の法線
+// receiverObject デカールを貼り付けるレシーバーオブジェクト
+// decalMaterial  デカールマテリアル
+void LaunchProjector( 
+  Vector3 hitPosition, Vector3 hitNormal, 
+  GameObject receiverObject, Material decalMaterial )
+{
+    var projectorObject = new GameObject("Decal Projector");
+    // 法線方向に押し戻した位置にプロジェクターを設置。
+    projectorObject.transform.position = hitPosition + hitNormal;
+    // プロジェクターの向きは法線の逆向き
+    projectorObject.transform.rotation = Quaternion.LookRotation( hitNormal * -1.0f );
 
+    var projector = projectorObject.AddComponent<CyDecalProjector>();
+    // 各種パラメータを使って初期化する。
+    projector.Initialize(
+      receiverObject,
+      decalMaterial,
+      /*width=*/0.05f,
+      /*height=*/0.05f,
+      /*depth=*/0.2f;);
+}
+```
 
 
 
