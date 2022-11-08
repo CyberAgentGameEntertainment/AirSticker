@@ -69,7 +69,7 @@ namespace CyDecal.Runtime.Scripts.Core
         ///     凸ポリゴン情報から三角形ポリゴンの情報を追加で構築し、デカールメッシュに追加します。
         /// </remarks>
         /// <param name="convexPolygons">凸ポリゴンのリスト</param>
-        /// <param name="decalSPaceOriginPosWS">デカールスペースの原点(ワールド空間)</param>
+        /// <param name="decalSpaceOriginPosWS">デカールスペースの原点(ワールド空間)</param>
         /// <param name="decalSpaceNormalWS">デカールスペースの法線(ワールド空間)</param>
         /// <param name="decalSpaceTangentWS">デカールスペースの接ベクトル(ワールド空間)</param>
         /// <param name="decalSpaceBiNormalWS">デカールスペースの従ベクトル(ワールド空間)</param>
@@ -77,7 +77,7 @@ namespace CyDecal.Runtime.Scripts.Core
         /// <param name="decalSpaceHeight">デカールスペースの高さ</param>
         public void AddPolygonsToDecalMesh(
             List<CyConvexPolygon> convexPolygons,
-            Vector3 decalSPaceOriginPosWS,
+            Vector3 decalSpaceOriginPosWS,
             Vector3 decalSpaceNormalWS,
             Vector3 decalSpaceTangentWS,
             Vector3 decalSpaceBiNormalWS,
@@ -100,8 +100,8 @@ namespace CyDecal.Runtime.Scripts.Core
                     // Zファイティング回避のために、デカールの投影方向の逆向きに少しオフセットを加える。
                     // TODO: この数値は後で調整できるようにする。
                     // vertPos += decalSpaceNormalWS * 0.001f;
-                    uv.x = Vector3.Dot(decalSpaceTangentWS, vertPos - decalSPaceOriginPosWS) / decalSpaceWidth + 0.5f;
-                    uv.y = Vector3.Dot(decalSpaceBiNormalWS, vertPos - decalSPaceOriginPosWS) / decalSpaceHeight +
+                    uv.x = Vector3.Dot(decalSpaceTangentWS, vertPos - decalSpaceOriginPosWS) / decalSpaceWidth + 0.5f;
+                    uv.y = Vector3.Dot(decalSpaceBiNormalWS, vertPos - decalSpaceOriginPosWS) / decalSpaceHeight +
                            0.5f;
                     _uvBuffer.Add(uv);
                     // 座標と回転を親の空間に変換する。

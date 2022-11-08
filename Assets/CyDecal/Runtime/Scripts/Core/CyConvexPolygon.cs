@@ -84,7 +84,7 @@ namespace CyDecal.Runtime.Scripts.Core
         public Renderer ReceiverMeshRenderer { get; }
 
         /// <summary>
-        ///     分割平面によって制裁された新しい二つの頂点のデータを計算する。
+        ///     分割平面によって生成された新しい二つの頂点のデータを計算する。
         /// </summary>
         /// <param name="newVert0">頂点座標１の格納先</param>
         /// <param name="newVert1">頂点座標２の格納先</param>
