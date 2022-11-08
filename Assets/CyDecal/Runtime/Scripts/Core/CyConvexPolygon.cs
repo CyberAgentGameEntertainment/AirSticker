@@ -29,11 +29,11 @@ namespace CyDecal.Runtime.Scripts.Core
         {
             ReceiverMeshRenderer = receiverMeshRenderer;
             NumVertices = vertices.Length;
+            vertices.CopyTo(_vertices, 0);
+            normals.CopyTo(_normals, 0);
+            boneWeights.CopyTo(_boneWeights, 0);
             for (var vertNo = 0; vertNo < NumVertices; vertNo++)
             {
-                _vertices[vertNo] = vertices[vertNo];
-                _normals[vertNo] = normals[vertNo];
-                _boneWeights[vertNo] = boneWeights[vertNo];
                 var nextVertNo = (vertNo + 1) % NumVertices;
                 _line[vertNo] = new CyLine(
                     vertices[vertNo],
@@ -57,14 +57,10 @@ namespace CyDecal.Runtime.Scripts.Core
         {
             ReceiverMeshRenderer = srcConvexPolygon.ReceiverMeshRenderer;
             NumVertices = srcConvexPolygon.NumVertices;
-            for (var i = 0; i < NumVertices; i++)
-            {
-                _vertices[i] = srcConvexPolygon._vertices[i];
-                _normals[i] = srcConvexPolygon._normals[i];
-                _line[i] = srcConvexPolygon._line[i];
-                _boneWeights[i] = srcConvexPolygon._boneWeights[i];
-            }
-
+            srcConvexPolygon._vertices.CopyTo(_vertices, 0);
+            srcConvexPolygon._normals.CopyTo(_normals, 0);
+            srcConvexPolygon._boneWeights.CopyTo(_boneWeights, 0);
+            srcConvexPolygon._line.CopyTo(_line, 0);
             _faceNormal = srcConvexPolygon._faceNormal;
         }
 
