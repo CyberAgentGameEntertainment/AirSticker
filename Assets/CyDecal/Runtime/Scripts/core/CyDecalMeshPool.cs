@@ -56,9 +56,9 @@ namespace CyDecal.Runtime.Scripts.Core
             var renderers = receiverObject.GetComponentsInChildren<Renderer>();
             foreach (var renderer in renderers)
             {
-                var hash = receiverObject.GetHashCode()
-                           + decalMaterial.name.GetHashCode()
-                           + renderer.GetHashCode();
+                var hash = receiverObject.GetInstanceID()
+                           + decalMaterial.GetInstanceID()
+                           + renderer.GetInstanceID();
                 if (_decalMeshes.ContainsKey(hash))
                 {
                     decalMeshes.Add(_decalMeshes[hash]);
