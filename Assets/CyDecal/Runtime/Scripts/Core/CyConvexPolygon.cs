@@ -210,7 +210,7 @@ namespace CyDecal.Runtime.Scripts.Core
         /// </summary>
         /// <param name="v"></param>
         /// <returns></returns>
-        public Vector4 Vector3ToVector4(Vector3 v)
+        private Vector4 Vector3ToVector4(Vector3 v)
         {
             return new Vector4(v.x, v.y, v.z, 1.0f);
         }
