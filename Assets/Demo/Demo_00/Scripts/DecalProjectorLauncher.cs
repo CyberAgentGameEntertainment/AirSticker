@@ -81,13 +81,14 @@ namespace Demo.Demo_00.Scripts
             {
                 if (_currentProjectorObject != null)
                 {
-                    var projector = _currentProjectorObject.AddComponent<CyDecalProjector>();
-                    projector.Initialize(
+                    var projector = CyDecalProjector.AddTo(
+                        _currentProjectorObject,
                         receiverObjects[_currentReceiverObjectNo],
                         decalMaterials[CurrentDecalMaterialIndex],
                         _projectorSize.x,
                         _projectorSize.y,
                         _projectorSize.z);
+                    
                     _cyDecalMeshesList.Add(projector.DecalMeshes);
                 }
                 moveImageObjects[CurrentDecalMaterialIndex].SetActive(false);
