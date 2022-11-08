@@ -43,15 +43,18 @@ namespace CyDecal.Runtime.Scripts
             // 一旦無効にする。
             CyRenderDecalFeature.DisableDecalMeshRenderers();
             CyRenderDecalFeature.GetDecalMeshes(_cyDecalMeshes, gameObject, receiverObject, decalMaterial);
-            var skinMeshRenderers = receiverObject.GetComponentsInChildren<SkinnedMeshRenderer>();
-            var meshRenderers = receiverObject.GetComponentsInChildren<MeshRenderer>();
-            var meshFilters = receiverObject.GetComponentsInChildren<MeshFilter>();
+            
             // 無効にしたレンダラーを戻す。
             CyRenderDecalFeature.EnableDecalMeshRenderers();
 
             if (CyRenderDecalFeature.ExistTrianglePolygons(receiverObject) == false)
+            {
                 yield return CyRenderDecalFeature.RegisterTrianglePolygons(
-                    receiverObject, meshFilters, meshRenderers, skinMeshRenderers);
+                    receiverObject, 
+                    receiverObject.GetComponentsInChildren<MeshFilter>(), 
+                    receiverObject.GetComponentsInChildren<MeshRenderer>(), 
+                    receiverObject.GetComponentsInChildren<SkinnedMeshRenderer>());
+            }
 
             var convexPolygonInfos = CyRenderDecalFeature.GetTrianglePolygons(
                 receiverObject);
