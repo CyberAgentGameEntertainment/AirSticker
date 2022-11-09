@@ -1,35 +1,59 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using CyDecal.Runtime.Scripts.Core;
 using UnityEngine;
-using UnityEngine.Rendering.Universal;
 
 namespace CyDecal.Runtime.Scripts
 {
-    public class CyRenderDecalFeature : ScriptableRendererFeature
+    /// <summary>
+    ///     デカールシステム
+    /// </summary>
+    public class CyDecalSystem : MonoBehaviour
     {
+        // デカールメッシュプール。
         private readonly CyDecalMeshPool _decalMeshPool = new CyDecalMeshPool();
 
+        // デカールプロジェクタのラウンチリクエストキュー
+        private readonly CyLaunchDecalProjectorRequestQueue _launchDecalProjectorRequestQueue = new CyLaunchDecalProjectorRequestQueue();
+
+        // デカールメッシュを貼り付けるレシーバーオブジェクトのプール。
         private readonly CyReceiverObjectTrianglePolygonsPool _receiverObjectTrianglePolygonsPool = new CyReceiverObjectTrianglePolygonsPool();
 
-        public CyRenderDecalFeature()
+        public CyDecalSystem()
         {
             Instance = this;
         }
 
-        public static int DecalProjectorCount { get; set; }
+        private static CyDecalSystem Instance { get; set; }
 
-        private static CyRenderDecalFeature Instance { get; set; }
-
-        public override void Create()
+        /// <summary>
+        ///     更新
+        /// </summary>
+        private void Update()
         {
-        }
-
-        public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData)
-        {
-            // プールをガベージコレクト
+            // 各種プールのガベージコレクトを実行。
             _receiverObjectTrianglePolygonsPool.GarbageCollect();
             _decalMeshPool.GarbageCollect();
+            // デカールの投影リクエストを処理する。
+            _launchDecalProjectorRequestQueue.Update();
+        }
+
+        /// <summary>
+        ///     待ち行列にキューイングされているデカールプロジェクタのラウンチリクエストの数を取得する。
+        /// </summary>
+        /// <returns></returns>
+        public static int GetNumRequestLaunchDecalProjector()
+        {
+            return Instance._launchDecalProjectorRequestQueue.GetNumRequest();
+        }
+
+        /// <summary>
+        ///     デカールプロジェクターをラウンチリクエストを待ち行列にキューイングする。
+        /// </summary>
+        public static void EnqueueRequestLaunchDecalProjector(CyDecalProjector projector, Action onLaunch)
+        {
+            Instance._launchDecalProjectorRequestQueue.Enqueue(projector, onLaunch);
         }
 
         /// <summary>
@@ -58,12 +82,12 @@ namespace CyDecal.Runtime.Scripts
         /// <param name="receiverObject">レシーバーオブジェクト</param>
         /// <param name="decalMaterial">デカールマテリアル</param>
         public static void GetDecalMeshes(
-            List<CyDecalMesh> results, 
+            List<CyDecalMesh> results,
             GameObject projectorObject,
             GameObject receiverObject,
             Material decalMaterial)
         {
-            if (Instance == null) return ;
+            if (Instance == null) return;
             Instance._decalMeshPool.GetDecalMeshes(
                 results,
                 projectorObject,
@@ -124,16 +148,6 @@ namespace CyDecal.Runtime.Scripts
         }
 
         /// <summary>
-        ///     デカールの描画で使っている全てのプールをクリア。
-        /// </summary>
-        public static void ClearALlPools()
-        {
-            if (Instance == null) return;
-            Instance._decalMeshPool.Clear();
-            Instance._receiverObjectTrianglePolygonsPool.Clear();
-        }
-
-        /// <summary>
         ///     レシーバーオブジェクトの三角形ポリゴンプールをクリア。
         /// </summary>
         public static void ClearReceiverObjectTrianglePolygonsPool()
@@ -141,6 +155,7 @@ namespace CyDecal.Runtime.Scripts
             if (Instance == null) return;
             Instance._receiverObjectTrianglePolygonsPool.Clear();
         }
+
         /// <summary>
         ///     デカールメッシュプールのサイズを取得。
         /// </summary>
@@ -150,8 +165,9 @@ namespace CyDecal.Runtime.Scripts
             if (Instance == null) return 0;
             return Instance._decalMeshPool.GetPoolSize();
         }
+
         /// <summary>
-        /// レシーバーオブジェクトの三角形ポリゴンスープのプールのサイズを取得。
+        ///     レシーバーオブジェクトの三角形ポリゴンスープのプールのサイズを取得。
         /// </summary>
         /// <returns></returns>
         public static int GetReceiverObjectTrianglePolygonsPoolSize()

@@ -50,13 +50,10 @@ namespace CyDecal.Runtime.Scripts.Core
                 meshRenderer,
                 skinnedMeshRenderers,
                 convexPolygonInfos);
-            if (receiverObject 
+            if (receiverObject
                 && !ExistConvexPolygons(receiverObject))
-            {
-                // 処理再開時にレシーバーオブジェクトが破棄されている可能性があるので、チェックを入れる。
-                // 複数フレームにわたる非同期処理となるため、CyDecalProjector.Start同じレシーバーオブジェクトが
+                // 処理再開時にレシーバーオブジェクトが破棄されている可能性があるのでオブジェクトが生きているかチェックを入れる。
                 ConvexPolygonsPool.Add(receiverObject, convexPolygonInfos);
-            }
         }
 
         /// <summary>
@@ -68,22 +65,21 @@ namespace CyDecal.Runtime.Scripts.Core
         {
             return ConvexPolygonsPool.ContainsKey(receiverObject);
         }
+
         /// <summary>
-        /// プールをガベージコレクト
+        ///     プールをガベージコレクト
         /// </summary>
         /// <remarks>
-        /// キーとなっているレシーバーオブジェクトが削除されていたら、プールから除去する。
+        ///     キーとなっているレシーバーオブジェクトが削除されていたら、プールから除去する。
         /// </remarks>
         public void GarbageCollect()
         {
             var deleteList = ConvexPolygonsPool.Where(item => !item.Key).ToList();
-            foreach (var item in deleteList)
-            {
-                ConvexPolygonsPool.Remove(item.Key);
-            }
+            foreach (var item in deleteList) ConvexPolygonsPool.Remove(item.Key);
         }
+
         /// <summary>
-        /// プールのサイズを取得。
+        ///     プールのサイズを取得。
         /// </summary>
         /// <returns></returns>
         public int GetPoolSize()

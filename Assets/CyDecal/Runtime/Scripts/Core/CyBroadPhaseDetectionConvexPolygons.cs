@@ -28,7 +28,7 @@ namespace CyDecal.Runtime.Scripts.Core
             var threshold = Mathf.Max(width, height, projectionDepth);
             threshold *= threshold;
             broadPhaseConvexPolygonInfos.Capacity = convexPolygonInfos.Count;
-            for( int i = 0; i < convexPolygonInfos.Count; i++)
+            for (var i = 0; i < convexPolygonInfos.Count; i++)
             {
                 var convexPolygonInfo = convexPolygonInfos[i];
                 if (Vector3.Dot(decalSpaceNormalWs, convexPolygonInfo.ConvexPolygon.FaceNormal) < 0)

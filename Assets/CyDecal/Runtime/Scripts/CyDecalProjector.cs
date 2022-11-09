@@ -1,16 +1,18 @@
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using CyDecal.Runtime.Scripts.Core;
 using UnityEngine;
 using UnityEngine.Events;
-using UnityEngine.Rendering.Universal;
 
 namespace CyDecal.Runtime.Scripts
 {
     /// <summary>
     ///     デカールプロジェクター
     /// </summary>
+    /// <remarks>
+    ///     デカールの投影が完了するには複数フレームかかる場合があり、インスタンスを生成後すぐに処理が終わるわけではありません。
+    ///     投影完了をチェックしたい場合はコールバック関数を設定して監視を行ってください。
+    /// </remarks>
     public class CyDecalProjector : MonoBehaviour
     {
         [SerializeField] private float width; // デカールボックスの幅
@@ -18,66 +20,80 @@ namespace CyDecal.Runtime.Scripts
         [SerializeField] private float depth; // デカールボックスの奥行
         [SerializeField] private GameObject receiverObject; // デカールを貼り付けるターゲットとなるオブジェクト
         [SerializeField] private Material decalMaterial; // デカールマテリアル
-        [SerializeField] private Material urpDecalMaterial; // URPのデカールマテリアル
-        [SerializeField] private bool projectionOnAwake; // インスタンスが生成されると、自動的にデカールの投影処理も開始する。
-        [SerializeField] private UnityEvent onCompleteProjection; //　デカールの投影が完了したときに呼ばれるイベント。
+
+        [Tooltip("このチェックを外す場合は、デカールを投影するためには明示的にLaunchメソッドを呼び出す必要があります。")] [SerializeField]
+        private bool launchOnAwake; // インスタンスが生成されると、自動的にデカールの投影処理も開始する。
+
+        [SerializeField] private UnityEvent onCompleteLaunch; //　デカールの投影が完了したときに呼ばれるイベント。
         private readonly Vector4[] _clipPlanes = new Vector4[(int)ClipPlane.Num]; // 分割平面
         private float _basePointToFarClipDistance; // デカールを貼り付ける基準地点から、ファークリップまでの距離。
         private float _basePointToNearClipDistance; // デカールを貼り付ける基準地点から、ニアクリップまでの距離。
         private List<ConvexPolygonInfo> _broadPhaseConvexPolygonInfos = new List<ConvexPolygonInfo>();
-        private readonly List<CyDecalMesh> _cyDecalMeshes = new List<CyDecalMesh>(); // デカールメッシュ。
         private CyDecalSpace _decalSpace; // デカール空間。
-        private bool _destroy = false;
+        private bool _destroy;
+        public bool IsFinishedLaunch { get; private set; }
+
         /// <summary>
-        /// 生成されたデカールメッシュのリストのプロパティ
+        ///     生成されたデカールメッシュのリストのプロパティ
         /// </summary>
-        public List<CyDecalMesh> DecalMeshes => _cyDecalMeshes;
-        private CyDecalProjector()
+        public List<CyDecalMesh> DecalMeshes { get; } = new List<CyDecalMesh>();
+
+        private void Start()
         {
-            CyRenderDecalFeature.DecalProjectorCount++;
+            if (launchOnAwake) Launch(null);
         }
 
-        ~CyDecalProjector()
+        /// <summary>
+        ///     投影完了時に呼び出される処理
+        /// </summary>
+        private void OnCompleted()
         {
-            if (!_destroy)
-            {
-                // OnDestroyが呼ばれていない場合のために。
-                CyRenderDecalFeature.DecalProjectorCount--;
-            }
+            onCompleteLaunch?.Invoke();
+            IsFinishedLaunch = true;
+            onCompleteLaunch = null;
         }
-        private IEnumerator ExecuteProjection()
+
+        void OnDestroy()
+        {
+            // 投影完了せずに削除された場合もコールバックを呼び出すために完了時の処理をコールする。
+            OnCompleted();
+        }
+        /// <summary>
+        ///     デカールの投影処理を実行。
+        /// </summary>
+        /// <remarks>
+        ///     この処理は複数フレームにわたって実行されます。
+        ///     投影の完了の監視はコールバック関数を利用するか、IsFinishedLaunchプロパティーをチェックすることで行えます。
+        /// </remarks>
+        /// <returns></returns>
+        private IEnumerator ExecuteLaunch()
         {
             InitializeOriginAxisInDecalSpace();
 
             // レシーバーオブジェクトのレンダラーのみを収集したいのだが、
             // レシーバーオブジェクトにデカールメッシュのレンダラーがぶら下がっているので
             // 一旦無効にする。
-            CyRenderDecalFeature.DisableDecalMeshRenderers();
-            CyRenderDecalFeature.GetDecalMeshes(_cyDecalMeshes, gameObject, receiverObject, decalMaterial);
-            
-            // 無効にしたレンダラーを戻す。
-            CyRenderDecalFeature.EnableDecalMeshRenderers();
+            CyDecalSystem.DisableDecalMeshRenderers();
+            CyDecalSystem.GetDecalMeshes(DecalMeshes, gameObject, receiverObject, decalMaterial);
 
-            if (CyRenderDecalFeature.ExistTrianglePolygons(receiverObject) == false)
-            {
-                yield return CyRenderDecalFeature.RegisterTrianglePolygons(
-                    receiverObject, 
-                    receiverObject.GetComponentsInChildren<MeshFilter>(), 
-                    receiverObject.GetComponentsInChildren<MeshRenderer>(), 
+            // 無効にしたレンダラーを戻す。
+            CyDecalSystem.EnableDecalMeshRenderers();
+
+            if (CyDecalSystem.ExistTrianglePolygons(receiverObject) == false)
+                yield return CyDecalSystem.RegisterTrianglePolygons(
+                    receiverObject,
+                    receiverObject.GetComponentsInChildren<MeshFilter>(),
+                    receiverObject.GetComponentsInChildren<MeshRenderer>(),
                     receiverObject.GetComponentsInChildren<SkinnedMeshRenderer>());
-            }
 
             if (!receiverObject)
             {
                 // レシーバーオブジェクトが死亡しているのでここで処理を打ち切る。
-                if (onCompleteProjection != null)
-                {
-                    onCompleteProjection.Invoke();
-                }
-
+                OnCompleted();
                 yield break;
             }
-            var convexPolygonInfos = CyRenderDecalFeature.GetTrianglePolygons(
+
+            var convexPolygonInfos = CyDecalSystem.GetTrianglePolygons(
                 receiverObject);
             _broadPhaseConvexPolygonInfos = CyBroadPhaseDetectionConvexPolygons.Execute(
                 transform.position,
@@ -93,26 +109,8 @@ namespace CyDecal.Runtime.Scripts
                 AddTrianglePolygonsToDecalMeshFromConvexPolygons(hitPoint);
             }
 
-            if (onCompleteProjection != null)
-            {
-                onCompleteProjection.Invoke();
-            }
-
+            OnCompleted();
             yield return null;
-        }
-        //
-        // Start is called before the first frame update
-        private void Start()
-        {
-            if (projectionOnAwake)
-            {
-                StartProjection(null);
-            }
-        }
-        private void OnDestroy()
-        {
-            _destroy = true;
-            CyRenderDecalFeature.DecalProjectorCount--;
         }
 
         /// <summary>
@@ -124,8 +122,11 @@ namespace CyDecal.Runtime.Scripts
         /// <param name="width">プロジェクターの幅</param>
         /// <param name="height">プロジェクターの高さ</param>
         /// <param name="depth">プロジェクターの深度</param>
-        /// <param name="projectionOnAwake">コンポーネントの生成と同時にデカールの投影を始める/param>
-        /// <param name="onCompletedProjection">デカール投影完了時に呼び出されるコールバック関数</param>
+        /// <param name="launchOnAwake">
+        ///     trueが設定されている場合は、コンポーネントの追加と同時にデカールの投影処理が始まります。
+        ///     falseを指定している場合は、明示的にLaunchメソッドを呼び出すことで、デカールの投影処理が始まります。
+        /// </param>
+        /// <param name="onCompletedLaunch">デカール投影完了時に呼び出されるコールバック関数</param>
         public static CyDecalProjector AddTo(
             GameObject owner,
             GameObject receiverObject,
@@ -133,8 +134,8 @@ namespace CyDecal.Runtime.Scripts
             float width,
             float height,
             float depth,
-            bool projectionOnAwake,
-            UnityAction onCompletedProjection)
+            bool launchOnAwake,
+            UnityAction onCompletedLaunch)
         {
             var projector = owner.AddComponent<CyDecalProjector>();
             projector.width = width;
@@ -142,30 +143,39 @@ namespace CyDecal.Runtime.Scripts
             projector.depth = depth;
             projector.receiverObject = receiverObject;
             projector.decalMaterial = decalMaterial;
-            projector.projectionOnAwake = projectionOnAwake;
-            projector.onCompleteProjection = new UnityEvent();
-            if (onCompletedProjection != null)
-            {
-                projector.onCompleteProjection.AddListener(onCompletedProjection);
-            }
+            projector.launchOnAwake = false;
+            projector.onCompleteLaunch = new UnityEvent();
+
+            if (launchOnAwake) // コンポーネント追加と同時にプロジェクション開始。
+                projector.Launch(onCompletedLaunch);
+            else if (onCompletedLaunch != null) projector.onCompleteLaunch.AddListener(onCompletedLaunch);
 
             return projector;
         }
+
         /// <summary>
-        /// デカール投影を始める。
+        ///     デカール投影を始める。
         /// </summary>
         /// <remarks>
-        /// この処理は非同期処理となっており、デカールの投影が完了するまで数フレームの遅延が発生します。
-        /// デカールの投影の完了を監視する場合は、コールバック関数を指定してください。
+        ///     この処理は非同期処理となっており、デカールの投影が完了するまで数フレームの遅延が発生します。
+        ///     デカールの投影の完了を監視する場合は、コールバック関数を指定してください。
         /// </remarks>
-        public void StartProjection(UnityAction onCompletedProjection)
+        public void Launch(UnityAction onCompletedLaunch)
         {
-            if (onCompletedProjection != null)
-            {
-                this.onCompleteProjection.AddListener(onCompletedProjection);
-            }
-            StartCoroutine(ExecuteProjection());
+            if (onCompletedLaunch != null) onCompleteLaunch.AddListener(onCompletedLaunch);
+            // リクエストキューに積む。
+            CyDecalSystem.EnqueueRequestLaunchDecalProjector(
+                this,
+                () =>
+                {
+                    if (receiverObject)
+                        StartCoroutine(ExecuteLaunch());
+                    else
+                        // レシーバーオブジェクトが削除されているので、ここで打ち切り。
+                        OnCompleted();
+                });
         }
+
         /// <summary>
         ///     デカール空間での規定軸を初期化。
         /// </summary>
@@ -188,7 +198,7 @@ namespace CyDecal.Runtime.Scripts
                 convexPolygons.Add(convexPolyInfo.ConvexPolygon);
             }
 
-            foreach (var cyDecalMesh in _cyDecalMeshes)
+            foreach (var cyDecalMesh in DecalMeshes)
                 cyDecalMesh.AddPolygonsToDecalMesh(
                     convexPolygons,
                     originPosInDecalSpace,
@@ -223,57 +233,56 @@ namespace CyDecal.Runtime.Scripts
         /// <param name="basePoint">デカールテクスチャを貼り付ける基準座標</param>
         private void BuildClipPlanes(Vector3 basePoint)
         {
-            var trans = transform;
-            var decalSpaceTangentWS = _decalSpace.Ex;
-            var decalSpaceBiNormalWS = _decalSpace.Ey;
-            var decalSpaceNormalWS = _decalSpace.Ez;
+            var decalSpaceTangentWs = _decalSpace.Ex;
+            var decalSpaceBiNormalWs = _decalSpace.Ey;
+            var decalSpaceNormalWs = _decalSpace.Ez;
             // Build left plane.
             _clipPlanes[(int)ClipPlane.Left] = new Vector4
             {
-                x = decalSpaceTangentWS.x,
-                y = decalSpaceTangentWS.y,
-                z = decalSpaceTangentWS.z,
-                w = width / 2.0f - Vector3.Dot(decalSpaceTangentWS, basePoint)
+                x = decalSpaceTangentWs.x,
+                y = decalSpaceTangentWs.y,
+                z = decalSpaceTangentWs.z,
+                w = width / 2.0f - Vector3.Dot(decalSpaceTangentWs, basePoint)
             };
             // Build right plane.
             _clipPlanes[(int)ClipPlane.Right] = new Vector4
             {
-                x = -decalSpaceTangentWS.x,
-                y = -decalSpaceTangentWS.y,
-                z = -decalSpaceTangentWS.z,
-                w = width / 2.0f + Vector3.Dot(decalSpaceTangentWS, basePoint)
+                x = -decalSpaceTangentWs.x,
+                y = -decalSpaceTangentWs.y,
+                z = -decalSpaceTangentWs.z,
+                w = width / 2.0f + Vector3.Dot(decalSpaceTangentWs, basePoint)
             };
             // Build bottom plane.
             _clipPlanes[(int)ClipPlane.Bottom] = new Vector4
             {
-                x = decalSpaceBiNormalWS.x,
-                y = decalSpaceBiNormalWS.y,
-                z = decalSpaceBiNormalWS.z,
-                w = height / 2.0f - Vector3.Dot(decalSpaceBiNormalWS, basePoint)
+                x = decalSpaceBiNormalWs.x,
+                y = decalSpaceBiNormalWs.y,
+                z = decalSpaceBiNormalWs.z,
+                w = height / 2.0f - Vector3.Dot(decalSpaceBiNormalWs, basePoint)
             };
             // Build top plane.
             _clipPlanes[(int)ClipPlane.Top] = new Vector4
             {
-                x = -decalSpaceBiNormalWS.x,
-                y = -decalSpaceBiNormalWS.y,
-                z = -decalSpaceBiNormalWS.z,
-                w = height / 2.0f + Vector3.Dot(decalSpaceBiNormalWS, basePoint)
+                x = -decalSpaceBiNormalWs.x,
+                y = -decalSpaceBiNormalWs.y,
+                z = -decalSpaceBiNormalWs.z,
+                w = height / 2.0f + Vector3.Dot(decalSpaceBiNormalWs, basePoint)
             };
             // Build front plane.
             _clipPlanes[(int)ClipPlane.Front] = new Vector4
             {
-                x = -decalSpaceNormalWS.x,
-                y = -decalSpaceNormalWS.y,
-                z = -decalSpaceNormalWS.z,
-                w = _basePointToNearClipDistance + Vector3.Dot(decalSpaceNormalWS, basePoint)
+                x = -decalSpaceNormalWs.x,
+                y = -decalSpaceNormalWs.y,
+                z = -decalSpaceNormalWs.z,
+                w = _basePointToNearClipDistance + Vector3.Dot(decalSpaceNormalWs, basePoint)
             };
             // Build back plane.
             _clipPlanes[(int)ClipPlane.Back] = new Vector4
             {
-                x = decalSpaceNormalWS.x,
-                y = decalSpaceNormalWS.y,
-                z = decalSpaceNormalWS.z,
-                w = _basePointToFarClipDistance - Vector3.Dot(decalSpaceNormalWS, basePoint)
+                x = decalSpaceNormalWs.x,
+                y = decalSpaceNormalWs.y,
+                z = decalSpaceNormalWs.z,
+                w = _basePointToFarClipDistance - Vector3.Dot(decalSpaceNormalWs, basePoint)
             };
         }
 

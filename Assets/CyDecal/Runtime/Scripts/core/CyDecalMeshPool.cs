@@ -10,7 +10,7 @@ namespace CyDecal.Runtime.Scripts.Core
     public class CyDecalMeshPool
     {
         private readonly Dictionary<int, CyDecalMesh> _decalMeshes = new Dictionary<int, CyDecalMesh>();
-         
+
         /// <summary>
         ///     プールをクリア
         /// </summary>
@@ -18,6 +18,7 @@ namespace CyDecal.Runtime.Scripts.Core
         {
             _decalMeshes.Clear();
         }
+
         /// <summary>
         ///     プールのサイズを取得。
         /// </summary>
@@ -26,6 +27,7 @@ namespace CyDecal.Runtime.Scripts.Core
         {
             return _decalMeshes.Count;
         }
+
         /// <summary>
         ///     デカールメッシュのレンダラーを無効にする。
         /// </summary>
@@ -64,6 +66,8 @@ namespace CyDecal.Runtime.Scripts.Core
             var renderers = receiverObject.GetComponentsInChildren<Renderer>();
             foreach (var renderer in renderers)
             {
+                if (!renderer) return;
+
                 var hash = receiverObject.GetInstanceID()
                            + decalMaterial.name.GetHashCode()
                            + renderer.GetInstanceID();
@@ -86,6 +90,7 @@ namespace CyDecal.Runtime.Scripts.Core
             var removeList = _decalMeshes.Where(item => item.Value.IsPossibleRemovePool()).ToList();
             foreach (var item in removeList)
             {
+                item.Value.Destroy();
                 _decalMeshes.Remove(item.Key);
             }
         }
