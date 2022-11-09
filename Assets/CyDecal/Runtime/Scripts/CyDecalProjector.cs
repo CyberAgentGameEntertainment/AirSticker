@@ -1,7 +1,9 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using CyDecal.Runtime.Scripts.Core;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.Rendering.Universal;
 
 namespace CyDecal.Runtime.Scripts
@@ -17,13 +19,15 @@ namespace CyDecal.Runtime.Scripts
         [SerializeField] private GameObject receiverObject; // デカールを貼り付けるターゲットとなるオブジェクト
         [SerializeField] private Material decalMaterial; // デカールマテリアル
         [SerializeField] private Material urpDecalMaterial; // URPのデカールマテリアル
+        [SerializeField] private bool projectionOnAwake; // インスタンスが生成されると、自動的にデカールの投影処理も開始する。
+        [SerializeField] private UnityEvent onCompleteProjection; //　デカールの投影が完了したときに呼ばれるイベント。
         private readonly Vector4[] _clipPlanes = new Vector4[(int)ClipPlane.Num]; // 分割平面
         private float _basePointToFarClipDistance; // デカールを貼り付ける基準地点から、ファークリップまでの距離。
         private float _basePointToNearClipDistance; // デカールを貼り付ける基準地点から、ニアクリップまでの距離。
         private List<ConvexPolygonInfo> _broadPhaseConvexPolygonInfos = new List<ConvexPolygonInfo>();
         private readonly List<CyDecalMesh> _cyDecalMeshes = new List<CyDecalMesh>(); // デカールメッシュ。
         private CyDecalSpace _decalSpace; // デカール空間。
-        
+        private bool _destroy = false;
         /// <summary>
         /// 生成されたデカールメッシュのリストのプロパティ
         /// </summary>
@@ -32,16 +36,16 @@ namespace CyDecal.Runtime.Scripts
         {
             CyRenderDecalFeature.DecalProjectorCount++;
         }
-        /// <summary>
-        /// デカールメッシュの作成を強制中断
-        /// </summary>
-        internal void Cancel()
+
+        ~CyDecalProjector()
         {
-            
+            if (!_destroy)
+            {
+                // OnDestroyが呼ばれていない場合のために。
+                CyRenderDecalFeature.DecalProjectorCount--;
+            }
         }
-        //
-        // Start is called before the first frame update
-        private IEnumerator Start()
+        private IEnumerator ExecuteProjection()
         {
             InitializeOriginAxisInDecalSpace();
 
@@ -66,7 +70,11 @@ namespace CyDecal.Runtime.Scripts
             if (!receiverObject)
             {
                 // レシーバーオブジェクトが死亡しているのでここで処理を打ち切る。
-                Destroy(gameObject);
+                if (onCompleteProjection != null)
+                {
+                    onCompleteProjection.Invoke();
+                }
+
                 yield break;
             }
             var convexPolygonInfos = CyRenderDecalFeature.GetTrianglePolygons(
@@ -84,13 +92,26 @@ namespace CyDecal.Runtime.Scripts
                 SplitConvexPolygonsByPlanes();
                 AddTrianglePolygonsToDecalMeshFromConvexPolygons(hitPoint);
             }
-            Destroy(gameObject);
+
+            if (onCompleteProjection != null)
+            {
+                onCompleteProjection.Invoke();
+            }
 
             yield return null;
         }
-        
+        //
+        // Start is called before the first frame update
+        private void Start()
+        {
+            if (projectionOnAwake)
+            {
+                StartProjection(null);
+            }
+        }
         private void OnDestroy()
         {
+            _destroy = true;
             CyRenderDecalFeature.DecalProjectorCount--;
         }
 
@@ -103,13 +124,17 @@ namespace CyDecal.Runtime.Scripts
         /// <param name="width">プロジェクターの幅</param>
         /// <param name="height">プロジェクターの高さ</param>
         /// <param name="depth">プロジェクターの深度</param>
+        /// <param name="projectionOnAwake">コンポーネントの生成と同時にデカールの投影を始める/param>
+        /// <param name="onCompletedProjection">デカール投影完了時に呼び出されるコールバック関数</param>
         public static CyDecalProjector AddTo(
             GameObject owner,
             GameObject receiverObject,
             Material decalMaterial,
             float width,
             float height,
-            float depth)
+            float depth,
+            bool projectionOnAwake,
+            UnityAction onCompletedProjection)
         {
             var projector = owner.AddComponent<CyDecalProjector>();
             projector.width = width;
@@ -117,9 +142,30 @@ namespace CyDecal.Runtime.Scripts
             projector.depth = depth;
             projector.receiverObject = receiverObject;
             projector.decalMaterial = decalMaterial;
+            projector.projectionOnAwake = projectionOnAwake;
+            projector.onCompleteProjection = new UnityEvent();
+            if (onCompletedProjection != null)
+            {
+                projector.onCompleteProjection.AddListener(onCompletedProjection);
+            }
+
             return projector;
         }
-        
+        /// <summary>
+        /// デカール投影を始める。
+        /// </summary>
+        /// <remarks>
+        /// この処理は非同期処理となっており、デカールの投影が完了するまで数フレームの遅延が発生します。
+        /// デカールの投影の完了を監視する場合は、コールバック関数を指定してください。
+        /// </remarks>
+        public void StartProjection(UnityAction onCompletedProjection)
+        {
+            if (onCompletedProjection != null)
+            {
+                this.onCompleteProjection.AddListener(onCompletedProjection);
+            }
+            StartCoroutine(ExecuteProjection());
+        }
         /// <summary>
         ///     デカール空間での規定軸を初期化。
         /// </summary>

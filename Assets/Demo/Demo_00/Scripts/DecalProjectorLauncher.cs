@@ -1,9 +1,12 @@
+#define TEST_START_PROJECTION_METHOD    // 有効でStartProjectionメソッドをテストする。
+
 using System.Collections.Generic;
 using CyDecal.Runtime.Scripts;
 using CyDecal.Runtime.Scripts.Core;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
 using UnityEngine.Serialization;
+
 
 namespace Demo.Demo_00.Scripts
 {
@@ -25,7 +28,9 @@ namespace Demo.Demo_00.Scripts
         public int CurrentDecalMaterialIndex { get; set; }
 
         public bool IsLaunchReady { get; set; }
-
+#if UNITY_2021_1_OR_NEWER
+        private DecalProjector _urpDecalProjector;
+#endif
         // Start is called before the first frame update
         private void Start()
         {
@@ -63,12 +68,12 @@ namespace Demo.Demo_00.Scripts
                             if (CurrentDecalMaterialIndex == 3) _projectorSize.x *= 4.496f;
                             _projectorSize.z = 0.2f;
 #if UNITY_2021_1_OR_NEWER
-                            var urpDecaleProjector = _currentProjectorObject.AddComponent<DecalProjector>();
-                            urpDecaleProjector.size = _projectorSize;
+                            _urpDecalProjector = _currentProjectorObject.AddComponent<DecalProjector>();
+                            _urpDecalProjector.size = _projectorSize;
                             var pivot = new Vector3();
                             pivot.z = _projectorSize.z * 0.5f;
-                            urpDecaleProjector.pivot = pivot;
-                            urpDecaleProjector.material = urpDecalMaterials[CurrentDecalMaterialIndex];
+                            _urpDecalProjector.pivot = pivot;
+                            _urpDecalProjector.material = urpDecalMaterials[CurrentDecalMaterialIndex];
 #endif
                         }
 
@@ -81,14 +86,38 @@ namespace Demo.Demo_00.Scripts
             {
                 if (_currentProjectorObject != null)
                 {
+#if !TEST_START_PROJECTION_METHOD
+                    
                     var projector = CyDecalProjector.AddTo(
                         _currentProjectorObject,
                         receiverObjects[_currentReceiverObjectNo],
                         decalMaterials[CurrentDecalMaterialIndex],
                         _projectorSize.x,
                         _projectorSize.y,
-                        _projectorSize.z);
-                    
+                        _projectorSize.z,
+                        true,
+                        () =>
+                        {
+                            // 投影完了とともにオブジェクトも削除する。
+                            Object.Destroy(projector.gameObject);
+                        });
+#else
+                    var projector = CyDecalProjector.AddTo(
+                        _currentProjectorObject,
+                        receiverObjects[_currentReceiverObjectNo],
+                        decalMaterials[CurrentDecalMaterialIndex],
+                        _projectorSize.x,
+                        _projectorSize.y,
+                        _projectorSize.z,
+                        false,
+                        null );
+                    projector.StartProjection(
+                        () =>
+                        {
+                            // 投影完了とともにオブジェクトも削除する。
+                            Object.Destroy(projector.gameObject);
+                        });
+#endif
                     _cyDecalMeshesList.Add(projector.DecalMeshes);
                 }
                 moveImageObjects[CurrentDecalMaterialIndex].SetActive(false);
