@@ -11,8 +11,8 @@ namespace CyDecal.Runtime.Scripts.Core
     /// </summary>
     public static class CyTrianglePolygonsFactory
     {
-        private static readonly int MaxGeneratedPolygonPerFrame = 100; // 
-
+        public static int MaxGeneratedPolygonPerFrame { get; set; } = 100; //
+        
         /// <summary>
         ///     行列をスカラー倍する
         /// </summary>
@@ -174,6 +174,11 @@ namespace CyDecal.Runtime.Scripts.Core
             var newConvexPolygonNo = 0;
             foreach (var meshFilter in meshFilters)
             {
+                if (!meshFilter)
+                {
+                    // meshFilterが削除されているので打ち切る
+                    yield break;
+                }
                 var localToWorldMatrix = meshFilter.transform.localToWorldMatrix;
                 var mesh = meshFilter.sharedMesh;
                 var numPoly = mesh.triangles.Length / 3;
@@ -185,6 +190,11 @@ namespace CyDecal.Runtime.Scripts.Core
                     if ((newConvexPolygonNo + 1) % MaxGeneratedPolygonPerFrame == 0)
                         // 1フレームに処理するポリゴンは最大で100まで
                         yield return null;
+                    if (!meshFilter)
+                    {
+                        // meshFilterが削除されているので打ち切る
+                        yield break;
+                    }
                     var v0_no = meshTriangles[i * 3];
                     var v1_no = meshTriangles[i * 3 + 1];
                     var v2_no = meshTriangles[i * 3 + 2];
@@ -237,6 +247,11 @@ namespace CyDecal.Runtime.Scripts.Core
             var jobHandles = new List<JobHandle>();
             foreach (var skinnedMeshRenderer in skinnedMeshRenderers)
             {
+                if (!skinnedMeshRenderer)
+                {
+                    // スキンモデルレンダラーが無効になっているので打ち切る。
+                    yield break;
+                }
                 var localToWorldMatrix = skinnedMeshRenderer.localToWorldMatrix;
                 var mesh = skinnedMeshRenderer.sharedMesh;
                 var numPoly = mesh.triangles.Length / 3;
@@ -250,6 +265,11 @@ namespace CyDecal.Runtime.Scripts.Core
                     if ((newConvexPolygonNo + 1) % MaxGeneratedPolygonPerFrame == 0)
                         // 1フレームに処理するポリゴンは最大で100まで
                         yield return null;
+                    if (!skinnedMeshRenderer)
+                    {
+                        // スキンモデルレンダラーが無効になっているので打ち切る。
+                        yield break;
+                    }
                     var v0No = meshTriangles[i * 3];
                     var v1No = meshTriangles[i * 3 + 1];
                     var v2No = meshTriangles[i * 3 + 2];

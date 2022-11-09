@@ -16,13 +16,14 @@ namespace CyDecal.Runtime.Scripts
         [SerializeField] private float depth; // デカールボックスの奥行
         [SerializeField] private GameObject receiverObject; // デカールを貼り付けるターゲットとなるオブジェクト
         [SerializeField] private Material decalMaterial; // デカールマテリアル
+        [SerializeField] private Material urpDecalMaterial; // URPのデカールマテリアル
         private readonly Vector4[] _clipPlanes = new Vector4[(int)ClipPlane.Num]; // 分割平面
         private float _basePointToFarClipDistance; // デカールを貼り付ける基準地点から、ファークリップまでの距離。
         private float _basePointToNearClipDistance; // デカールを貼り付ける基準地点から、ニアクリップまでの距離。
         private List<ConvexPolygonInfo> _broadPhaseConvexPolygonInfos = new List<ConvexPolygonInfo>();
         private readonly List<CyDecalMesh> _cyDecalMeshes = new List<CyDecalMesh>(); // デカールメッシュ。
         private CyDecalSpace _decalSpace; // デカール空間。
-
+        
         /// <summary>
         /// 生成されたデカールメッシュのリストのプロパティ
         /// </summary>
@@ -31,7 +32,13 @@ namespace CyDecal.Runtime.Scripts
         {
             CyRenderDecalFeature.DecalProjectorCount++;
         }
-
+        /// <summary>
+        /// デカールメッシュの作成を強制中断
+        /// </summary>
+        internal void Cancel()
+        {
+            
+        }
         //
         // Start is called before the first frame update
         private IEnumerator Start()
@@ -56,6 +63,12 @@ namespace CyDecal.Runtime.Scripts
                     receiverObject.GetComponentsInChildren<SkinnedMeshRenderer>());
             }
 
+            if (!receiverObject)
+            {
+                // レシーバーオブジェクトが死亡しているのでここで処理を打ち切る。
+                Destroy(gameObject);
+                yield break;
+            }
             var convexPolygonInfos = CyRenderDecalFeature.GetTrianglePolygons(
                 receiverObject);
             _broadPhaseConvexPolygonInfos = CyBroadPhaseDetectionConvexPolygons.Execute(
@@ -71,14 +84,11 @@ namespace CyDecal.Runtime.Scripts
                 SplitConvexPolygonsByPlanes();
                 AddTrianglePolygonsToDecalMeshFromConvexPolygons(hitPoint);
             }
-
-            DisableURPProjector();
-
             Destroy(gameObject);
 
             yield return null;
         }
-
+        
         private void OnDestroy()
         {
             CyRenderDecalFeature.DecalProjectorCount--;
@@ -109,18 +119,7 @@ namespace CyDecal.Runtime.Scripts
             projector.decalMaterial = decalMaterial;
             return projector;
         }
-
-        /// <summary>
-        ///     URPプロジェクターを無効にする。
-        /// </summary>
-        private void DisableURPProjector()
-        {
-#if UNITY_2021_1_OR_NEWER
-            var urpProjector = gameObject.GetComponent<DecalProjector>();
-            if (urpProjector != null) urpProjector.enabled = false;
-#endif
-        }
-
+        
         /// <summary>
         ///     デカール空間での規定軸を初期化。
         /// </summary>

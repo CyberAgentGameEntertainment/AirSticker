@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace CyDecal.Runtime.Scripts.Core
@@ -49,7 +50,13 @@ namespace CyDecal.Runtime.Scripts.Core
                 meshRenderer,
                 skinnedMeshRenderers,
                 convexPolygonInfos);
-            ConvexPolygonsPool.Add(receiverObject, convexPolygonInfos);
+            if (receiverObject 
+                && !ExistConvexPolygons(receiverObject))
+            {
+                // 処理再開時にレシーバーオブジェクトが破棄されている可能性があるので、チェックを入れる。
+                // 複数フレームにわたる非同期処理となるため、CyDecalProjector.Start同じレシーバーオブジェクトが
+                ConvexPolygonsPool.Add(receiverObject, convexPolygonInfos);
+            }
         }
 
         /// <summary>
@@ -60,6 +67,28 @@ namespace CyDecal.Runtime.Scripts.Core
         public bool ExistConvexPolygons(GameObject receiverObject)
         {
             return ConvexPolygonsPool.ContainsKey(receiverObject);
+        }
+        /// <summary>
+        /// プールをガベージコレクト
+        /// </summary>
+        /// <remarks>
+        /// キーとなっているレシーバーオブジェクトが削除されていたら、プールから除去する。
+        /// </remarks>
+        public void GarbageCollect()
+        {
+            var deleteList = ConvexPolygonsPool.Where(item => !item.Key).ToList();
+            foreach (var item in deleteList)
+            {
+                ConvexPolygonsPool.Remove(item.Key);
+            }
+        }
+        /// <summary>
+        /// プールのサイズを取得。
+        /// </summary>
+        /// <returns></returns>
+        public int GetPoolSize()
+        {
+            return ConvexPolygonsPool.Count;
         }
     }
 }

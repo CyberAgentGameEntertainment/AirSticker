@@ -12,7 +12,7 @@ namespace CyDecal.Runtime.Scripts.Core
     {
         
         private readonly Matrix4x4[] _bindPoses; // バインドポーズ行列
-        
+        private GameObject _receiverObject; // デカールメッシュを貼り付けるレシーバーオブジェクト
         private readonly Material _decalMaterial;
         private Mesh _mesh; // デカールテクスチャを貼り付けるためのデカールメッシュ
         private readonly Renderer _receiverMeshRenderer;
@@ -32,17 +32,33 @@ namespace CyDecal.Runtime.Scripts.Core
         private int _numVertex;
          
         public CyDecalMesh(
-            GameObject projectorObject,
+            GameObject receiverObject,
             Material decalMaterial,
             Renderer receiverMeshRenderer)
         {
             _mesh = new Mesh();
             _receiverMeshRenderer = receiverMeshRenderer;
             _decalMaterial = decalMaterial;
+            _receiverObject = receiverObject;
             if (_receiverMeshRenderer is SkinnedMeshRenderer skinnedMeshRenderer)
                 _bindPoses = skinnedMeshRenderer.sharedMesh.bindposes;
         }
 
+        ~CyDecalMesh()
+        {
+            Object.Destroy(_mesh);
+        }
+        /// <summary>
+        /// プールから削除可能？
+        /// </summary>
+        /// <returns></returns>
+        public bool IsPossibleRemovePool()
+        {
+            // プールのキーとなっているオブジェクトのうち、一つでも死亡していたらプールから削除可能。
+            return !_decalMaterial
+                   || !_receiverMeshRenderer
+                   || !_receiverObject;
+        }
         public void Clear()
         {
             _decalMeshRenderer?.Destroy();

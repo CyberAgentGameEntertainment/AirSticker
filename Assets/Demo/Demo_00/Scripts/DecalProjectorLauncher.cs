@@ -121,9 +121,16 @@ namespace Demo.Demo_00.Scripts
                 animator.Rebind();
             }
 
-            receiverObjects[_currentReceiverObjectNo].SetActive(false);
+            if (receiverObjects[_currentReceiverObjectNo])
+            {
+                receiverObjects[_currentReceiverObjectNo].SetActive(false);
+            }
+
             _currentReceiverObjectNo = (_currentReceiverObjectNo + 1) % receiverObjects.Length;
-            receiverObjects[_currentReceiverObjectNo].SetActive(true);
+            if (receiverObjects[_currentReceiverObjectNo])
+            {
+                receiverObjects[_currentReceiverObjectNo].SetActive(true);
+            }
         }
 
         /// <summary>
@@ -132,9 +139,19 @@ namespace Demo.Demo_00.Scripts
         /// <returns></returns>
         public bool HasAnimatorInCurrentReceiverObject()
         {
-            return receiverObjects[_currentReceiverObjectNo].GetComponent<Animator>() != null;
+            if (receiverObjects[_currentReceiverObjectNo])
+            {
+                return receiverObjects[_currentReceiverObjectNo].GetComponent<Animator>() != null;
+            }
+            return false;
         }
-
+        /// <summary>
+        /// 現在のレシーバーオブジェクトを破棄。
+        /// </summary>
+        public void DeleteCurrentReceiverObject()
+        {
+            Destroy(receiverObjects[_currentReceiverObjectNo]);
+        }
         /// <summary>
         ///     レシーバーオブジェクトのアニメーションを再生する。
         /// </summary>

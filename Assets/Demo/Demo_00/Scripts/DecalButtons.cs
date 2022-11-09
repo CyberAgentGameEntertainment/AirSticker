@@ -23,7 +23,7 @@ namespace Demo.Demo_00.Scripts
         {
             _decalProjector.CurrentDecalMaterialIndex = imageNo;
             _decalProjector.IsLaunchReady = true;
-            var playerButtons = playerButtonsGameObject.GetComponent<PlayerButtons>();
+            var playerButtons = playerButtonsGameObject.GetComponent<DemoGUIs>();
             playerButtons.StopAnimation();
             playerButtons.StopRotation();
         }

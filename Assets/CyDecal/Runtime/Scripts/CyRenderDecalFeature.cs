@@ -27,6 +27,9 @@ namespace CyDecal.Runtime.Scripts
 
         public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData)
         {
+            // プールをガベージコレクト
+            _receiverObjectTrianglePolygonsPool.GarbageCollect();
+            _decalMeshPool.GarbageCollect();
         }
 
         /// <summary>
@@ -137,6 +140,24 @@ namespace CyDecal.Runtime.Scripts
         {
             if (Instance == null) return;
             Instance._receiverObjectTrianglePolygonsPool.Clear();
+        }
+        /// <summary>
+        ///     デカールメッシュプールのサイズを取得。
+        /// </summary>
+        /// <returns></returns>
+        public static int GetDecalMeshPoolSize()
+        {
+            if (Instance == null) return 0;
+            return Instance._decalMeshPool.GetPoolSize();
+        }
+        /// <summary>
+        /// レシーバーオブジェクトの三角形ポリゴンスープのプールのサイズを取得。
+        /// </summary>
+        /// <returns></returns>
+        public static int GetReceiverObjectTrianglePolygonsPoolSize()
+        {
+            if (Instance == null) return 0;
+            return Instance._receiverObjectTrianglePolygonsPool.GetPoolSize();
         }
     }
 }

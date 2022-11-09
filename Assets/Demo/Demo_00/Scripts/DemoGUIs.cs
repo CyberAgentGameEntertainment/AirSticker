@@ -1,14 +1,15 @@
+using System;
 using CyDecal.Runtime.Scripts;
 using CyDecal.Runtime.Scripts.Core;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
-using UnityEngine.WSA;
+using Object = UnityEngine.Object;
 
 namespace Demo.Demo_00.Scripts
 {
-    public class PlayerButtons : MonoBehaviour
+    public class DemoGUIs : MonoBehaviour
     {
-        [SerializeField] private GameObject receiverObject;
         [SerializeField] private GameObject playAnimTextObject;
         [SerializeField] private GameObject playRotTextObject;
         [SerializeField] private GameObject decalProjectorLauncherObject;
@@ -67,6 +68,27 @@ namespace Demo.Demo_00.Scripts
                 launcher.StopRotateToCurrentReceiverObject();
         }
 
+        public void OnClickResetScene()
+        {
+            SceneManager.LoadScene("Demo_00");
+        }
+        public void OnClickDeleteObject()
+        {
+            var launcher = decalProjectorLauncherObject.GetComponent<DecalProjectorLauncher>();
+            launcher.DeleteCurrentReceiverObject();
+        }
+
+        public void OnEndEdit_CollectPolyInputField( Object textObj )
+        {
+            var go = (GameObject)textObj;
+            var text = go.GetComponent<Text>();
+            
+            var result = int.TryParse(text.text, out int value);
+            if (result)
+            {
+                CyTrianglePolygonsFactory.MaxGeneratedPolygonPerFrame = value;
+            }
+        }
         public void StopAnimation()
         {
             if (!_isPlayAnim) return;
