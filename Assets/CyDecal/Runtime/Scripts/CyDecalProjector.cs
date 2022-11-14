@@ -14,7 +14,7 @@ namespace CyDecal.Runtime.Scripts
     ///     デカールの投影が完了するには複数フレームかかる場合があり、インスタンスを生成後すぐに処理が終わるわけではありません。
     ///     投影完了をチェックしたい場合はコールバック関数を設定して監視を行ってください。
     /// </remarks>
-    public class CyDecalProjector : MonoBehaviour
+    public sealed class CyDecalProjector : MonoBehaviour
     {
         [SerializeField] private float width; // デカールボックスの幅
         [SerializeField] private float height; // デカールボックスの高さ

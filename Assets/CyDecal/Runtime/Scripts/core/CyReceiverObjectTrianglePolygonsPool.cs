@@ -18,7 +18,7 @@ namespace CyDecal.Runtime.Scripts.Core
     /// <summary>
     ///     ターゲットオブジェクトの三角形ポリゴンブール
     /// </summary>
-    public class CyReceiverObjectTrianglePolygonsPool
+    public sealed class CyReceiverObjectTrianglePolygonsPool
     {
         Dictionary<GameObject, List<ConvexPolygonInfo>> _convexPolygonsPool = new Dictionary<GameObject, List<ConvexPolygonInfo>>();
 

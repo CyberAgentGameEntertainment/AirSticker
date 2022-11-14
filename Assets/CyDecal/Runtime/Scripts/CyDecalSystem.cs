@@ -9,7 +9,7 @@ namespace CyDecal.Runtime.Scripts
     /// <summary>
     ///     デカールシステム
     /// </summary>
-    public class CyDecalSystem : MonoBehaviour
+    public sealed class CyDecalSystem : MonoBehaviour
     {
         // デカールメッシュプール。
         private readonly CyDecalMeshPool _decalMeshPool = new CyDecalMeshPool();

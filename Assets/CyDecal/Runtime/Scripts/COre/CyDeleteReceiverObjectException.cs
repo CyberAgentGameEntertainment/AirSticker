@@ -2,7 +2,7 @@ using System;
 
 namespace CyDecal.Runtime.Scripts.Core
 {
-    public class CyDeleteReceiverObjectException : Exception
+    public sealed class CyDeleteReceiverObjectException : Exception
     {
     }
 }

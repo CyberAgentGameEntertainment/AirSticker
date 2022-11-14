@@ -7,7 +7,7 @@ namespace CyDecal.Runtime.Scripts.Core
     /// <summary>
     ///     デカールメッシュのプール
     /// </summary>
-    public class CyDecalMeshPool
+    public sealed class CyDecalMeshPool
     {
         private readonly Dictionary<int, CyDecalMesh> _decalMeshes = new Dictionary<int, CyDecalMesh>();
 

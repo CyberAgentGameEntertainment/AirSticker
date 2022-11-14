@@ -5,7 +5,7 @@ namespace CyDecal.Runtime.Scripts.Core
     /// <summary>
     ///     デカールメッシュのレンダラー
     /// </summary>
-    public class CyDecalMeshRenderer
+    public sealed class CyDecalMeshRenderer
     {
         private readonly Renderer _renderer;
 
