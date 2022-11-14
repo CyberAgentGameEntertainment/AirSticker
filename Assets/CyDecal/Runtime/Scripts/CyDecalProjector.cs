@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using CyDecal.Runtime.Scripts.Core;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.Serialization;
 
 namespace CyDecal.Runtime.Scripts
 {
@@ -24,14 +25,14 @@ namespace CyDecal.Runtime.Scripts
         [Tooltip("このチェックを外す場合は、デカールを投影するためには明示的にLaunchメソッドを呼び出す必要があります。")] [SerializeField]
         private bool launchOnAwake; // インスタンスが生成されると、自動的にデカールの投影処理も開始する。
 
-        [SerializeField] private UnityEvent onCompleteLaunch; //　デカールの投影が完了したときに呼ばれるイベント。
+        [FormerlySerializedAs("onCompleteLaunch")] [SerializeField] private UnityEvent onCompletedLaunch; //　デカールの投影が完了したときに呼ばれるイベント。
         private readonly Vector4[] _clipPlanes = new Vector4[(int)ClipPlane.Num]; // 分割平面
         private float _basePointToFarClipDistance; // デカールを貼り付ける基準地点から、ファークリップまでの距離。
         private float _basePointToNearClipDistance; // デカールを貼り付ける基準地点から、ニアクリップまでの距離。
         private List<ConvexPolygonInfo> _broadPhaseConvexPolygonInfos = new List<ConvexPolygonInfo>();
         private CyDecalSpace _decalSpace; // デカール空間。
         private bool _destroy;
-        public bool IsFinishedLaunch { get; private set; }
+        public bool IsCompletedLaunch { get; private set; }
 
         /// <summary>
         ///     生成されたデカールメッシュのリストのプロパティ
@@ -48,9 +49,9 @@ namespace CyDecal.Runtime.Scripts
         /// </summary>
         private void OnCompleted()
         {
-            onCompleteLaunch?.Invoke();
-            IsFinishedLaunch = true;
-            onCompleteLaunch = null;
+            onCompletedLaunch?.Invoke();
+            IsCompletedLaunch = true;
+            onCompletedLaunch = null;
         }
 
         void OnDestroy()
@@ -144,11 +145,11 @@ namespace CyDecal.Runtime.Scripts
             projector.receiverObject = receiverObject;
             projector.decalMaterial = decalMaterial;
             projector.launchOnAwake = false;
-            projector.onCompleteLaunch = new UnityEvent();
+            projector.onCompletedLaunch = new UnityEvent();
 
             if (launchOnAwake) // コンポーネント追加と同時にプロジェクション開始。
                 projector.Launch(onCompletedLaunch);
-            else if (onCompletedLaunch != null) projector.onCompleteLaunch.AddListener(onCompletedLaunch);
+            else if (onCompletedLaunch != null) projector.onCompletedLaunch.AddListener(onCompletedLaunch);
 
             return projector;
         }
@@ -162,7 +163,7 @@ namespace CyDecal.Runtime.Scripts
         /// </remarks>
         public void Launch(UnityAction onCompletedLaunch)
         {
-            if (onCompletedLaunch != null) onCompleteLaunch.AddListener(onCompletedLaunch);
+            if (onCompletedLaunch != null) this.onCompletedLaunch.AddListener(onCompletedLaunch);
             // リクエストキューに積む。
             CyDecalSystem.EnqueueRequestLaunchDecalProjector(
                 this,

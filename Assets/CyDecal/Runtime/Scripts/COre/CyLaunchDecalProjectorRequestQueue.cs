@@ -30,7 +30,7 @@ namespace CyDecal.Runtime.Scripts.Core
         {
             return _currentRequest == null // そもそもリクエストを発行していない
                    || !_currentRequest.Projector // リクエストを投げたプロジェクターが死亡している。
-                   || _currentRequest.Projector.IsFinishedLaunch; // プロジェクションが完了している。
+                   || _currentRequest.Projector.IsCompletedLaunch; // プロジェクションが完了している。
         }
 
         public void Update()
