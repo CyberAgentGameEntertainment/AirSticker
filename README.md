@@ -66,20 +66,19 @@ URPデカールとCyDecalのメリット/デメリットは次のようになっ
 
 ## Section 3 使用方法
 CyDecalはAssets/CyDecalフォルダーを自身のプロジェクトに取り込むことで利用できます。<br/>
-その中でも次の２つのファイルが重要になってきます。
-1. CyRenderDecalFeature.cs
-2. CyDecalProjector.cs
+その中でも次の２つのクラスが重要になってきます。
+1. CyDecalSystemクラス
+2. CyDecalProjectorクラス
 
-### 3.1 CyRenderDecalFeature.cs
-URPのレンダリングパイプラインにデカール描画の機能を追加するためのスクリプトです。<br/>
-CyDecalを利用する場合は、必ずこのスクリプトをURPレンダラーに追加する必要があります。<br/>
+### 3.1 CyDecalSystemクラス
+CyDecaleを利用するためには、必ず、このコンポーネントが貼られたゲームオブジェクトを一つ設置する必要があります。
 
 <p align="center">
-<img width="50%" src="Documentation/fig-003.png" alt="feature追加"><br>
-<font color="grey">feature追加</font>
+<img width="80%" src="Documentation/fig-013.png" alt="CyDecalSystem"><br>
+<font color="grey">CyDecalSystem</font>
 </p>
 
-### 3.2 CyDecalProjector.cs
+### 3.2 CyDecalProjectorクラス
 デカールを投影するためのコンポーネントです。デカールプロジェクタとして設置するゲームオブジェクトにこのコンポーネントを追加してください。
 
 <p align="center">
@@ -102,12 +101,13 @@ CyDecalProjectorコンポーネントには5つのパラメータを設定する
 <font color="grey">CyDecalProjectorの使用方法</font>
 </p>
 
+> **Note**
 > 現在、CyDecalProjectorは投影範囲の可視化に対応していないため、シーンビューで配置する場合はURPプロジェクターと併用すると、視覚的に分かりやすくなります。
 
 ### 3.3 ランタイムでの使用方法
 デカールのランタイムでの使用例として、FPSなどの弾痕を背景に貼り付ける処理があります。このような処理は背景と銃弾との衝突判定を行い、衝突点の情報を元にCyDecalProjectorを設置することで実現できます。<br/>
-次のコードは、弾痕の後を背景に貼り付けるための疑似コードです。<br/>
-なお、CyDecalProjectorコンポーネントがつけられたオブジェクトはデカールの貼り付けが完了すると、自動的に削除されるため、ユーザーがライフサイクルを管理する必要はありません。
+メッシュ生成処理は時間のかかる処理になっているため、ランタイムのスパイクを隠ぺいするために、数フレームにわたって処理が実行されます。そのため、メッシュ生成の完了を監視するためには、CyDecalProjectorのIsCompletedLaunchプロパティを監視するか、メッシュ生成処理完了時に呼び出しされる、onCompletedLaunchコールバック関数を利用する必要があります。<br/>
+次のコードは、CyDecalProjector.AddToメソッドを利用して弾痕を背景に貼り付けるための疑似コードです。この疑似コードでは、AddToメソッドの引数を使って終了を監視するコールバック関数を設定しています。<br/>
 ```C#
 // hitPosition    弾丸と背景の衝突点
 // hitNormal      衝突した面の法線
@@ -123,14 +123,15 @@ void LaunchProjector(
     // プロジェクターの向きは法線の逆向き
     projectorObject.transform.rotation = Quaternion.LookRotation( hitNormal * -1.0f );
 
-    var projector = projectorObject.AddComponent<CyDecalProjector>();
-    // 各種パラメータを使って初期化する。
-    projector.Initialize(
-      receiverObject,
-      decalMaterial,
-      /*width=*/0.05f,
-      /*height=*/0.05f,
-      /*depth=*/0.2f;);
+    CyDecalProjector.AddTo(
+                    projectorObj,
+                    receiverObject,
+                    decalMaterial,
+                    /*width=*/0.05f,
+                    /*height=*/0.05f,
+                    /*depth=*/0.2f
+                    /*launchOnAwake*/true,
+                    /*onCompletedLaunch*/() => { Destroy(projectorObj); });
 }
 ```
 
