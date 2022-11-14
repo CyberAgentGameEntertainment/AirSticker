@@ -81,7 +81,7 @@ namespace CyDecal.Runtime.Scripts
         /// <param name="projectorObject">デカールプロジェクターオブジェクト</param>
         /// <param name="receiverObject">レシーバーオブジェクト</param>
         /// <param name="decalMaterial">デカールマテリアル</param>
-        public static void GetDecalMeshes(
+        internal static void GetDecalMeshes(
             List<CyDecalMesh> results,
             GameObject projectorObject,
             GameObject receiverObject,
@@ -137,7 +137,7 @@ namespace CyDecal.Runtime.Scripts
         /// </remarks>
         /// <param name="receiverObject">レシーバーオブジェクト</param>
         /// <returns></returns>
-        public static List<ConvexPolygonInfo> GetTrianglePolygons(GameObject receiverObject)
+        internal static List<ConvexPolygonInfo> GetTrianglePolygons(GameObject receiverObject)
         {
             if (Instance == null) return null;
 

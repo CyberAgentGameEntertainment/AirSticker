@@ -5,7 +5,7 @@ namespace CyDecal.Runtime.Scripts.Core
     /// <summary>
     ///     凸多角形ポリゴン
     /// </summary>
-    public sealed class CyConvexPolygon
+    internal sealed class CyConvexPolygon
     {
         private const int MaxVertex = 64; // 凸多角形の最大頂点
         private readonly BoneWeight[] _boneWeights = new BoneWeight[MaxVertex]; // ボーンウェイト

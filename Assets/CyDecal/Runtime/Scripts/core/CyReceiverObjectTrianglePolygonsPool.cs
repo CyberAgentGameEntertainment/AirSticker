@@ -8,7 +8,7 @@ namespace CyDecal.Runtime.Scripts.Core
     /// <summary>
     ///     凸多角形情報
     /// </summary>
-    public class ConvexPolygonInfo
+    internal class ConvexPolygonInfo
     {
         public CyConvexPolygon ConvexPolygon { get; set; } // 凸多角形
         public bool IsOutsideClipSpace { get; set; } // クリップ平面の外側？
@@ -18,7 +18,7 @@ namespace CyDecal.Runtime.Scripts.Core
     /// <summary>
     ///     ターゲットオブジェクトの三角形ポリゴンブール
     /// </summary>
-    public sealed class CyReceiverObjectTrianglePolygonsPool
+    internal sealed class CyReceiverObjectTrianglePolygonsPool
     {
         Dictionary<GameObject, List<ConvexPolygonInfo>> _convexPolygonsPool = new Dictionary<GameObject, List<ConvexPolygonInfo>>();
 

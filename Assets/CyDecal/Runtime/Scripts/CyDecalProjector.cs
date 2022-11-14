@@ -37,7 +37,7 @@ namespace CyDecal.Runtime.Scripts
         /// <summary>
         ///     生成されたデカールメッシュのリストのプロパティ
         /// </summary>
-        public List<CyDecalMesh> DecalMeshes { get; } = new List<CyDecalMesh>();
+        internal List<CyDecalMesh> DecalMeshes { get; } = new List<CyDecalMesh>();
 
         private void Start()
         {

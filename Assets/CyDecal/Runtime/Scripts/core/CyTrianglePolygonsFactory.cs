@@ -87,7 +87,7 @@ namespace CyDecal.Runtime.Scripts.Core
         /// <param name="meshRenderers">レシーバーオブジェクトのメッシュレンダラー</param>
         /// <param name="skinnedMeshRenderers">レシーバーオブジェクトのスキンメッシュレンダラー</param>
         /// <param name="convexPolygonInfos">凸ポリゴン情報の格納先</param>
-        public static IEnumerator BuildFromReceiverObject(
+        internal static IEnumerator BuildFromReceiverObject(
             MeshFilter[] meshFilters,
             MeshRenderer[] meshRenderers,
             SkinnedMeshRenderer[] skinnedMeshRenderers,

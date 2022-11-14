@@ -5,7 +5,7 @@ namespace CyDecal.Runtime.Scripts.Core
     /// <summary>
     ///     デカール空間
     /// </summary>
-    public sealed class CyDecalSpace
+    internal sealed class CyDecalSpace
     {
         public CyDecalSpace(Vector3 ex, Vector3 ey, Vector3 ez)
         {

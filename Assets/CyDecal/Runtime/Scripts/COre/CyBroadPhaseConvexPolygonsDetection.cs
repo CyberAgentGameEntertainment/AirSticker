@@ -16,7 +16,7 @@ namespace CyDecal.Runtime.Scripts.Core
         /// <summary>
         ///     ブロードフェーズを実行。
         /// </summary>
-        public static List<ConvexPolygonInfo> Execute(
+        internal static List<ConvexPolygonInfo> Execute(
             Vector3 originPosInDecalSpace,
             Vector3 decalSpaceNormalWs,
             float width,

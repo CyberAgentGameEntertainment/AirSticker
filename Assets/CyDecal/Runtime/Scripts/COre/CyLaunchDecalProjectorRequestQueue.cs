@@ -9,7 +9,7 @@ namespace CyDecal.Runtime.Scripts.Core
     /// <remarks>
     ///     同時に実行されるプロジェクション処理の数を制御するための待ち行列キュー
     /// </remarks>
-    public sealed class CyLaunchDecalProjectorRequestQueue
+    internal sealed class CyLaunchDecalProjectorRequestQueue
     {
         private LaunchRequest _currentRequest; // 現在実行中のリクエスト。
         private readonly Queue<LaunchRequest> _launchRequestQueues = new Queue<LaunchRequest>();
