@@ -20,14 +20,19 @@ namespace CyDecal.Runtime.Scripts.Core
     /// </summary>
     public class CyReceiverObjectTrianglePolygonsPool
     {
-        public Dictionary<GameObject, List<ConvexPolygonInfo>> ConvexPolygonsPool { get; } = new Dictionary<GameObject, List<ConvexPolygonInfo>>();
+        Dictionary<GameObject, List<ConvexPolygonInfo>> _convexPolygonsPool = new Dictionary<GameObject, List<ConvexPolygonInfo>>();
+
+        public IReadOnlyDictionary <GameObject, List<ConvexPolygonInfo>> ConvexPolygonsPool
+        {
+            get => _convexPolygonsPool;
+        } 
 
         /// <summary>
         ///     プールをクリア
         /// </summary>
         public void Clear()
         {
-            ConvexPolygonsPool.Clear();
+            _convexPolygonsPool.Clear();
         }
 
         /// <summary>
@@ -53,7 +58,7 @@ namespace CyDecal.Runtime.Scripts.Core
             if (receiverObject
                 && !ExistConvexPolygons(receiverObject))
                 // 処理再開時にレシーバーオブジェクトが破棄されている可能性があるのでオブジェクトが生きているかチェックを入れる。
-                ConvexPolygonsPool.Add(receiverObject, convexPolygonInfos);
+                _convexPolygonsPool.Add(receiverObject, convexPolygonInfos);
         }
 
         /// <summary>
@@ -75,7 +80,7 @@ namespace CyDecal.Runtime.Scripts.Core
         public void GarbageCollect()
         {
             var deleteList = ConvexPolygonsPool.Where(item => !item.Key).ToList();
-            foreach (var item in deleteList) ConvexPolygonsPool.Remove(item.Key);
+            foreach (var item in deleteList) _convexPolygonsPool.Remove(item.Key);
         }
 
         /// <summary>
