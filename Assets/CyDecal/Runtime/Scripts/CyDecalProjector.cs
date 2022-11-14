@@ -96,7 +96,7 @@ namespace CyDecal.Runtime.Scripts
 
             var convexPolygonInfos = CyDecalSystem.GetTrianglePolygons(
                 receiverObject);
-            _broadPhaseConvexPolygonInfos = CyBroadPhaseDetectionConvexPolygons.Execute(
+            _broadPhaseConvexPolygonInfos = CyBroadPhaseConvexPolygonsDetection.Execute(
                 transform.position,
                 _decalSpace.Ez,
                 width,
