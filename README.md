@@ -101,7 +101,7 @@ CyDecalProjectorコンポーネントには5つのパラメータを設定する
 <font color="grey">CyDecalProjectorの使用方法</font>
 </p>
 
-> **Note**
+> **Note**<br/>
 > 現在、CyDecalProjectorは投影範囲の可視化に対応していないため、シーンビューで配置する場合はURPプロジェクターと併用すると、視覚的に分かりやすくなります。
 
 ### 3.3 ランタイムでの使用方法
