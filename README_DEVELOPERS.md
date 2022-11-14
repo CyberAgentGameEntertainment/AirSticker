@@ -29,12 +29,7 @@ CyDecalはデカールテクスチャを貼り付けるデカールメッシュ�
 6. 5で定義した分割平面で衝突する三角形ポリゴンを分割して、多角形ポリゴンにしていく
 7. 6で作られた多角形ポリゴン情報を元に、デカールメッシュを生成
 
-また、4～7のポリゴン分割ついては「ゲームプログラミングのための3D数学」の「9.2デカールの貼り付け」を参考にしているため、アルゴリズムの概要と関連ソースコードの記述のみにとどめます。ポリゴン分割の詳細については下記の文献を参照して下さい。
-
-<p align="center">
-<img width="30%" src="Documentation/fig-005.jpg" alt="ゲームプログラミングのための3D数学"><br>
-<font color="grey">ゲームプログラミングのための3D数学</font>
-</p>
+また、4～7のポリゴン分割ついては「ゲームプログラミングのための3D数学」の「9.2デカールの貼り付け」を参考にしているため、アルゴリズムの概要と関連ソースコードの記述のみにとどめます。ポリゴン分割の詳細については参考文献を参照して下さい。
 
 ## Section 3 アルゴリズム詳細
 Section 3では各種ステップの詳細を説明してきます。
@@ -82,7 +77,9 @@ public void GetDecalMeshes(
     var renderers = receiverObject.GetComponentsInChildren<Renderer>();
     foreach (var renderer in renderers)
     {
-        var hash = $"{receiverObject.GetHashCode()}_{decalMaterial.name.GetHashCode()}_{renderer.GetHashCode()}".GetHashCode();
+        var hash = receiverObject.GetInstanceID()
+                           + decalMaterial.name.GetHashCode()
+                           + renderer.GetInstanceID();
         if (_decalMeshes.ContainsKey(hash))
         {
             decalMeshes.Add(_decalMeshes[hash]);
@@ -97,7 +94,9 @@ public void GetDecalMeshes(
 }
 ```
 
->関連ソースコード<br/>Assets/Script/Runtime/Core/CyDecalMeshPool.cs<br/>Assets/Script/Runtime/Core/CyDecalMesh.cs
+**関連ソースコード**<br/>
+[Assets/CyDecal/Runtime/Scripts/Core/CyDecalMeshPool.cs](Assets/CyDecal/Runtime/Scripts/Core/CyDecalMeshPool.cs)<br/>
+[Assets/CyDecal/Runtime/Scripts/Core/CyDecalMesh.cs](Assets/CyDecal/Runtime/Scripts/Core/CyDecalMesh.cs)
 
 ### 3.2 デカールを貼り付けるレシーバーオブジェクトの三角形ポリゴンスープを取得
 CyRenderDecalFeatureが保持している三角形ポリゴンスープのプールからレシーバオブジェクトの三角形ポリゴンスープを取得します。<br/>
@@ -166,7 +165,11 @@ private static IEnumerator BuildFromMeshFilter(MeshFilter[] meshFilters, MeshRen
     convexPolygonInfos.AddRange(newConvexPolygonInfos);
 }
 ```
->関連ソースコード<br/>Assets/Script/Runtime/Core/CyReceiverObjectTrianglePolygonsPool.cs<br/>Assets/Script/Runtime/Core/CyTrianglePolygonsFactory.cs<br/>Assets/Script/Runtime/Core/CyConvexPolygon.cs
+**関連ソースコード**<br/>
+[Assets/CyDecal/Runtime/Scripts/Core/CyReceiverObjectTrianglePolygonsPool.cs](Assets/CyDecal/Runtime/Scripts/Core/CyReceiverObjectTrianglePolygonsPool.cs)<br/>
+[Assets/CyDecal/Runtime/Scripts/Core/CyTrianglePolygonsFactory.cs](Assets/CyDecal/Runtime/Scripts/Core/CyTrianglePolygonsFactory.cs)
+<br/>
+[Assets/CyDecal/Runtime/Scripts/Core/CyConvexPolygon.cs](Assets/CyDecal/Runtime/Scripts/Core/CyConvexPolygon.cs)
 
 ### 3.3 デカールを貼り付ける三角形ポリゴンの早期枝切り(ブロードフェーズ)
 このステップでは、デカールボックスの起点となる座標と各ポリゴンの頂点との距離の計算により、このステップ以降に処理する三角形ポリゴンを早期枝切りするためのブロードフェーズが実行されます。<br/>
@@ -240,7 +243,10 @@ private bool IntersectRayToTrianglePolygons(out Vector3 hitPoint)
 }
 ```
 
->関連ソースコード<br/>Assets/Script/CyDecalProjector.cs<br/>Assets/Script/Runtime/Core/CyConvexPolygon.cs
+**関連ソースコード**<br/>
+[Assets/CyDecal/Runtime/Scripts/CyDecalProjector.cs](Assets/CyDecal/Runtime/Scripts/CyDecalProjector.cs)<br/>
+[Assets/CyDecal/Runtime/Scripts/Core/CyConvexPolygon.cs](Assets/CyDecal/Runtime/Scripts/Core/CyConvexPolygon.cs)
+
 
 ### 3.5 デカールボックスの情報から分割平面を定義
 続いて、衝突点の情報とデカールボックスの幅、高さなどの情報を元に、デカールボックスを構築する6平面の情報を構築します。分割平面の定義の詳細は「ゲームプログラミングのための3D数学」の「9.2.1 デカールメッシュの構築」を参照してください。
@@ -276,7 +282,8 @@ private void BuildClipPlanes(Vector3 basePoint)
     };
 }
 ```
->関連ソースコード<br/>Assets/Script/Runtime/CyDecalProjector.cs
+**関連ソースコード**<br/>
+[Assets/CyDecal/Runtime/Scripts/CyDecalProjector.cs](Assets/CyDecal/Runtime/Scripts/CyDecalProjector.cs)
 
 ### 3.6 5で定義した分割平面で衝突する三角形ポリゴンを分割して、多角形ポリゴンにしていく
 ここでは、三角形ポリゴンの各辺と６枚の分割平面との交差を判定を行って分割していき、凸多角形ポリゴンにしていきます。三角形ポリゴンの分割の詳細は「ゲームプログラミングのための3D数学」の「9.2.2 ポリゴンのクリッピング」を参照してください。
@@ -285,7 +292,8 @@ private void BuildClipPlanes(Vector3 basePoint)
 <font color="grey">凸多角形ポリゴンを三角形ポリゴンとして扱う</font>
 </p>
 
->関連ソースコード<br/>Assets/Script/CyDecalProjector.cs
+**関連ソースコード**<br/>
+[Assets/CyDecal/Runtime/Scripts/CyDecalProjector.cs](Assets/CyDecal/Runtime/Scripts/CyDecalProjector.cs)
 
 ### 3.7 6で作られた多角形ポリゴン情報を元に、デカールメッシュを生成
 三角形ポリゴンの分割で得られた、凸多角形ポリゴンの頂点情報を元に、三角形ポリゴンを生成していき、最終的なデカールメッシュを生成します。凸多角形ポリゴンはトライアングルファンの三角形の集合と扱うことができるため、この特性を利用して、デカールメッシュに新たな三角形を追加していきます。凸多角形ポリゴンから三角形ポリゴンの構築の詳細は「ゲームプログラミングのための3D数学」の「9.2.2 ポリゴンのクリッピング」を参照してください。
@@ -294,6 +302,6 @@ private void BuildClipPlanes(Vector3 basePoint)
 <font color="grey">凸多角形ポリゴンを三角形ポリゴンとして扱う</font>
 </p>
 
->関連ソースコード<br/>Assets/Script/Runtime/CyDecalMesh.cs
-
+**関連ソースコード**<br/>
+[Assets/CyDecal/Runtime/Scripts/Core/CyDecalMesh.cs](Assets/CyDecal/Runtime/Scripts/Core/CyDecalMesh.cs)
 
