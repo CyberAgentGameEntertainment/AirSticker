@@ -90,7 +90,6 @@ namespace CyDecal.Runtime.Scripts
             if (Instance == null) return;
             Instance._decalMeshPool.GetDecalMeshes(
                 results,
-                projectorObject,
                 receiverObject,
                 decalMaterial);
         }

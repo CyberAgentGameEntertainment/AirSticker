@@ -52,14 +52,12 @@ namespace CyDecal.Runtime.Scripts.Core
         ///     また、全く新規のターゲットオブジェクトとマテリアルであれば、
         ///     新規のデカールメッシュを作成します。
         /// </remarks>
-        /// <param name="decalMeshes">デカールメッシュの格納先</param>
-        /// <param name="projectorObject">デカールプロジェクター</param>
+        /// <param name="results">デカールメッシュの格納先</param>
         /// <param name="receiverObject">デカールを貼り付けるターゲットオブジェクト</param>
         /// <param name="decalMaterial">デカールマテリアル</param>
         /// <returns></returns>
         public void GetDecalMeshes(
-            List<CyDecalMesh> decalMeshes,
-            GameObject projectorObject,
+            List<CyDecalMesh> results,
             GameObject receiverObject,
             Material decalMaterial)
         {
@@ -73,12 +71,12 @@ namespace CyDecal.Runtime.Scripts.Core
                            + renderer.GetInstanceID();
                 if (_decalMeshes.ContainsKey(hash))
                 {
-                    decalMeshes.Add(_decalMeshes[hash]);
+                    results.Add(_decalMeshes[hash]);
                 }
                 else
                 {
                     var newMesh = new CyDecalMesh(receiverObject, decalMaterial, renderer);
-                    decalMeshes.Add(newMesh);
+                    results.Add(newMesh);
                     _decalMeshes.Add(hash, newMesh);
                 }
             }
