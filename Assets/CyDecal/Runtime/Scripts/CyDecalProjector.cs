@@ -25,7 +25,9 @@ namespace CyDecal.Runtime.Scripts
         [Tooltip("このチェックを外す場合は、デカールを投影するためには明示的にLaunchメソッドを呼び出す必要があります。")] [SerializeField]
         private bool launchOnAwake; // インスタンスが生成されると、自動的にデカールの投影処理も開始する。
 
-        [FormerlySerializedAs("onCompleteLaunch")] [SerializeField] private UnityEvent onCompletedLaunch; //　デカールの投影が完了したときに呼ばれるイベント。
+        [FormerlySerializedAs("onCompleteLaunch")] [SerializeField]
+        private UnityEvent onCompletedLaunch; //　デカールの投影が完了したときに呼ばれるイベント。
+
         private readonly Vector4[] _clipPlanes = new Vector4[(int)ClipPlane.Num]; // 分割平面
         private float _basePointToFarClipDistance; // デカールを貼り付ける基準地点から、ファークリップまでの距離。
         private float _basePointToNearClipDistance; // デカールを貼り付ける基準地点から、ニアクリップまでの距離。
@@ -44,6 +46,12 @@ namespace CyDecal.Runtime.Scripts
             if (launchOnAwake) Launch(null);
         }
 
+        private void OnDestroy()
+        {
+            // 投影完了せずに削除された場合もコールバックを呼び出すために完了時の処理をコールする。
+            OnCompleted();
+        }
+
         /// <summary>
         ///     投影完了時に呼び出される処理
         /// </summary>
@@ -54,11 +62,6 @@ namespace CyDecal.Runtime.Scripts
             onCompletedLaunch = null;
         }
 
-        void OnDestroy()
-        {
-            // 投影完了せずに削除された場合もコールバックを呼び出すために完了時の処理をコールする。
-            OnCompleted();
-        }
         /// <summary>
         ///     デカールの投影処理を実行。
         /// </summary>
@@ -71,14 +74,7 @@ namespace CyDecal.Runtime.Scripts
         {
             InitializeOriginAxisInDecalSpace();
 
-            // レシーバーオブジェクトのレンダラーのみを収集したいのだが、
-            // レシーバーオブジェクトにデカールメッシュのレンダラーがぶら下がっているので
-            // 一旦無効にする。
-            CyDecalSystem.DisableDecalMeshRenderers();
-            CyDecalSystem.GetDecalMeshes(DecalMeshes, gameObject, receiverObject, decalMaterial);
-
-            // 無効にしたレンダラーを戻す。
-            CyDecalSystem.EnableDecalMeshRenderers();
+            BuildEditDecalMeshes();
 
             if (CyDecalSystem.ExistTrianglePolygons(receiverObject) == false)
                 yield return CyDecalSystem.RegisterTrianglePolygons(
@@ -112,6 +108,38 @@ namespace CyDecal.Runtime.Scripts
 
             OnCompleted();
             yield return null;
+        }
+
+        /// <summary>
+        ///     編集するデカールメッシュのリストを構築する。
+        /// </summary>
+        private void BuildEditDecalMeshes()
+        {
+            // レシーバーオブジェクトのレンダラーのみを収集したいのだが、
+            // レシーバーオブジェクトにデカールメッシュのレンダラーがぶら下がっているので
+            // 一旦無効にする。
+            CyDecalSystem.DisableDecalMeshRenderers();
+            // 編集するデカールメッシュを取得する。
+            var renderers = receiverObject.GetComponentsInChildren<Renderer>();
+            foreach (var renderer in renderers)
+            {
+                if (!renderer) return;
+
+                var hash = CyDecalSystem.CalculateDecalMeshHashInPool(receiverObject, renderer, decalMaterial);
+                if (CyDecalSystem.ContainsDecalMeshInPool(hash))
+                {
+                    DecalMeshes.Add(CyDecalSystem.GetDecalMeshFromPool(hash));
+                }
+                else
+                {
+                    var newMesh = new CyDecalMesh(receiverObject, decalMaterial, renderer);
+                    DecalMeshes.Add(newMesh);
+                    CyDecalSystem.RegisterDecalMeshToPool(hash, newMesh);
+                }
+            }
+
+            // 無効にしたレンダラーを戻す。
+            CyDecalSystem.EnableDecalMeshRenderers();
         }
 
         /// <summary>

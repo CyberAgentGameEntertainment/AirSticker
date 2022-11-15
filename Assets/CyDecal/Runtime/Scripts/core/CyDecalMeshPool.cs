@@ -45,43 +45,50 @@ namespace CyDecal.Runtime.Scripts.Core
         }
 
         /// <summary>
-        ///     デカールメッシュを取得
+        ///     プールに登録されるハッシュ値を計算
         /// </summary>
-        /// <remarks>
-        ///     デカールメッシュは貼り付けるターゲットオブジェクトとデカールマテリアルが同じ場合に共有されます。
-        ///     また、全く新規のターゲットオブジェクトとマテリアルであれば、
-        ///     新規のデカールメッシュを作成します。
-        /// </remarks>
-        /// <param name="results">デカールメッシュの格納先</param>
         /// <param name="receiverObject">デカールを貼り付けるターゲットオブジェクト</param>
+        /// <param name="renderer">レンダラー</param>
         /// <param name="decalMaterial">デカールマテリアル</param>
-        /// <returns></returns>
-        public void GetDecalMeshes(
-            List<CyDecalMesh> results,
-            GameObject receiverObject,
-            Material decalMaterial)
+        /// <returns>ハッシュ値</returns>
+        public static int CalculateHash(GameObject receiverObject, Renderer renderer, Material decalMaterial)
         {
-            var renderers = receiverObject.GetComponentsInChildren<Renderer>();
-            foreach (var renderer in renderers)
-            {
-                if (!renderer) return;
-
-                var hash = receiverObject.GetInstanceID()
-                           + decalMaterial.name.GetHashCode()
-                           + renderer.GetInstanceID();
-                if (_decalMeshes.ContainsKey(hash))
-                {
-                    results.Add(_decalMeshes[hash]);
-                }
-                else
-                {
-                    var newMesh = new CyDecalMesh(receiverObject, decalMaterial, renderer);
-                    results.Add(newMesh);
-                    _decalMeshes.Add(hash, newMesh);
-                }
-            }
+            return receiverObject.GetInstanceID()
+                   + decalMaterial.name.GetHashCode()
+                   + renderer.GetInstanceID();
         }
 
+        /// <summary>
+        ///     指定したハッシュ値にデカールメッシュがプールに記録されているか判定。
+        /// </summary>
+        /// <param name="hash"> ここに渡すハッシュ値はCalculateHashを利用して計算してください。 </param>
+        /// <returns>プールに含まれている場合はtrueを返します。</returns>
+        public bool Contains(int hash)
+        {
+            return _decalMeshes.ContainsKey(hash);
+        }
+
+        /// <summary>
+        ///     デカールメッシュを登録。
+        /// </summary>
+        /// <param name="hash">ハッシュ値</param>
+        /// <param name="decalMesh">デカールメッシュ</param>
+        public void RegisterDecalMesh(int hash, CyDecalMesh decalMesh)
+        {
+            _decalMeshes.Add(hash, decalMesh);
+        }
+
+        /// <summary>
+        ///     デカールメッシュを取得
+        /// </summary>
+        public CyDecalMesh GetDecalMesh(int hash)
+        {
+            return _decalMeshes[hash];
+        }
+
+        /// <summary>
+        ///     プールをガベージコレクト。
+        /// </summary>
         public void GarbageCollect()
         {
             // 削除可能リストを作成。

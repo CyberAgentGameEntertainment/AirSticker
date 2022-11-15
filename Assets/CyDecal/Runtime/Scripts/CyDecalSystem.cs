@@ -7,7 +7,7 @@ using UnityEngine;
 namespace CyDecal.Runtime.Scripts
 {
     /// <summary>
-    ///     デカールシステム
+    ///     デカールシステム(Facadeパターン)
     /// </summary>
     public sealed class CyDecalSystem : MonoBehaviour
     {
@@ -15,10 +15,12 @@ namespace CyDecal.Runtime.Scripts
         private readonly CyDecalMeshPool _decalMeshPool = new CyDecalMeshPool();
 
         // デカールプロジェクタのラウンチリクエストキュー
-        private readonly CyLaunchDecalProjectorRequestQueue _launchDecalProjectorRequestQueue = new CyLaunchDecalProjectorRequestQueue();
+        private readonly CyLaunchDecalProjectorRequestQueue _launchDecalProjectorRequestQueue =
+            new CyLaunchDecalProjectorRequestQueue();
 
         // デカールメッシュを貼り付けるレシーバーオブジェクトのプール。
-        private readonly CyReceiverObjectTrianglePolygonsPool _receiverObjectTrianglePolygonsPool = new CyReceiverObjectTrianglePolygonsPool();
+        private readonly CyReceiverObjectTrianglePolygonsPool _receiverObjectTrianglePolygonsPool =
+            new CyReceiverObjectTrianglePolygonsPool();
 
         public CyDecalSystem()
         {
@@ -75,23 +77,26 @@ namespace CyDecal.Runtime.Scripts
         }
 
         /// <summary>
-        ///     デカールメッシュの取得。
+        ///     デカールメッシュプールに登録するハッシュ値を計算する。
         /// </summary>
-        /// <param name="results">デカールメッシュの格納先</param>
-        /// <param name="projectorObject">デカールプロジェクターオブジェクト</param>
-        /// <param name="receiverObject">レシーバーオブジェクト</param>
+        /// <param name="receiverObject">デカールを貼り付けるターゲットオブジェクト</param>
+        /// <param name="renderer">レンダラー</param>
         /// <param name="decalMaterial">デカールマテリアル</param>
-        internal static void GetDecalMeshes(
-            List<CyDecalMesh> results,
-            GameObject projectorObject,
-            GameObject receiverObject,
+        public static int CalculateDecalMeshHashInPool(GameObject receiverObject, Renderer renderer,
             Material decalMaterial)
         {
-            if (Instance == null) return;
-            Instance._decalMeshPool.GetDecalMeshes(
-                results,
-                receiverObject,
-                decalMaterial);
+            return CyDecalMeshPool.CalculateHash(receiverObject, renderer, decalMaterial);
+        }
+
+        /// <summary>
+        ///     指定したレシーバーオブジェクト、レンダラー、デカールマテリアルを持つデカールメッシュがプールに含まれているか判定。
+        /// </summary>
+        /// <param name="hash">ここに渡すハッシュ値はCalculateHashInDecalMeshPoolを利用して計算してください。</param>
+        /// <returns></returns>
+        public static bool ContainsDecalMeshInPool(int hash)
+        {
+            if (Instance == null) return false;
+            return Instance._decalMeshPool.Contains(hash);
         }
 
         /// <summary>
@@ -173,6 +178,36 @@ namespace CyDecal.Runtime.Scripts
         {
             if (Instance == null) return 0;
             return Instance._receiverObjectTrianglePolygonsPool.GetPoolSize();
+        }
+
+        /// <summary>
+        ///     デカールメッシュをプールから取得する。
+        /// </summary>
+        /// <remarks>
+        ///     事前条件
+        ///     ContainsDecalMeshInPool()を利用して、指定したハッシュ値のデカールメッシュがプールに登録されていることを必ず確認してください。
+        /// </remarks>
+        /// <param name="hash">ここで指定するハッシュ値はCalculateDecalMeshHashInPool()を利用して計算して下さい。</param>
+        /// <returns></returns>
+        internal static CyDecalMesh GetDecalMeshFromPool(int hash)
+        {
+            if (Instance == null) return null;
+            return Instance._decalMeshPool.GetDecalMesh(hash);
+        }
+
+        /// <summary>
+        ///     デカールメッシュをプールに登録する。
+        /// </summary>
+        /// <remarks>
+        ///     事前条件
+        ///     ContainsDecalMeshInPool()を利用して、指定したハッシュ値のデカールメッシュがプールに登録されていないことを必ず確認してください。
+        /// </remarks>
+        /// <param name="hash">ここで指定するハッシュ値はCalculateDecalMeshHashInPool()を利用して計算して下さい。</param>
+        /// <param name="newMesh">登録するデカールメッシュ</param>
+        internal static void RegisterDecalMeshToPool(int hash, CyDecalMesh newMesh)
+        {
+            if (Instance == null) return;
+            Instance._decalMeshPool.RegisterDecalMesh(hash, newMesh);
         }
     }
 }
