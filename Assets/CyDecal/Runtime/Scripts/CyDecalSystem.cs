@@ -81,9 +81,9 @@ namespace CyDecal.Runtime.Scripts
         /// </summary>
         /// <param name="receiverObject"></param>
         /// <returns></returns>
-        public static bool ExistTrianglePolygons(GameObject receiverObject)
+        public static bool ContainsTrianglePolygonsInPool(GameObject receiverObject)
         {
-            return Instance._receiverObjectTrianglePolygonsPool.ExistConvexPolygons(receiverObject);
+            return Instance._receiverObjectTrianglePolygonsPool.Contains(receiverObject);
         }
 
         /// <summary>
@@ -97,20 +97,32 @@ namespace CyDecal.Runtime.Scripts
         /// <param name="meshRenderers">レシーバーオブジェクトのメッシュレンダラー</param>
         /// <param name="skinnedMeshRenderers">レシーバーオブジェクトのスキンメッシュレンダラー</param>
         /// <returns></returns>
-        public static IEnumerator RegisterTrianglePolygons(
-            GameObject receiverObject,
-            MeshFilter[] meshFilters,
-            MeshRenderer[] meshRenderers,
-            SkinnedMeshRenderer[] skinnedMeshRenderers)
+        internal static void RegisterTrianglePolygonsToPool(GameObject receiverObject, List<ConvexPolygonInfo> convexPolygonInfos)
         {
-            if (Instance == null) yield break;
-            yield return Instance._receiverObjectTrianglePolygonsPool.RegisterConvexPolygons(
-                receiverObject,
-                meshFilters,
-                meshRenderers,
-                skinnedMeshRenderers);
+            if (Instance == null) return;
+            Instance._receiverObjectTrianglePolygonsPool.RegisterConvexPolygons(receiverObject, convexPolygonInfos);
         }
 
+        /// <summary>
+        /// 三角形ポリゴンスープをレシーバーおジェクトから構築する
+        /// </summary>
+        /// <param name="meshFilters"></param>
+        /// <param name="meshRenderers"></param>
+        /// <param name="skinnedMeshRenderers"></param>
+        /// <param name="convexPolygonInfos"></param>
+        /// <returns></returns>
+        internal static IEnumerator BuildTrianglePolygonsFromReceiverObject(
+            MeshFilter[] meshFilters,
+            MeshRenderer[] meshRenderers,
+            SkinnedMeshRenderer[] skinnedMeshRenderers,
+            List<ConvexPolygonInfo> convexPolygonInfos)
+        {
+            yield return CyTrianglePolygonsFactory.BuildFromReceiverObject(
+                meshFilters,
+                meshRenderers,
+                skinnedMeshRenderers,
+                convexPolygonInfos);
+        }
         /// <summary>
         ///     デカールを貼り付けるレシーバーオブジェクトの三角形ポリゴン情報を取得。
         /// </summary>
@@ -119,7 +131,7 @@ namespace CyDecal.Runtime.Scripts
         /// </remarks>
         /// <param name="receiverObject">レシーバーオブジェクト</param>
         /// <returns></returns>
-        internal static List<ConvexPolygonInfo> GetTrianglePolygons(GameObject receiverObject)
+        internal static List<ConvexPolygonInfo> GetTrianglePolygonsFromPool(GameObject receiverObject)
         {
             if (Instance == null) return null;
 

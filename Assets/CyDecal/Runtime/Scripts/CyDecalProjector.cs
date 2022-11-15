@@ -77,12 +77,19 @@ namespace CyDecal.Runtime.Scripts
             // 編集するデカールメッシュを収集する。
             CyDecalSystem.CollectEditDecalMeshes(DecalMeshes, receiverObject, decalMaterial);
 
-            if (CyDecalSystem.ExistTrianglePolygons(receiverObject) == false)
-                yield return CyDecalSystem.RegisterTrianglePolygons(
-                    receiverObject,
+            List<ConvexPolygonInfo> convexPolygonInfos;
+            if (CyDecalSystem.ContainsTrianglePolygonsInPool(receiverObject) == false)
+            {
+                // 新規登録
+                convexPolygonInfos = new List<ConvexPolygonInfo>();
+                // 三角形ポリゴン情報を構築する。
+                yield return CyDecalSystem.BuildTrianglePolygonsFromReceiverObject(
                     receiverObject.GetComponentsInChildren<MeshFilter>(),
                     receiverObject.GetComponentsInChildren<MeshRenderer>(),
-                    receiverObject.GetComponentsInChildren<SkinnedMeshRenderer>());
+                    receiverObject.GetComponentsInChildren<SkinnedMeshRenderer>(),
+                    convexPolygonInfos);
+                CyDecalSystem.RegisterTrianglePolygonsToPool(receiverObject, convexPolygonInfos);
+            }
 
             if (!receiverObject)
             {
@@ -91,7 +98,7 @@ namespace CyDecal.Runtime.Scripts
                 yield break;
             }
 
-            var convexPolygonInfos = CyDecalSystem.GetTrianglePolygons(
+            convexPolygonInfos = CyDecalSystem.GetTrianglePolygonsFromPool(
                 receiverObject);
             _broadPhaseConvexPolygonInfos = CyBroadPhaseConvexPolygonsDetection.Execute(
                 transform.position,
