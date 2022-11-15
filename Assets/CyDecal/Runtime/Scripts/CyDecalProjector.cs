@@ -1,25 +1,264 @@
+using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
-using Unity.Collections;
-using Unity.Jobs;
+using CyDecal.Runtime.Scripts.Core;
 using UnityEngine;
-using UnityEngine.Rendering;
-using UnityEngine.Serialization;
-using Debug = System.Diagnostics.Debug;
-using Vector3 = UnityEngine.Vector3;
-using Vector4 = UnityEngine.Vector4;
+using UnityEngine.Rendering.Universal;
 
 namespace CyDecal.Runtime.Scripts
 {
     /// <summary>
-    /// デカールプロジェクター
+    ///     デカールプロジェクター
     /// </summary>
     public class CyDecalProjector : MonoBehaviour
     {
+        [SerializeField] private float width; // デカールボックスの幅
+        [SerializeField] private float height; // デカールボックスの高さ
+        [SerializeField] private float depth; // デカールボックスの奥行
+        [SerializeField] private GameObject receiverObject; // デカールを貼り付けるターゲットとなるオブジェクト
+        [SerializeField] private Material decalMaterial; // デカールマテリアル
+        private readonly Vector4[] _clipPlanes = new Vector4[(int)ClipPlane.Num]; // 分割平面
+        private float _basePointToFarClipDistance; // デカールを貼り付ける基準地点から、ファークリップまでの距離。
+        private float _basePointToNearClipDistance; // デカールを貼り付ける基準地点から、ニアクリップまでの距離。
+        private List<ConvexPolygonInfo> _broadPhaseConvexPolygonInfos = new List<ConvexPolygonInfo>();
+        private readonly List<CyDecalMesh> _cyDecalMeshes = new List<CyDecalMesh>(); // デカールメッシュ。
+        private CyDecalSpace _decalSpace; // デカール空間。
+
         /// <summary>
-        /// 分割平面
+        /// 生成されたデカールメッシュのリストのプロパティ
         /// </summary>
-        enum ClipPlane
+        public List<CyDecalMesh> DecalMeshes => _cyDecalMeshes;
+        private CyDecalProjector()
+        {
+            CyRenderDecalFeature.DecalProjectorCount++;
+        }
+
+        //
+        // Start is called before the first frame update
+        private IEnumerator Start()
+        {
+            InitializeOriginAxisInDecalSpace();
+
+            // レシーバーオブジェクトのレンダラーのみを収集したいのだが、
+            // レシーバーオブジェクトにデカールメッシュのレンダラーがぶら下がっているので
+            // 一旦無効にする。
+            CyRenderDecalFeature.DisableDecalMeshRenderers();
+            CyRenderDecalFeature.GetDecalMeshes(_cyDecalMeshes, gameObject, receiverObject, decalMaterial);
+            
+            // 無効にしたレンダラーを戻す。
+            CyRenderDecalFeature.EnableDecalMeshRenderers();
+
+            if (CyRenderDecalFeature.ExistTrianglePolygons(receiverObject) == false)
+            {
+                yield return CyRenderDecalFeature.RegisterTrianglePolygons(
+                    receiverObject, 
+                    receiverObject.GetComponentsInChildren<MeshFilter>(), 
+                    receiverObject.GetComponentsInChildren<MeshRenderer>(), 
+                    receiverObject.GetComponentsInChildren<SkinnedMeshRenderer>());
+            }
+
+            var convexPolygonInfos = CyRenderDecalFeature.GetTrianglePolygons(
+                receiverObject);
+            _broadPhaseConvexPolygonInfos = CyBroadPhaseDetectionConvexPolygons.Execute(
+                transform.position,
+                _decalSpace.Ez,
+                width,
+                height,
+                depth,
+                convexPolygonInfos);
+            if (IntersectRayToTrianglePolygons(out var hitPoint))
+            {
+                BuildClipPlanes(hitPoint);
+                SplitConvexPolygonsByPlanes();
+                AddTrianglePolygonsToDecalMeshFromConvexPolygons(hitPoint);
+            }
+
+            DisableURPProjector();
+
+            Destroy(gameObject);
+
+            yield return null;
+        }
+
+        private void OnDestroy()
+        {
+            CyRenderDecalFeature.DecalProjectorCount--;
+        }
+
+        /// <summary>
+        ///     CyDecalProjectorコンポーネントをゲームオブジェクトに追加作成
+        /// </summary>
+        /// <param name="owner">コンポーネントを追加するゲームオブジェクト</param>
+        /// <param name="receiverObject">デカールを貼り付けるレシーバーオブジェクト</param>
+        /// <param name="decalMaterial">デカールマテリアル</param>
+        /// <param name="width">プロジェクターの幅</param>
+        /// <param name="height">プロジェクターの高さ</param>
+        /// <param name="depth">プロジェクターの深度</param>
+        public static CyDecalProjector AddTo(
+            GameObject owner,
+            GameObject receiverObject,
+            Material decalMaterial,
+            float width,
+            float height,
+            float depth)
+        {
+            var projector = owner.AddComponent<CyDecalProjector>();
+            projector.width = width;
+            projector.height = height;
+            projector.depth = depth;
+            projector.receiverObject = receiverObject;
+            projector.decalMaterial = decalMaterial;
+            return projector;
+        }
+
+        /// <summary>
+        ///     URPプロジェクターを無効にする。
+        /// </summary>
+        private void DisableURPProjector()
+        {
+#if UNITY_2021_1_OR_NEWER
+            var urpProjector = gameObject.GetComponent<DecalProjector>();
+            if (urpProjector != null) urpProjector.enabled = false;
+#endif
+        }
+
+        /// <summary>
+        ///     デカール空間での規定軸を初期化。
+        /// </summary>
+        private void InitializeOriginAxisInDecalSpace()
+        {
+            var trans = transform;
+            _decalSpace = new CyDecalSpace(trans.right, trans.up, trans.forward * -1.0f);
+        }
+
+        /// <summary>
+        ///     デカールテクスチャを貼り付けるためのメッシュを多角形情報から構築する
+        /// </summary>
+        private void AddTrianglePolygonsToDecalMeshFromConvexPolygons(Vector3 originPosInDecalSpace)
+        {
+            var convexPolygons = new List<CyConvexPolygon>();
+            foreach (var convexPolyInfo in _broadPhaseConvexPolygonInfos)
+            {
+                if (convexPolyInfo.IsOutsideClipSpace) continue;
+
+                convexPolygons.Add(convexPolyInfo.ConvexPolygon);
+            }
+
+            foreach (var cyDecalMesh in _cyDecalMeshes)
+                cyDecalMesh.AddPolygonsToDecalMesh(
+                    convexPolygons,
+                    originPosInDecalSpace,
+                    _decalSpace.Ez,
+                    _decalSpace.Ex,
+                    _decalSpace.Ey,
+                    width,
+                    height);
+        }
+
+        /// <summary>
+        ///     デカールボックスを構成している６平面の情報を使って、凸多角形を分割していく。
+        /// </summary>
+        private void SplitConvexPolygonsByPlanes()
+        {
+            // 凸多角形をクリップ平面で分割していく。
+            foreach (var clipPlane in _clipPlanes)
+            foreach (var convexPolyInfo in _broadPhaseConvexPolygonInfos)
+            {
+                // 平面の外側なので調査の対象外なのでスキップ
+                if (convexPolyInfo.IsOutsideClipSpace) continue;
+
+                convexPolyInfo.ConvexPolygon.SplitAndRemoveByPlane(
+                    clipPlane, out var isOutsideClipSpace);
+                convexPolyInfo.IsOutsideClipSpace = isOutsideClipSpace;
+            }
+        }
+
+        /// <summary>
+        ///     デカールテクスチャを貼り付けるための頂点をクリッピングする平面を構築する。
+        /// </summary>
+        /// <param name="basePoint">デカールテクスチャを貼り付ける基準座標</param>
+        private void BuildClipPlanes(Vector3 basePoint)
+        {
+            var trans = transform;
+            var decalSpaceTangentWS = _decalSpace.Ex;
+            var decalSpaceBiNormalWS = _decalSpace.Ey;
+            var decalSpaceNormalWS = _decalSpace.Ez;
+            // Build left plane.
+            _clipPlanes[(int)ClipPlane.Left] = new Vector4
+            {
+                x = decalSpaceTangentWS.x,
+                y = decalSpaceTangentWS.y,
+                z = decalSpaceTangentWS.z,
+                w = width / 2.0f - Vector3.Dot(decalSpaceTangentWS, basePoint)
+            };
+            // Build right plane.
+            _clipPlanes[(int)ClipPlane.Right] = new Vector4
+            {
+                x = -decalSpaceTangentWS.x,
+                y = -decalSpaceTangentWS.y,
+                z = -decalSpaceTangentWS.z,
+                w = width / 2.0f + Vector3.Dot(decalSpaceTangentWS, basePoint)
+            };
+            // Build bottom plane.
+            _clipPlanes[(int)ClipPlane.Bottom] = new Vector4
+            {
+                x = decalSpaceBiNormalWS.x,
+                y = decalSpaceBiNormalWS.y,
+                z = decalSpaceBiNormalWS.z,
+                w = height / 2.0f - Vector3.Dot(decalSpaceBiNormalWS, basePoint)
+            };
+            // Build top plane.
+            _clipPlanes[(int)ClipPlane.Top] = new Vector4
+            {
+                x = -decalSpaceBiNormalWS.x,
+                y = -decalSpaceBiNormalWS.y,
+                z = -decalSpaceBiNormalWS.z,
+                w = height / 2.0f + Vector3.Dot(decalSpaceBiNormalWS, basePoint)
+            };
+            // Build front plane.
+            _clipPlanes[(int)ClipPlane.Front] = new Vector4
+            {
+                x = -decalSpaceNormalWS.x,
+                y = -decalSpaceNormalWS.y,
+                z = -decalSpaceNormalWS.z,
+                w = _basePointToNearClipDistance + Vector3.Dot(decalSpaceNormalWS, basePoint)
+            };
+            // Build back plane.
+            _clipPlanes[(int)ClipPlane.Back] = new Vector4
+            {
+                x = decalSpaceNormalWS.x,
+                y = decalSpaceNormalWS.y,
+                z = decalSpaceNormalWS.z,
+                w = _basePointToFarClipDistance - Vector3.Dot(decalSpaceNormalWS, basePoint)
+            };
+        }
+
+        /// <summary>
+        ///     デカールボックスの中心を通るレイとレシーバーオブジェクトの三角形オブジェクトの衝突判定を行う。
+        /// </summary>
+        /// <param name="hitPoint">衝突点の格納先</param>
+        /// <returns>trueが帰ってきたら衝突している</returns>
+        private bool IntersectRayToTrianglePolygons(out Vector3 hitPoint)
+        {
+            hitPoint = Vector3.zero;
+            var trans = transform;
+            var rayStartPos = trans.position;
+            var rayEndPos = rayStartPos + trans.forward * depth;
+
+            foreach (var triPolyInfo in _broadPhaseConvexPolygonInfos)
+                if (triPolyInfo.ConvexPolygon.IsIntersectRayToTriangle(out hitPoint, rayStartPos, rayEndPos))
+                {
+                    _basePointToNearClipDistance = Vector3.Distance(rayStartPos, hitPoint);
+                    _basePointToFarClipDistance = depth - _basePointToNearClipDistance;
+                    return true;
+                }
+
+            return false;
+        }
+
+        /// <summary>
+        ///     分割平面
+        /// </summary>
+        private enum ClipPlane
         {
             Left,
             Right,
@@ -28,326 +267,6 @@ namespace CyDecal.Runtime.Scripts
             Front,
             Back,
             Num
-        }
-        
-        [SerializeField] private float width;                               // デカールボックスの幅
-        [SerializeField] private float height;                              // デカールボックスの高さ
-        [SerializeField] private float projectionDepth;                     // デカールボックスの奥行
-        [SerializeField] private GameObject receiverObject;                 // デカールを貼り付けるターゲットとなるオブジェクト
-        [SerializeField] private Material decalMaterial;                    // デカールマテリアル
-        private float projectionDepthRange = 0.0f;                          // デカールを貼り付ける平面からデカールを貼り付ける奥行の範囲。
-        private float basePointToFarClipDistance = 0.0f;                    // デカールを貼り付ける基準地点から、ファークリップまでの距離。
-        private float basePointToNearClipDistance = 0.0f;                   // デカールを貼り付ける基準地点から、ニアクリップまでの距離。
-        private readonly Vector4[] _clipPlanes = new Vector4[(int)ClipPlane.Num];    // 分割平面
-        private MeshFilter _receiverMeshFilter;                             // デカールを受けるメッシュフィルタ
-        static private List<ConvexPolygonInfo> _convexPolygonInfos;         // ブロードフェーズのジョブワーク用の凸ポリゴンのリスト
-        private List<ConvexPolygonInfo> _broadPhaseConvexPolygonInfos = new List<ConvexPolygonInfo>();
-        private CyDecalMesh _cyDecalMesh;                       // デカールメッシュ。
-        private Vector3 _decalSpaceNormalWS;                    // デカール空間の法線( ワールドスペース )
-        private Vector3 _decalSpaceTangentWS;                   // デカール空間の接ベクトル( ワールドスペース )
-        private Vector3 _decalSpaceBiNormalWS;                  // デカール空間の従ベクトル( ワールドスペース )
-
-        /// <summary>
-        /// ジョブから凸ポリゴンのリストにアクセスするためのヘルパー関数
-        /// </summary>
-        /// <returns></returns>
-        private static List<ConvexPolygonInfo> GetConvexPolygonInfosHelper()
-        {
-            return _convexPolygonInfos;
-        }
-        /// <summary>
-        /// 処理を行う凸多角形の早期枝切りを行うためのジョブ。
-        /// </summary>
-        struct BuildBroadPhaseConvexPolygonInfosJob : IJob
-        {
-            public int beginIndex;                      // 枝切り調査の開始インデックス
-            public int endIndex;                        // 枝切り調査の終端インデックス（終端は含まない)
-            public Vector3 decalSpaceOriginPosisionWS;  // デカール空間の起点の座標(ワールドスペース)
-            public float thresholdRange;                // 枝切りの閾値となる境界球の範囲
-            public Vector3 decalSpaceNormalWS;          // デカール空間の法線。
-            /// <summary>
-            /// 枝切りを実行。
-            /// </summary>
-            public void Execute()
-            {
-                // static関数を利用すると、ジョブからマネージドオブジェクトにアクセスできるので
-                // ヘルパー関数を利用する。
-                var convexPolygonInfos = GetConvexPolygonInfosHelper();
-                for(int i = beginIndex; i < endIndex; i++)
-                {
-                    var convexPolyInfo = convexPolygonInfos[i];
-                    if (Vector3.Dot(decalSpaceNormalWS, convexPolyInfo.ConvexPolygon.FaceNormal) < 0)
-                    {
-                        continue;
-                    }
-                    var v0 = convexPolyInfo.ConvexPolygon.GetVertexPosition(0);
-                    v0 -= decalSpaceOriginPosisionWS;
-                    if (v0.sqrMagnitude > thresholdRange)
-                    {
-                        var v1 = convexPolyInfo.ConvexPolygon.GetVertexPosition(1);
-                        v1 -= decalSpaceOriginPosisionWS;
-                        if (v1.sqrMagnitude > thresholdRange)
-                        {
-                            var v2 = convexPolyInfo.ConvexPolygon.GetVertexPosition(2);
-                            v2 -= decalSpaceOriginPosisionWS;
-                            if (v2.sqrMagnitude > thresholdRange)
-                            {
-                                // 枝切りの印をつける。
-                                convexPolyInfo.IsOutsideClipSpace = true;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        //
-        // Start is called before the first frame update
-        void Start()
-        {
-            Stopwatch sw = new Stopwatch();
-            sw.Start();
-            _cyDecalMesh = CyRenderDecalFeature.Instance.GetDecalMesh(
-                gameObject, receiverObject, decalMaterial, out bool isNew);
-            if (isNew)
-            {
-                // レシーバーオブジェクトにデカール描画用のオブジェクトを追加する。
-                GameObject decalRenderer = new GameObject("CyDecalRenderer");
-                var meshRenderer = decalRenderer.AddComponent<MeshRenderer>();
-                meshRenderer.material = decalMaterial;
-                var meshFilter = decalRenderer.AddComponent<MeshFilter>();
-                meshFilter.mesh = _cyDecalMesh.Mesh;
-                if (!gameObject.isStatic)
-                {
-                    decalRenderer.transform.parent = receiverObject.transform;
-                }
-                decalRenderer.transform.localPosition = Vector3.zero;
-                decalRenderer.transform.localRotation = Quaternion.identity;
-                decalRenderer.transform.localScale = Vector3.one;
-            }
-            _receiverMeshFilter = receiverObject.GetComponent<MeshFilter>();
-            
-            ExecuteBroadphase();
-            Vector3 hitPoint = new Vector3();
-            if (IntersectRayToTrianglePolygons(ref hitPoint))
-            {
-                InitializeOriginAxisInDecalSpace();
-                BuildClipPlanes(hitPoint);
-                SplitConvexPolygonsByPlanes();
-                BuildDecalMeshFromConvexPolygons(hitPoint);
-            }
-            sw.Stop();
-            CyRenderDecalFeature.splitMeshTotalTime += sw.ElapsedMilliseconds;
-        }
-
-        // Update is called once per frame
-        void Update()
-        {
-        }
-        /// <summary>
-        /// デカール空間での規定軸を初期化。
-        /// </summary>
-        private void InitializeOriginAxisInDecalSpace()
-        {
-            var trans = transform;
-            _decalSpaceNormalWS = trans.forward * -1.0f;
-            _decalSpaceTangentWS = trans.right;
-            _decalSpaceBiNormalWS = trans.up;
-        }
-        /// <summary>
-        /// デカールテクスチャを貼り付けるためのメッシュを多角形情報から構築する
-        /// </summary>
-        private void BuildDecalMeshFromConvexPolygons( Vector3 originPosInDecalSpace)
-        {
-            var convexPolygons = new List<CyConvexPolygon>();
-            foreach (var convexPolyInfo in _broadPhaseConvexPolygonInfos)
-            {
-                if (convexPolyInfo.IsOutsideClipSpace)
-                {
-                    continue;
-                }
-                convexPolygons.Add(convexPolyInfo.ConvexPolygon);
-            }
-            _cyDecalMesh.AddPolygonsToDecalMesh(
-                convexPolygons, 
-                originPosInDecalSpace,
-                _decalSpaceNormalWS,
-                _decalSpaceTangentWS,
-                _decalSpaceBiNormalWS,
-                width,
-                height);
-        }
-        
-        /// <summary>
-        /// 大まかな当たり判定を行い、デカール対象となるメッシュを大幅に枝切りする。
-        /// </summary>
-        /// <remarks>
-        /// デカールボックスの座標からデカールボックスの全範囲を内包する円の外に含まれているメッシュを枝切りします。<br/>
-        /// また、メッシュの向きがデカールボックスと逆向きになっているメッシュも枝切りします。<br/>
-        /// 枝切りはUnityのジョブシステムを利用して並列に実行されます。
-        /// </remarks>
-        void ExecuteBroadphase()
-        {
-            // オリジナルのメッシュを取得する。
-            CyRenderDecalFeature.Instance.RegisterDecalReceiverObject(receiverObject);
-            _convexPolygonInfos = CyRenderDecalFeature.Instance.GetTrianglePolygons(receiverObject);
-
-            Vector3 originPosInDecalSpace = transform.position;
-            var threshold = Mathf.Max(width, height, projectionDepth);
-            threshold *= threshold;
-            _broadPhaseConvexPolygonInfos.Clear();
-            _broadPhaseConvexPolygonInfos.Capacity = _convexPolygonInfos.Count;
-            
-            int numThread = 4;    // 4スレッド使う
-            if (_convexPolygonInfos.Count < 20)
-            {
-                // 20ポリゴン以下ならシングルスレッドで実行する。
-                numThread = 1;
-            }
-            int numWorkOne = _convexPolygonInfos.Count / numThread;
-            
-            var workJobs = new BuildBroadPhaseConvexPolygonInfosJob[numThread];
-            int startIndex = 0;
-            for (int i = 0; i < numThread; i++)
-            {
-                workJobs[i] = new BuildBroadPhaseConvexPolygonInfosJob();
-                workJobs[i].beginIndex = startIndex ;
-                workJobs[i].endIndex = Mathf.Min(workJobs[i].beginIndex + numWorkOne, _convexPolygonInfos.Count);
-                workJobs[i].thresholdRange = threshold;
-                workJobs[i].decalSpaceOriginPosisionWS = originPosInDecalSpace;
-                workJobs[i].decalSpaceNormalWS = _decalSpaceNormalWS;
-                startIndex += numWorkOne + 1;
-            }
-            
-            JobHandle[] jobHandles = new JobHandle[numThread];
-            // ジョブをスケジューリング
-            for (int i = 0; i < numThread; i++)
-            {
-                jobHandles[i] = workJobs[i].Schedule();
-            }
-            // ジョブの完了待ち
-            for (int i = 0; i < numThread; i++)
-            {
-                jobHandles[i].Complete();
-            }
-            
-            foreach (var convexPolygonInfo in _convexPolygonInfos)
-            {
-                if (!convexPolygonInfo.IsOutsideClipSpace)
-                {
-                    _broadPhaseConvexPolygonInfos.Add(new ConvexPolygonInfo
-                    {
-                       ConvexPolygon = new CyConvexPolygon(convexPolygonInfo.ConvexPolygon),
-                       IsOutsideClipSpace = convexPolygonInfo.IsOutsideClipSpace
-                    });
-                }
-
-                convexPolygonInfo.IsOutsideClipSpace = false;
-            }
-            
-            _convexPolygonInfos = null;
-        }
-        /// <summary>
-        /// デカールボックスを構成している６平面の情報を使って、凸多角形を分割していく。
-        /// </summary>
-        void SplitConvexPolygonsByPlanes()
-        {
-            // 凸多角形をクリップ平面で分割していく。
-            foreach (var clipPlane in _clipPlanes)
-            {
-                foreach (var convexPolyInfo in _broadPhaseConvexPolygonInfos)
-                {
-                    // 平面の外側なので調査の対象外なのでスキップ
-                    if ( convexPolyInfo.IsOutsideClipSpace)
-                    {
-                        continue;
-                    }
-                    
-                    convexPolyInfo.ConvexPolygon.SplitAndRemoveByPlane(
-                        clipPlane, out var isOutsideClipSpace);
-                    convexPolyInfo.IsOutsideClipSpace = isOutsideClipSpace;
-                }    
-            }
-        }
-        /// <summary>
-        /// デカールテクスチャを貼り付けるための頂点をクリッピングする平面を構築する。
-        /// </summary>
-        /// <param name="basePoint">デカールテクスチャを貼り付ける基準座標</param>
-        void BuildClipPlanes(Vector3 basePoint)
-        {
-            var trans = transform;
-
-            // Build left plane.
-            _clipPlanes[(int)ClipPlane.Left] = new Vector4
-            {
-                x = _decalSpaceTangentWS.x,
-                y = _decalSpaceTangentWS.y,
-                z = _decalSpaceTangentWS.z,
-                w = (width/2.0f) - Vector3.Dot(_decalSpaceTangentWS, basePoint)
-            };
-            // Build right plane.
-            _clipPlanes[(int)ClipPlane.Right] = new Vector4
-            {
-                x = -_decalSpaceTangentWS.x,
-                y = -_decalSpaceTangentWS.y,
-                z = -_decalSpaceTangentWS.z,
-                w = (width/2.0f) + Vector3.Dot(_decalSpaceTangentWS, basePoint)
-            };
-            // Build bottom plane.
-            _clipPlanes[(int)ClipPlane.Bottom] = new Vector4
-            {
-                x = _decalSpaceBiNormalWS.x,
-                y = _decalSpaceBiNormalWS.y,
-                z = _decalSpaceBiNormalWS.z,
-                w = (height/2.0f) - Vector3.Dot(_decalSpaceBiNormalWS, basePoint)
-            };
-            // Build top plane.
-            _clipPlanes[(int)ClipPlane.Top] = new Vector4
-            {
-                x = -_decalSpaceBiNormalWS.x,
-                y = -_decalSpaceBiNormalWS.y,
-                z = -_decalSpaceBiNormalWS.z,
-                w = (height/2.0f) + Vector3.Dot(_decalSpaceBiNormalWS, basePoint)
-            };
-            // Build front plane.
-            _clipPlanes[(int)ClipPlane.Front] = new Vector4
-            {
-                x = -_decalSpaceNormalWS.x,
-                y = -_decalSpaceNormalWS.y,
-                z = -_decalSpaceNormalWS.z,
-                w = basePointToNearClipDistance + Vector3.Dot(_decalSpaceNormalWS, basePoint)
-            };
-            // Build back plane.
-            _clipPlanes[(int)ClipPlane.Back] = new Vector4
-            {
-                x = _decalSpaceNormalWS.x,
-                y = _decalSpaceNormalWS.y,
-                z = _decalSpaceNormalWS.z,
-                w = basePointToFarClipDistance - Vector3.Dot(_decalSpaceNormalWS, basePoint)
-            };
-        }
-        /// <summary>
-        /// デカールボックスの中心を通るレイとレシーバーオブジェクトの三角形オブジェクトの衝突判定を行う。
-        /// </summary>
-        /// <param name="hitPoint">衝突点の格納先</param>
-        /// <returns>trueが帰ってきたら衝突している</returns>
-        private bool IntersectRayToTrianglePolygons( ref Vector3 hitPoint)
-        {
-            var trans = transform;
-            var rayStartPos = trans.position;
-            var rayEndPos = rayStartPos + trans.forward * projectionDepth;
-            
-            foreach( var triPolyInfo in _broadPhaseConvexPolygonInfos)
-            {
-                if (triPolyInfo.ConvexPolygon.IsIntersectRayToTriangle(ref hitPoint, rayStartPos, rayEndPos))
-                {
-                    // 衝突した。
-                    basePointToNearClipDistance = Vector3.Distance(rayStartPos, hitPoint);
-                    basePointToFarClipDistance = projectionDepth - basePointToNearClipDistance;
-                    return true;
-                }
-            }
-            // 衝突しなかった。
-            return false;
         }
     }
 }
