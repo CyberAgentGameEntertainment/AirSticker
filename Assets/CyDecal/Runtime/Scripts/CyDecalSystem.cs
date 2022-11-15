@@ -61,7 +61,7 @@ namespace CyDecal.Runtime.Scripts
         /// <summary>
         ///     デカールメッシュレンダラーを無効にします。
         /// </summary>
-        public static void DisableDecalMeshRenderers()
+        private static void DisableDecalMeshRenderers()
         {
             if (Instance == null) return;
             Instance._decalMeshPool.DisableDecalMeshRenderers();
@@ -70,33 +70,10 @@ namespace CyDecal.Runtime.Scripts
         /// <summary>
         ///     デカールメッシュレンダラーを有効にします。
         /// </summary>
-        public static void EnableDecalMeshRenderers()
+        private static void EnableDecalMeshRenderers()
         {
             if (Instance == null) return;
             Instance._decalMeshPool.EnableDecalMeshRenderers();
-        }
-
-        /// <summary>
-        ///     デカールメッシュプールに登録するハッシュ値を計算する。
-        /// </summary>
-        /// <param name="receiverObject">デカールを貼り付けるターゲットオブジェクト</param>
-        /// <param name="renderer">レンダラー</param>
-        /// <param name="decalMaterial">デカールマテリアル</param>
-        public static int CalculateDecalMeshHashInPool(GameObject receiverObject, Renderer renderer,
-            Material decalMaterial)
-        {
-            return CyDecalMeshPool.CalculateHash(receiverObject, renderer, decalMaterial);
-        }
-
-        /// <summary>
-        ///     指定したレシーバーオブジェクト、レンダラー、デカールマテリアルを持つデカールメッシュがプールに含まれているか判定。
-        /// </summary>
-        /// <param name="hash">ここに渡すハッシュ値はCalculateHashInDecalMeshPoolを利用して計算してください。</param>
-        /// <returns></returns>
-        public static bool ContainsDecalMeshInPool(int hash)
-        {
-            if (Instance == null) return false;
-            return Instance._decalMeshPool.Contains(hash);
         }
 
         /// <summary>
@@ -179,35 +156,39 @@ namespace CyDecal.Runtime.Scripts
             if (Instance == null) return 0;
             return Instance._receiverObjectTrianglePolygonsPool.GetPoolSize();
         }
-
         /// <summary>
-        ///     デカールメッシュをプールから取得する。
+        /// 編集するデカールメッシュを収集する。
         /// </summary>
-        /// <remarks>
-        ///     事前条件
-        ///     ContainsDecalMeshInPool()を利用して、指定したハッシュ値のデカールメッシュがプールに登録されていることを必ず確認してください。
-        /// </remarks>
-        /// <param name="hash">ここで指定するハッシュ値はCalculateDecalMeshHashInPool()を利用して計算して下さい。</param>
-        /// <returns></returns>
-        internal static CyDecalMesh GetDecalMeshFromPool(int hash)
+        internal static void CollectEditDecalMeshes(
+            List<CyDecalMesh> results,
+            GameObject receiverObject,
+            Material decalMaterial)
         {
-            if (Instance == null) return null;
-            return Instance._decalMeshPool.GetDecalMesh(hash);
-        }
+            // レシーバーオブジェクトのレンダラーのみを収集したいのだが、
+            // レシーバーオブジェクトにデカールメッシュのレンダラーがぶら下がっているので
+            // 一旦無効にする。
+            DisableDecalMeshRenderers();
+            // 編集するデカールメッシュを取得する。
+            var renderers = receiverObject.GetComponentsInChildren<Renderer>();
+            foreach (var renderer in renderers)
+            {
+                if (!renderer) return;
+                var pool = Instance._decalMeshPool;
+                var hash = CyDecalMeshPool.CalculateHash(receiverObject, renderer, decalMaterial);
+                if (pool.Contains(hash))
+                {
+                    results.Add(pool.GetDecalMesh(hash));
+                }
+                else
+                {
+                    var newMesh = new CyDecalMesh(receiverObject, decalMaterial, renderer);
+                    results.Add(newMesh);
+                    pool.RegisterDecalMesh(hash, newMesh);
+                }
+            }
 
-        /// <summary>
-        ///     デカールメッシュをプールに登録する。
-        /// </summary>
-        /// <remarks>
-        ///     事前条件
-        ///     ContainsDecalMeshInPool()を利用して、指定したハッシュ値のデカールメッシュがプールに登録されていないことを必ず確認してください。
-        /// </remarks>
-        /// <param name="hash">ここで指定するハッシュ値はCalculateDecalMeshHashInPool()を利用して計算して下さい。</param>
-        /// <param name="newMesh">登録するデカールメッシュ</param>
-        internal static void RegisterDecalMeshToPool(int hash, CyDecalMesh newMesh)
-        {
-            if (Instance == null) return;
-            Instance._decalMeshPool.RegisterDecalMesh(hash, newMesh);
+            // 無効にしたレンダラーを戻す。
+            EnableDecalMeshRenderers();
         }
     }
 }

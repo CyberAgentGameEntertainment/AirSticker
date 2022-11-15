@@ -73,8 +73,9 @@ namespace CyDecal.Runtime.Scripts
         private IEnumerator ExecuteLaunch()
         {
             InitializeOriginAxisInDecalSpace();
-
-            BuildEditDecalMeshes();
+            
+            // 編集するデカールメッシュを収集する。
+            CyDecalSystem.CollectEditDecalMeshes(DecalMeshes, receiverObject, decalMaterial);
 
             if (CyDecalSystem.ExistTrianglePolygons(receiverObject) == false)
                 yield return CyDecalSystem.RegisterTrianglePolygons(
@@ -115,31 +116,7 @@ namespace CyDecal.Runtime.Scripts
         /// </summary>
         private void BuildEditDecalMeshes()
         {
-            // レシーバーオブジェクトのレンダラーのみを収集したいのだが、
-            // レシーバーオブジェクトにデカールメッシュのレンダラーがぶら下がっているので
-            // 一旦無効にする。
-            CyDecalSystem.DisableDecalMeshRenderers();
-            // 編集するデカールメッシュを取得する。
-            var renderers = receiverObject.GetComponentsInChildren<Renderer>();
-            foreach (var renderer in renderers)
-            {
-                if (!renderer) return;
-
-                var hash = CyDecalSystem.CalculateDecalMeshHashInPool(receiverObject, renderer, decalMaterial);
-                if (CyDecalSystem.ContainsDecalMeshInPool(hash))
-                {
-                    DecalMeshes.Add(CyDecalSystem.GetDecalMeshFromPool(hash));
-                }
-                else
-                {
-                    var newMesh = new CyDecalMesh(receiverObject, decalMaterial, renderer);
-                    DecalMeshes.Add(newMesh);
-                    CyDecalSystem.RegisterDecalMeshToPool(hash, newMesh);
-                }
-            }
-
-            // 無効にしたレンダラーを戻す。
-            CyDecalSystem.EnableDecalMeshRenderers();
+            
         }
 
         /// <summary>
