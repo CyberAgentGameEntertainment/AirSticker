@@ -8,7 +8,7 @@ namespace CyDecal.Runtime.Scripts.Core
     /// <summary>
     ///     デカールメッシュ
     /// </summary>
-    internal sealed class CyDecalMesh
+    public sealed class CyDecalMesh
     {
         private readonly Matrix4x4[] _bindPoses; // バインドポーズ行列
         private readonly Material _decalMaterial;
