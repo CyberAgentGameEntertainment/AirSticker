@@ -95,7 +95,7 @@ namespace CyDecal.Runtime.Scripts.Core
             var removeList = _decalMeshes.Where(item => item.Value.IsPossibleRemovePool()).ToList();
             foreach (var item in removeList)
             {
-                item.Value.Destroy();
+                item.Value.Dispose();
                 _decalMeshes.Remove(item.Key);
             }
         }

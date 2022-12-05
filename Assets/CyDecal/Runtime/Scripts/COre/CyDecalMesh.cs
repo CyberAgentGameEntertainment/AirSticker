@@ -8,7 +8,7 @@ namespace CyDecal.Runtime.Scripts.Core
     /// <summary>
     ///     デカールメッシュ
     /// </summary>
-    public sealed class CyDecalMesh
+    public sealed class CyDecalMesh : IDisposable
     {
         private readonly Matrix4x4[] _bindPoses; // バインドポーズ行列
         private readonly Material _decalMaterial;
@@ -24,7 +24,7 @@ namespace CyDecal.Runtime.Scripts.Core
         private int _numVertex;
         private Vector3[] _positionBuffer;
         private Vector2[] _uvBuffer;
-
+        private bool _disposed = false;
         public CyDecalMesh(
             GameObject receiverObject,
             Material decalMaterial,
@@ -39,9 +39,12 @@ namespace CyDecal.Runtime.Scripts.Core
                 _bindPoses = skinnedMeshRenderer.sharedMesh.bindposes;
         }
 
-        public void Destroy()
+        ~CyDecalMesh()
         {
-            if (_mesh && _mesh != null) Object.Destroy(_mesh);
+            if (!_disposed)
+            {
+                Dispose();
+            }
         }
 
         /// <summary>
@@ -198,6 +201,12 @@ namespace CyDecal.Runtime.Scripts.Core
                 _receiverMeshRenderer,
                 _decalMaterial,
                 _mesh);
+        }
+
+        public void Dispose()
+        {
+            if (_mesh && _mesh != null) Object.Destroy(_mesh);
+            _disposed = true;
         }
     }
 }
