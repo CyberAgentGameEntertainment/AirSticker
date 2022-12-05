@@ -48,7 +48,7 @@ namespace Demo.Demo_00.Scripts
 
         private void ExecuteAction()
         {
-            if (CyDecalSystem.GetWaitingProjectorCount() > 50)
+            if (CyDecalSystem.GetWaitingLaunchedProjectorCount() > 50)
             {
                 // デカール貼り付けのリクエストが50を超えている。
                 CyTrianglePolygonsFactory.MaxGeneratedPolygonPerFrame = 100;

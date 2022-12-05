@@ -375,7 +375,7 @@ namespace CyDecal.Runtime.Scripts.Core
             var skindMeshRendererNo = 0;
             foreach (var skinnedMeshRenderer in skinnedMeshRenderers)
             {
-                if (!skinnedMeshRenderer) throw new CyDeleteReceiverObjectException();
+                if (!skinnedMeshRenderer) continue;
                 if (skinnedMeshRenderer.rootBone != null)
                 {
                     var mesh = skinnedMeshRenderer.sharedMesh;

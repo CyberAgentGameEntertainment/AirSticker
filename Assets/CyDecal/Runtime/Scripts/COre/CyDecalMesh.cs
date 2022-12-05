@@ -51,7 +51,7 @@ namespace CyDecal.Runtime.Scripts.Core
         ///     プールから削除可能？
         /// </summary>
         /// <returns></returns>
-        public bool IsPossibleRemovePool()
+        public bool CanRemoveFromPool()
         {
             // プールのキーとなっているオブジェクトのうち、一つでも死亡していたらプールから削除可能。
             return !_decalMaterial

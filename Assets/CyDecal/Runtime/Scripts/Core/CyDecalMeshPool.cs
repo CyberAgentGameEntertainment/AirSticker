@@ -92,7 +92,7 @@ namespace CyDecal.Runtime.Scripts.Core
         public void GarbageCollect()
         {
             // 削除可能リストを作成。
-            var removeList = _decalMeshes.Where(item => item.Value.IsPossibleRemovePool()).ToList();
+            var removeList = _decalMeshes.Where(item => item.Value.CanRemoveFromPool()).ToList();
             foreach (var item in removeList)
             {
                 item.Value.Dispose();
