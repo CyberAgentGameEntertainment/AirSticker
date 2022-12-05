@@ -21,10 +21,19 @@ namespace CyDecal.Runtime.Scripts
         // デカールメッシュを貼り付けるレシーバーオブジェクトのプール。
         private readonly CyReceiverObjectTrianglePolygonsPool _receiverObjectTrianglePolygonsPool =
             new CyReceiverObjectTrianglePolygonsPool();
-
-        public CyDecalSystem()
+        
+        private void Awake()
         {
+            if (Instance != null)
+            {
+                Debug.LogError( "CyDecalSystem can't be instantiated multiply, but but it has already been instantiated.");
+            }
             Instance = this;
+        }
+
+        private void OnDestroy()
+        {
+            Instance = null;
         }
 
         private static CyDecalSystem Instance { get; set; }
