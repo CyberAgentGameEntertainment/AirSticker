@@ -140,7 +140,7 @@ namespace CyDecal.Runtime.Scripts
         ///     falseを指定している場合は、明示的にLaunchメソッドを呼び出すことで、デカールの投影処理が始まります。
         /// </param>
         /// <param name="onCompletedLaunch">デカール投影完了時に呼び出されるコールバック関数</param>
-        public static CyDecalProjector Add(
+        public static CyDecalProjector CreateAndLaunch(
             GameObject owner,
             GameObject receiverObject,
             Material decalMaterial,
