@@ -11,12 +11,12 @@ namespace CyDecal.Runtime.Scripts.Core
     ///     また、メッシュの向きがデカールボックスと逆向きになっているメッシュも枝切りします。<br />
     ///     枝切りはUnityのジョブシステムを利用して並列に実行されます。
     /// </remarks>
-    public static class CyBroadPhaseConvexPolygonsDetection
+    internal static class CyBroadPhaseConvexPolygonsDetection
     {
         /// <summary>
         ///     ブロードフェーズを実行。
         /// </summary>
-        internal static List<ConvexPolygonInfo> Execute(
+        public static List<ConvexPolygonInfo> Execute(
             Vector3 originPosInDecalSpace,
             Vector3 decalSpaceNormalWs,
             float width,
