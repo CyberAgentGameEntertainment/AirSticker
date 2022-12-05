@@ -64,7 +64,7 @@ namespace CyDecal.Runtime.Scripts.Core
         ///     リクエスト数を取得
         /// </summary>
         /// <returns></returns>
-        public int GetNumRequest()
+        public int GetRequestCount()
         {
             return _launchRequestQueues.Count;
         }

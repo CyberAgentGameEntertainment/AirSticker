@@ -56,7 +56,7 @@ namespace CyDecal.Runtime.Scripts
         /// <returns></returns>
         public static int GetWaitingLaunchedProjectorCount()
         {
-            return Instance._launchDecalProjectorRequestQueue.GetNumRequest();
+            return Instance._launchDecalProjectorRequestQueue.GetRequestCount();
         }
 
         /// <summary>

@@ -36,7 +36,7 @@ namespace CyDecal.Runtime.Scripts
         private bool _destroy;
         public bool IsCompletedLaunch { get; private set; }
 
-        /// <summary>
+        /// <summary>.
         ///     生成されたデカールメッシュのリストのプロパティ
         /// </summary>
         public List<CyDecalMesh> DecalMeshes { get; } = new List<CyDecalMesh>();
