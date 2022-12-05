@@ -54,13 +54,13 @@ namespace CyDecal.Runtime.Scripts
         ///     待ち行列にキューイングされているデカールプロジェクタのローンチリクエストの数を取得する。
         /// </summary>
         /// <returns></returns>
-        public static int GetWaitingProjectorCount()
+        public static int GetWaitingLaunchedProjectorCount()
         {
             return Instance._launchDecalProjectorRequestQueue.GetNumRequest();
         }
 
         /// <summary>
-        ///     デカールプロジェクターをラウンチリクエストを待ち行列にキューイングする。
+        ///     デカールプロジェクターをローンチリクエストを待ち行列にキューイングする。
         /// </summary>
         public static void EnqueueRequestLaunchDecalProjector(CyDecalProjector projector, Action onLaunch)
         {
