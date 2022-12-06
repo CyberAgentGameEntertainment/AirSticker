@@ -74,7 +74,7 @@ namespace Demo.Demo_00.Scripts
                 projectorSize.z = 0.2f;
                 projectorObj.transform.localPosition =
                     hit_info.point + Camera.main.transform.forward * -0.1f;
-                CyDecalProjector.Add(
+                CyDecalProjector.CreateAndLaunch(
                     projectorObj,
                     receiverObjects[_currentReceiverObjectNo],
                     decalMaterials[decalMaterialIndex],
@@ -162,7 +162,7 @@ namespace Demo.Demo_00.Scripts
                             Object.Destroy(projectorObj);
                         });
 #else
-                    var projector = CyDecalProjector.Add(
+                    var projector = CyDecalProjector.CreateAndLaunch(
                         _currentProjectorObject,
                         receiverObjects[_currentReceiverObjectNo],
                         decalMaterials[CurrentDecalMaterialIndex],
