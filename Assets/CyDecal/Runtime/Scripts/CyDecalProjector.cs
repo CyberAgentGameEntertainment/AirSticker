@@ -32,7 +32,6 @@ namespace CyDecal.Runtime.Scripts
         private float _basePointToNearClipDistance; // デカールを貼り付ける基準地点から、ニアクリップまでの距離。
         private List<ConvexPolygonInfo> _broadPhaseConvexPolygonInfos = new List<ConvexPolygonInfo>();
         private CyDecalSpace _decalSpace; // デカール空間。
-        private bool _destroy;
         public bool IsCompletedLaunch { get; private set; }
 
         /// <summary>.
