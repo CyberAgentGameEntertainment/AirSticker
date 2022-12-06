@@ -25,8 +25,7 @@ namespace CyDecal.Runtime.Scripts
         [Tooltip("このチェックをつけるとインスタンスの生成と同時にデカールの投影処理が開始されます。")] [SerializeField]
         private bool launchOnAwake; // インスタンスが生成されると、自動的にデカールの投影処理も開始する。
 
-        [FormerlySerializedAs("onCompleteLaunch")] [SerializeField]
-        private UnityEvent onCompletedLaunch; //　デカールの投影が完了したときに呼ばれるイベント。
+        [SerializeField] private UnityEvent onCompletedLaunch; //　デカールの投影が完了したときに呼ばれるイベント。
 
         private readonly Vector4[] _clipPlanes = new Vector4[(int)ClipPlane.Num]; // 分割平面
         private float _basePointToFarClipDistance; // デカールを貼り付ける基準地点から、ファークリップまでの距離。
