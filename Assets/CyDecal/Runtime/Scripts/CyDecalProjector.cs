@@ -22,7 +22,7 @@ namespace CyDecal.Runtime.Scripts
         [SerializeField] private GameObject receiverObject; // デカールを貼り付けるターゲットとなるオブジェクト
         [SerializeField] private Material decalMaterial; // デカールマテリアル
 
-        [Tooltip("このチェックを外す場合は、デカールを投影するためには明示的にLaunchメソッドを呼び出す必要があります。")] [SerializeField]
+        [Tooltip("このチェックをつけるとインスタンスの生成と同時にデカールの投影処理が開始されます。")] [SerializeField]
         private bool launchOnAwake; // インスタンスが生成されると、自動的にデカールの投影処理も開始する。
 
         [FormerlySerializedAs("onCompleteLaunch")] [SerializeField]
