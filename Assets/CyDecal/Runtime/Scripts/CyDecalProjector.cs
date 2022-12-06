@@ -123,14 +123,6 @@ namespace CyDecal.Runtime.Scripts
         }
 
         /// <summary>
-        ///     編集するデカールメッシュのリストを構築する。
-        /// </summary>
-        private void BuildEditDecalMeshes()
-        {
-            
-        }
-
-        /// <summary>
         ///     CyDecalProjectorコンポーネントをゲームオブジェクトに追加作成
         /// </summary>
         /// <param name="owner">コンポーネントを追加するゲームオブジェクト</param>
