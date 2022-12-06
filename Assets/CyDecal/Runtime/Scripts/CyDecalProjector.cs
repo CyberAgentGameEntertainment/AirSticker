@@ -16,6 +16,11 @@ namespace CyDecal.Runtime.Scripts
     /// </remarks>
     public sealed class CyDecalProjector : MonoBehaviour
     {
+        public enum State{
+            NotLaunch,
+            Launching,  
+            Launched,
+        }
         [SerializeField] private float width; // デカールボックスの幅
         [SerializeField] private float height; // デカールボックスの高さ
         [SerializeField] private float depth; // デカールボックスの奥行
@@ -32,7 +37,8 @@ namespace CyDecal.Runtime.Scripts
         private float _basePointToNearClipDistance; // デカールを貼り付ける基準地点から、ニアクリップまでの距離。
         private List<ConvexPolygonInfo> _broadPhaseConvexPolygonInfos = new List<ConvexPolygonInfo>();
         private CyDecalSpace _decalSpace; // デカール空間。
-        public bool IsLaunched { get; private set; }
+        private State _nowState = State.NotLaunch;
+        public State NowState => _nowState;
 
         /// <summary>.
         ///     生成されたデカールメッシュのリストのプロパティ
@@ -56,7 +62,7 @@ namespace CyDecal.Runtime.Scripts
         private void OnCompleted()
         {
             onCompletedLaunch?.Invoke();
-            IsLaunched = true;
+            _nowState = State.Launched;
             onCompletedLaunch = null;
         }
 
@@ -173,6 +179,12 @@ namespace CyDecal.Runtime.Scripts
         /// </remarks>
         public void Launch(UnityAction onCompletedLaunch)
         {
+            if (_nowState != State.NotLaunch)
+            {
+                Debug.LogError("This function can be called only once, but it was called multiply.");
+            }
+
+            _nowState = State.Launching;
             if (onCompletedLaunch != null) this.onCompletedLaunch.AddListener(onCompletedLaunch);
             // リクエストキューに積む。
             CyDecalSystem.EnqueueRequestLaunchDecalProjector(
