@@ -179,7 +179,7 @@ namespace CyDecal.Runtime.Scripts
             _nowState = State.Launching;
             if (onFinishedLaunch != null) this.onFinishedLaunch.AddListener(onFinishedLaunch);
             // リクエストキューに積む。
-            CyDecalSystem.EnqueueRequestLaunchDecalProjector(
+            CyDecalSystem.RequestLaunching(
                 this,
                 () =>
                 {

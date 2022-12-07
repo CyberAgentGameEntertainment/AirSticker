@@ -60,9 +60,9 @@ namespace CyDecal.Runtime.Scripts
         }
 
         /// <summary>
-        ///     デカールプロジェクターをローンチリクエストを待ち行列にキューイングする。
+        ///     デカールプロジェクターのローンチリクエストを行う。
         /// </summary>
-        public static void EnqueueRequestLaunchDecalProjector(CyDecalProjector projector, Action onLaunch)
+        public static void RequestLaunching(CyDecalProjector projector, Action onLaunch)
         {
             Instance._decalProjectorLauncher.EnqueueLaunchRequest(projector, onLaunch);
         }
