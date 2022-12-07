@@ -15,8 +15,8 @@ namespace CyDecal.Runtime.Scripts
         private readonly CyDecalMeshPool _decalMeshPool = new CyDecalMeshPool();
 
         // デカールプロジェクタのラウンチリクエストキュー
-        private readonly CyLaunchDecalProjectorRequestQueue _launchDecalProjectorRequestQueue =
-            new CyLaunchDecalProjectorRequestQueue();
+        private readonly CyDecalProjectorLauncher _decalProjectorLauncher =
+            new CyDecalProjectorLauncher();
 
         // デカールメッシュを貼り付けるレシーバーオブジェクトのプール。
         private readonly CyReceiverObjectTrianglePolygonsPool _receiverObjectTrianglePolygonsPool =
@@ -47,7 +47,7 @@ namespace CyDecal.Runtime.Scripts
             _receiverObjectTrianglePolygonsPool.GarbageCollect();
             _decalMeshPool.GarbageCollect();
             // デカールの投影リクエストを処理する。
-            _launchDecalProjectorRequestQueue.Update();
+            _decalProjectorLauncher.Update();
         }
 
         /// <summary>
@@ -56,7 +56,7 @@ namespace CyDecal.Runtime.Scripts
         /// <returns></returns>
         public static int GetWaitingLaunchedProjectorCount()
         {
-            return Instance._launchDecalProjectorRequestQueue.GetRequestCount();
+            return Instance._decalProjectorLauncher.GetRequestCount();
         }
 
         /// <summary>
@@ -64,7 +64,7 @@ namespace CyDecal.Runtime.Scripts
         /// </summary>
         public static void EnqueueRequestLaunchDecalProjector(CyDecalProjector projector, Action onLaunch)
         {
-            Instance._launchDecalProjectorRequestQueue.Enqueue(projector, onLaunch);
+            Instance._decalProjectorLauncher.EnqueueLaunchRequest(projector, onLaunch);
         }
 
         /// <summary>

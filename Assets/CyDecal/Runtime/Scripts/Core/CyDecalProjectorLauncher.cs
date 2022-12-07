@@ -4,20 +4,21 @@ using System.Collections.Generic;
 namespace CyDecal.Runtime.Scripts.Core
 {
     /// <summary>
-    ///     デカールプロジェクターのFIFOキュー
+    ///     デカールプロジェクターのランチャー
     /// </summary>
     /// <remarks>
-    ///     同時に実行されるプロジェクション処理の数を制御するための待ち行列キュー
+    ///     デカールプロジェクターはランチャークラスを経由して起動します。
+    ///     起動リクエストは待ち行列にキューイングされて、適切なタイミングでデカールプロジェクターがローンチされます。
     /// </remarks>
-    internal sealed class CyLaunchDecalProjectorRequestQueue
+    internal sealed class CyDecalProjectorLauncher
     {
         private LaunchRequest _currentRequest; // 現在実行中のリクエスト。
         private readonly Queue<LaunchRequest> _launchRequestQueues = new Queue<LaunchRequest>();
 
         /// <summary>
-        ///     リクエストを待ち行列にキューイング
+        ///     起動リクエストを待ち行列にキューイング
         /// </summary>
-        public void Enqueue(CyDecalProjector projector, Action onLaunch)
+        public void EnqueueLaunchRequest(CyDecalProjector projector, Action onLaunch)
         {
             _launchRequestQueues.Enqueue(new LaunchRequest(projector, onLaunch));
         }
