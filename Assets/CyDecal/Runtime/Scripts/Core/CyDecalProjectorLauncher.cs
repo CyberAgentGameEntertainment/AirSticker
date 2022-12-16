@@ -3,6 +3,10 @@ using System.Collections.Generic;
 
 namespace CyDecal.Runtime.Scripts.Core
 {
+    internal interface ICyDecalProjectorLauncher
+    {
+        void Update();
+    }
     /// <summary>
     ///     デカールプロジェクターのランチャー
     /// </summary>
@@ -10,7 +14,7 @@ namespace CyDecal.Runtime.Scripts.Core
     ///     デカールプロジェクターはランチャークラスを経由して起動します。
     ///     起動リクエストは待ち行列にキューイングされて、適切なタイミングでデカールプロジェクターがローンチされます。
     /// </remarks>
-    internal sealed class CyDecalProjectorLauncher
+    public sealed class CyDecalProjectorLauncher : ICyDecalProjectorLauncher
     {
         private LaunchRequest _currentRequest; // 現在実行中のリクエスト。
         private readonly Queue<LaunchRequest> _launchRequestQueues = new Queue<LaunchRequest>();
@@ -18,7 +22,7 @@ namespace CyDecal.Runtime.Scripts.Core
         /// <summary>
         ///     起動リクエストを待ち行列にキューイング
         /// </summary>
-        public void EnqueueLaunchRequest(CyDecalProjector projector, Action onLaunch)
+        public void Request(CyDecalProjector projector, Action onLaunch)
         {
             _launchRequestQueues.Enqueue(new LaunchRequest(projector, onLaunch));
         }
@@ -34,7 +38,7 @@ namespace CyDecal.Runtime.Scripts.Core
                    || _currentRequest.Projector.NowState == CyDecalProjector.State.LaunchingCompleted; // プロジェクションが完了している。
         }
 
-        public void Update()
+        void ICyDecalProjectorLauncher.Update()
         {
             if (!IsCurrentRequestIsFinished())
             {
@@ -62,10 +66,10 @@ namespace CyDecal.Runtime.Scripts.Core
         }
 
         /// <summary>
-        ///     リクエスト数を取得
+        ///     待ち状態のリクエスト数を取得
         /// </summary>
         /// <returns></returns>
-        public int GetRequestCount()
+        public int GetWaitingRequestCount()
         {
             return _launchRequestQueues.Count;
         }

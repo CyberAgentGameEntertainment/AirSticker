@@ -273,7 +273,7 @@ namespace Demo.Demo_00.Scripts
         public void StopRotateToCurrentReceiverObject()
         {
             receiverObjects[_currentReceiverObjectNo].GetComponent<Rotate>().enabled = false;
-            CyDecalSystem.ClearReceiverObjectTrianglePolygonsPool();
+            CyDecalSystem.ReceiverObjectTrianglePolygonsPool.Clear();
         }
 
         /// <summary>

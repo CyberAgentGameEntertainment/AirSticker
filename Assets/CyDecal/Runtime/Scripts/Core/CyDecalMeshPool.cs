@@ -4,20 +4,23 @@ using UnityEngine;
 
 namespace CyDecal.Runtime.Scripts.Core
 {
+    internal interface ICyDecalMeshPool
+    {
+        int GetPoolSize();
+        void DisableDecalMeshRenderers();
+        void EnableDecalMeshRenderers();
+        bool Contains(int hash);
+        void RegisterDecalMesh(int hash, CyDecalMesh decalMesh);
+        CyDecalMesh GetDecalMesh(int hash);
+        void Dispose();
+        void GarbageCollect();
+    }
     /// <summary>
     ///     デカールメッシュのプール
     /// </summary>
-    internal sealed class CyDecalMeshPool
+    public sealed class CyDecalMeshPool : ICyDecalMeshPool
     {
         private readonly Dictionary<int, CyDecalMesh> _decalMeshes = new Dictionary<int, CyDecalMesh>();
-
-        /// <summary>
-        ///     プールをクリア
-        /// </summary>
-        public void Clear()
-        {
-            _decalMeshes.Clear();
-        }
 
         /// <summary>
         ///     プールのサイズを取得。
@@ -31,7 +34,7 @@ namespace CyDecal.Runtime.Scripts.Core
         /// <summary>
         ///     デカールメッシュのレンダラーを無効にする。
         /// </summary>
-        public void DisableDecalMeshRenderers()
+        void ICyDecalMeshPool.DisableDecalMeshRenderers()
         {
             foreach (var decalMesh in _decalMeshes) decalMesh.Value.DisableDecalMeshRenderer();
         }
@@ -39,7 +42,7 @@ namespace CyDecal.Runtime.Scripts.Core
         /// <summary>
         ///     デカールメッシュのレンダラーを有効にする。
         /// </summary>
-        public void EnableDecalMeshRenderers()
+        void ICyDecalMeshPool.EnableDecalMeshRenderers()
         {
             foreach (var decalMesh in _decalMeshes) decalMesh.Value.EnableDecalMeshRenderer();
         }
@@ -63,7 +66,7 @@ namespace CyDecal.Runtime.Scripts.Core
         /// </summary>
         /// <param name="hash"> ここに渡すハッシュ値はCalculateHashを利用して計算してください。 </param>
         /// <returns>プールに含まれている場合はtrueを返します。</returns>
-        public bool Contains(int hash)
+        bool ICyDecalMeshPool.Contains(int hash)
         {
             return _decalMeshes.ContainsKey(hash);
         }
@@ -73,7 +76,7 @@ namespace CyDecal.Runtime.Scripts.Core
         /// </summary>
         /// <param name="hash">ハッシュ値</param>
         /// <param name="decalMesh">デカールメッシュ</param>
-        public void RegisterDecalMesh(int hash, CyDecalMesh decalMesh)
+        void ICyDecalMeshPool.RegisterDecalMesh(int hash, CyDecalMesh decalMesh)
         {
             _decalMeshes.Add(hash, decalMesh);
         }
@@ -81,12 +84,12 @@ namespace CyDecal.Runtime.Scripts.Core
         /// <summary>
         ///     デカールメッシュを取得
         /// </summary>
-        public CyDecalMesh GetDecalMesh(int hash)
+        CyDecalMesh ICyDecalMeshPool.GetDecalMesh(int hash)
         {
             return _decalMeshes[hash];
         }
 
-        public void Dispose()
+        void ICyDecalMeshPool.Dispose()
         {
             foreach (var item in _decalMeshes)
             {
@@ -96,7 +99,7 @@ namespace CyDecal.Runtime.Scripts.Core
         /// <summary>
         ///     プールをガベージコレクト。
         /// </summary>
-        public void GarbageCollect()
+        void ICyDecalMeshPool.GarbageCollect()
         {
             // 削除可能リストを作成。
             var removeList = _decalMeshes.Where(item => item.Value.CanRemoveFromPool()).ToList();

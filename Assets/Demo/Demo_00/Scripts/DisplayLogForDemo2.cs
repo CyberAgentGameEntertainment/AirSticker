@@ -36,8 +36,8 @@ namespace Demo.Demo_00.Scripts
 
             var fps = 1.0f / Time.deltaTime;
             _logText.text = $"FPS = {fps:0.00}\n"
-                            + $"Decal Mesh Pool Size = {CyDecalSystem.GetDecalMeshPoolSize()}\n"
-                            + $"Triangle Polygons Pool Size = {CyDecalSystem.GetReceiverObjectTrianglePolygonsPoolSize()}\n"
+                            + $"Decal Mesh Pool Size = {CyDecalSystem.DecalMeshPool.GetPoolSize()}\n"
+                            + $"Triangle Polygons Pool Size = {CyDecalSystem.ReceiverObjectTrianglePolygonsPool.GetPoolSize()}\n"
                             + $"Used Memory = {usedMemory:0.0} MB\n"
                             + $"Collect poly per frame = {CyTrianglePolygonsFactory.MaxGeneratedPolygonPerFrame}\n";
         }

@@ -85,7 +85,7 @@ namespace CyDecal.Runtime.Scripts
             CyDecalSystem.CollectEditDecalMeshes(DecalMeshes, receiverObject, decalMaterial);
 
             List<ConvexPolygonInfo> convexPolygonInfos;
-            if (CyDecalSystem.ContainsTrianglePolygonsInPool(receiverObject) == false)
+            if (CyDecalSystem.ReceiverObjectTrianglePolygonsPool.Contains(receiverObject) == false)
             {
                 // 新規登録
                 convexPolygonInfos = new List<ConvexPolygonInfo>();
@@ -95,7 +95,7 @@ namespace CyDecal.Runtime.Scripts
                     receiverObject.GetComponentsInChildren<MeshRenderer>(),
                     receiverObject.GetComponentsInChildren<SkinnedMeshRenderer>(),
                     convexPolygonInfos);
-                CyDecalSystem.RegisterTrianglePolygonsToPool(receiverObject, convexPolygonInfos);
+                CyDecalSystem.ReceiverObjectTrianglePolygonsPool.RegisterConvexPolygons(receiverObject, convexPolygonInfos);
             }
 
             if (!receiverObject)
@@ -181,8 +181,8 @@ namespace CyDecal.Runtime.Scripts
 
             _nowState = State.Launching;
             if (onFinishedLaunch != null) this.onFinishedLaunch.AddListener(onFinishedLaunch);
-            // リクエストキューに積む。
-            CyDecalSystem.RequestLaunching(
+            // Request the launching of the decal.
+            CyDecalSystem.DecalProjectorLauncher.Request(
                 this,
                 () =>
                 {
