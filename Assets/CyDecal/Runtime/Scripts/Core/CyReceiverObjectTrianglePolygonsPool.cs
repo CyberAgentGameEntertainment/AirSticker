@@ -68,7 +68,7 @@ namespace CyDecal.Runtime.Scripts.Core
         /// </remarks>
         public void GarbageCollect()
         {
-            var deleteList = ConvexPolygonsPool.Where(item => !item.Key).ToList();
+            var deleteList = ConvexPolygonsPool.Where(item => item.Key == null).ToList();
             foreach (var item in deleteList) _convexPolygonsPool.Remove(item.Key);
         }
 
