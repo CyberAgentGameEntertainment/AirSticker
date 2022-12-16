@@ -24,10 +24,8 @@ namespace CyDecal.Runtime.Scripts
         
         private void Awake()
         {
-            if (Instance != null)
-            {
-                Debug.LogError( "CyDecalSystem can't be instantiated multiply, but but it has already been instantiated.");
-            }
+            Debug.Assert(Instance == null, "CyDecalSystem can't be instantiated multiply, but but it has already been instantiated.");
+            
             Instance = this;
         }
 
