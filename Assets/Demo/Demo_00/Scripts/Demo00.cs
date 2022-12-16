@@ -82,7 +82,7 @@ namespace Demo.Demo_00.Scripts
                     projectorSize.y,
                     projectorSize.z,
                     true,
-                    () => { Destroy(projectorObj); });
+                    result => { Destroy(projectorObj); });
             }
         }
 
@@ -172,7 +172,7 @@ namespace Demo.Demo_00.Scripts
                         false,
                         null);
                     projector.Launch(
-                        () =>
+                        result =>
                         {
                             // 投影完了とともにオブジェクトも削除する。
                             Destroy(projectorObj);

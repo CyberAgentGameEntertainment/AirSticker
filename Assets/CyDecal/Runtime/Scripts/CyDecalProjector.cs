@@ -19,7 +19,8 @@ namespace CyDecal.Runtime.Scripts
         public enum State{
             NotLaunch,
             Launching,  
-            Launched,
+            LaunchingCompleted,
+            LaunchingCanceled,
         }
         [SerializeField] private float width; // デカールボックスの幅
         [SerializeField] private float height; // デカールボックスの高さ
@@ -30,7 +31,7 @@ namespace CyDecal.Runtime.Scripts
         [Tooltip("このチェックをつけるとインスタンスの生成と同時にデカールの投影処理が開始されます。")] [SerializeField]
         private bool launchOnAwake; // インスタンスが生成されると、自動的にデカールの投影処理も開始する。
 
-        [SerializeField] private UnityEvent onFinishedLaunch; //　デカールの投影処理が終了したときに呼ばれるイベント。
+        [SerializeField] private UnityEvent<State> onFinishedLaunch; //　デカールの投影処理が終了したときに呼ばれるイベント。
 
         private readonly Vector4[] _clipPlanes = new Vector4[(int)ClipPlane.Num]; // 分割平面
         private float _basePointToFarClipDistance; // デカールを貼り付ける基準地点から、ファークリップまでの距離。
@@ -53,16 +54,18 @@ namespace CyDecal.Runtime.Scripts
         private void OnDestroy()
         {
             // 投影終了せずに削除された場合もコールバックを呼び出すために完了時の処理をコールする。
-            OnFinished();
+            OnFinished(State.LaunchingCanceled);
         }
 
         /// <summary>
         ///     投影終了時に呼び出される処理
         /// </summary>
-        private void OnFinished()
+        private void OnFinished(State finishedState)
         {
-            onFinishedLaunch?.Invoke();
-            _nowState = State.Launched;
+            if (onFinishedLaunch == null) return;
+            
+            onFinishedLaunch.Invoke(finishedState);
+            _nowState = finishedState;
             onFinishedLaunch = null;
         }
 
@@ -98,7 +101,7 @@ namespace CyDecal.Runtime.Scripts
             if (!receiverObject)
             {
                 // レシーバーオブジェクトが死亡しているのでここで処理を打ち切る。
-                OnFinished();
+                OnFinished(State.LaunchingCanceled);
                 yield break;
             }
 
@@ -118,7 +121,7 @@ namespace CyDecal.Runtime.Scripts
                 AddTrianglePolygonsToDecalMeshFromConvexPolygons(hitPoint);
             }
 
-            OnFinished();
+            OnFinished(State.LaunchingCompleted);
             yield return null;
         }
 
@@ -144,7 +147,7 @@ namespace CyDecal.Runtime.Scripts
             float height,
             float depth,
             bool launchOnAwake,
-            UnityAction onCompletedLaunch)
+            UnityAction<State> onCompletedLaunch)
         {
             var projector = owner.AddComponent<CyDecalProjector>();
             projector.width = width;
@@ -153,7 +156,7 @@ namespace CyDecal.Runtime.Scripts
             projector.receiverObject = receiverObject;
             projector.decalMaterial = decalMaterial;
             projector.launchOnAwake = false;
-            projector.onFinishedLaunch = new UnityEvent();
+            projector.onFinishedLaunch = new UnityEvent<State>();
 
             if (launchOnAwake) // コンポーネント追加と同時にプロジェクション開始。
                 projector.Launch(onCompletedLaunch);
@@ -169,7 +172,7 @@ namespace CyDecal.Runtime.Scripts
         ///     この処理は非同期処理となっており、デカールの投影が完了するまで数フレームの遅延が発生します。
         ///     デカールの投影の完了を監視する場合は、コールバック関数を指定してください。
         /// </remarks>
-        public void Launch(UnityAction onFinishedLaunch)
+        public void Launch(UnityAction<State> onFinishedLaunch)
         {
             if (_nowState != State.NotLaunch)
             {
@@ -187,7 +190,7 @@ namespace CyDecal.Runtime.Scripts
                         StartCoroutine(ExecuteLaunch());
                     else
                         // レシーバーオブジェクトが削除されているので、ここで打ち切り。
-                        OnFinished();
+                        OnFinished(State.LaunchingCanceled);
                 });
         }
 
