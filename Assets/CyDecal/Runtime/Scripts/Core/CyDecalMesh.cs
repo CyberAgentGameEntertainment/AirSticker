@@ -41,10 +41,7 @@ namespace CyDecal.Runtime.Scripts.Core
 
         ~CyDecalMesh()
         {
-            if (!_disposed)
-            {
-                Dispose();
-            }
+            Dispose();
         }
 
         /// <summary>
@@ -205,7 +202,9 @@ namespace CyDecal.Runtime.Scripts.Core
 
         public void Dispose()
         {
+            if (_disposed) return;
             if (_mesh && _mesh != null) Object.Destroy(_mesh);
+            GC.SuppressFinalize(this);
             _disposed = true;
         }
     }

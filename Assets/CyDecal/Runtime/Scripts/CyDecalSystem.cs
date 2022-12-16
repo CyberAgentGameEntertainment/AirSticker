@@ -33,6 +33,7 @@ namespace CyDecal.Runtime.Scripts
 
         private void OnDestroy()
         {
+            _decalMeshPool.Dispose();
             Instance = null;
         }
 

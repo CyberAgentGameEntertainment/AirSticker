@@ -86,6 +86,13 @@ namespace CyDecal.Runtime.Scripts.Core
             return _decalMeshes[hash];
         }
 
+        public void Dispose()
+        {
+            foreach (var item in _decalMeshes)
+            {
+                item.Value?.Dispose();
+            }
+        }
         /// <summary>
         ///     プールをガベージコレクト。
         /// </summary>
