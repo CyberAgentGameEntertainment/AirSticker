@@ -58,8 +58,9 @@ namespace CyDecal.Runtime.Scripts
 
             var convexPolygonInfos = CyRenderDecalFeature.GetTrianglePolygons(
                 receiverObject);
+            var transform1 = transform;
             _broadPhaseConvexPolygonInfos = CyBroadPhaseDetectionConvexPolygons.Execute(
-                transform.position,
+                transform1.position + transform1.forward * (depth * 0.5f),
                 _decalSpace.Ez,
                 width,
                 height,
