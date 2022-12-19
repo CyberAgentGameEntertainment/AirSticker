@@ -43,15 +43,18 @@ namespace CyDecal.Runtime.Scripts
             // 一旦無効にする。
             CyRenderDecalFeature.DisableDecalMeshRenderers();
             CyRenderDecalFeature.GetDecalMeshes(_cyDecalMeshes, gameObject, receiverObject, decalMaterial);
-            var skinMeshRenderers = receiverObject.GetComponentsInChildren<SkinnedMeshRenderer>();
-            var meshRenderers = receiverObject.GetComponentsInChildren<MeshRenderer>();
-            var meshFilters = receiverObject.GetComponentsInChildren<MeshFilter>();
+            
             // 無効にしたレンダラーを戻す。
             CyRenderDecalFeature.EnableDecalMeshRenderers();
 
             if (CyRenderDecalFeature.ExistTrianglePolygons(receiverObject) == false)
+            {
                 yield return CyRenderDecalFeature.RegisterTrianglePolygons(
-                    receiverObject, meshFilters, meshRenderers, skinMeshRenderers);
+                    receiverObject, 
+                    receiverObject.GetComponentsInChildren<MeshFilter>(), 
+                    receiverObject.GetComponentsInChildren<MeshRenderer>(), 
+                    receiverObject.GetComponentsInChildren<SkinnedMeshRenderer>());
+            }
 
             var convexPolygonInfos = CyRenderDecalFeature.GetTrianglePolygons(
                 receiverObject);
@@ -83,25 +86,29 @@ namespace CyDecal.Runtime.Scripts
         }
 
         /// <summary>
-        ///     初期化
+        ///     CyDecalProjectorコンポーネントをゲームオブジェクトに追加作成
         /// </summary>
+        /// <param name="owner">コンポーネントを追加するゲームオブジェクト</param>
         /// <param name="receiverObject">デカールを貼り付けるレシーバーオブジェクト</param>
         /// <param name="decalMaterial">デカールマテリアル</param>
         /// <param name="width">プロジェクターの幅</param>
         /// <param name="height">プロジェクターの高さ</param>
         /// <param name="depth">プロジェクターの深度</param>
-        public void Initialize(
+        public static CyDecalProjector AddTo(
+            GameObject owner,
             GameObject receiverObject,
             Material decalMaterial,
             float width,
             float height,
             float depth)
         {
-            this.width = width;
-            this.height = height;
-            this.depth = depth;
-            this.receiverObject = receiverObject;
-            this.decalMaterial = decalMaterial;
+            var projector = owner.AddComponent<CyDecalProjector>();
+            projector.width = width;
+            projector.height = height;
+            projector.depth = depth;
+            projector.receiverObject = receiverObject;
+            projector.decalMaterial = decalMaterial;
+            return projector;
         }
 
         /// <summary>

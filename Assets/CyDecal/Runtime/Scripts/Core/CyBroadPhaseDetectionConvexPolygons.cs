@@ -30,9 +30,9 @@ namespace CyDecal.Runtime.Scripts.Core
             threshold *= 1.414f;
             threshold *= threshold;
             broadPhaseConvexPolygonInfos.Capacity = convexPolygonInfos.Count;
-
-            foreach (var convexPolygonInfo in convexPolygonInfos)
+            for( int i = 0; i < convexPolygonInfos.Count; i++)
             {
+                var convexPolygonInfo = convexPolygonInfos[i];
                 if (Vector3.Dot(decalSpaceNormalWs, convexPolygonInfo.ConvexPolygon.FaceNormal) < 0)
                 {
                     // 枝切りの印をつける。
