@@ -8,39 +8,52 @@ namespace CyDecal.Runtime.Scripts.Core
     /// <summary>
     ///     デカールメッシュ
     /// </summary>
-    public class CyDecalMesh
+    public sealed class CyDecalMesh : IDisposable
     {
-        
         private readonly Matrix4x4[] _bindPoses; // バインドポーズ行列
-        
         private readonly Material _decalMaterial;
-        private Mesh _mesh; // デカールテクスチャを貼り付けるためのデカールメッシュ
         private readonly Renderer _receiverMeshRenderer;
-       
-        // private readonly List<int> _indexBuffer = new　List<int>(); // インデックスバッファ
-        // private readonly List<Vector3> _positionBuffer = new　List<Vector3>(); // 頂点座標のバッファ
-        // private readonly List<Vector3> _normalBuffer = new　List<Vector3>(); // 法線。
-        // private readonly List<Vector2> _uvBuffer = new List<Vector2>(); // UVバッファ
-        // private readonly List<BoneWeight> _boneWeightsBuffer = new　List<BoneWeight>(); // ボーンウェイトバッファ
-        private int[] _indexBuffer;
-        private Vector3[] _positionBuffer;
-        private Vector3[] _normalBuffer;
-        private Vector2[] _uvBuffer;
+        private readonly GameObject _receiverObject; // デカールメッシュを貼り付けるレシーバーオブジェクト
         private BoneWeight[] _boneWeightsBuffer;
         private CyDecalMeshRenderer _decalMeshRenderer;
+
+        private int[] _indexBuffer;
+        private Mesh _mesh; // デカールテクスチャを貼り付けるためのデカールメッシュ
+        private Vector3[] _normalBuffer;
         private int _numIndex;
         private int _numVertex;
-         
+        private Vector3[] _positionBuffer;
+        private Vector2[] _uvBuffer;
+        private bool _disposed = false;
         public CyDecalMesh(
-            GameObject projectorObject,
+            GameObject receiverObject,
             Material decalMaterial,
             Renderer receiverMeshRenderer)
         {
             _mesh = new Mesh();
             _receiverMeshRenderer = receiverMeshRenderer;
             _decalMaterial = decalMaterial;
+            _receiverObject = receiverObject;
+
             if (_receiverMeshRenderer is SkinnedMeshRenderer skinnedMeshRenderer)
                 _bindPoses = skinnedMeshRenderer.sharedMesh.bindposes;
+        }
+
+        ~CyDecalMesh()
+        {
+            Dispose();
+        }
+
+        /// <summary>
+        ///     プールから削除可能？
+        /// </summary>
+        /// <returns></returns>
+        public bool CanRemoveFromPool()
+        {
+            // プールのキーとなっているオブジェクトのうち、一つでも死亡していたらプールから削除可能。
+            return !_decalMaterial
+                   || !_receiverMeshRenderer
+                   || !_receiverObject;
         }
 
         public void Clear()
@@ -52,6 +65,7 @@ namespace CyDecal.Runtime.Scripts.Core
             _decalMeshRenderer = null;
             _mesh = new Mesh();
         }
+
         /// <summary>
         ///     デカールメッシュレンダラーを無効にする。
         /// </summary>
@@ -91,6 +105,7 @@ namespace CyDecal.Runtime.Scripts.Core
             float decalSpaceHeight
         )
         {
+            if (!_receiverMeshRenderer) return;
             var toReceiverObjectSpaceMatrix = _receiverMeshRenderer.transform.worldToLocalMatrix;
             var uv = new Vector2();
             // 増える頂点数とインデックス数を計算する
@@ -103,17 +118,17 @@ namespace CyDecal.Runtime.Scripts.Core
                 // インデックスバッファが増えるのは三角形の数＊３
                 deltaIndex += (convexPolygon.NumVertices - 2) * 3;
             }
-            
+
             var addVertNo = _numVertex;
             var addIndexNo = _numIndex;
-            var indexBase = addVertNo; 
+            var indexBase = addVertNo;
             // 頂点バッファを拡張。
             _numVertex += deltaVertex;
             Array.Resize(ref _positionBuffer, _numVertex);
             Array.Resize(ref _normalBuffer, _numVertex);
-            Array.Resize(ref _boneWeightsBuffer, _numVertex );
+            Array.Resize(ref _boneWeightsBuffer, _numVertex);
             Array.Resize(ref _uvBuffer, _numVertex);
-            
+
             // インデックスバッファを拡張
             _numIndex += deltaIndex;
             Array.Resize(ref _indexBuffer, _numIndex);
@@ -132,7 +147,7 @@ namespace CyDecal.Runtime.Scripts.Core
                     // TODO: この数値は後で調整できるようにする。
                     // vertPos += decalSpaceNormalWS * 0.001f;
                     var decalSpaceToVertPos = vertPos - decalSpaceOriginPosWS;
-                    
+
                     uv.x = Vector3.Dot(decalSpaceTangentWS, decalSpaceToVertPos) / decalSpaceWidth + 0.5f;
                     uv.y = Vector3.Dot(decalSpaceBiNormalWS, decalSpaceToVertPos) / decalSpaceHeight +
                            0.5f;
@@ -156,8 +171,10 @@ namespace CyDecal.Runtime.Scripts.Core
                     _indexBuffer[addIndexNo++] = indexBase + triNo + 1;
                     _indexBuffer[addIndexNo++] = indexBase + triNo + 2;
                 }
+
                 indexBase += numVertex;
             }
+
             // デカールメッシュレンダラーを作成。
             _decalMeshRenderer?.Destroy();
 
@@ -181,6 +198,14 @@ namespace CyDecal.Runtime.Scripts.Core
                 _receiverMeshRenderer,
                 _decalMaterial,
                 _mesh);
+        }
+
+        public void Dispose()
+        {
+            if (_disposed) return;
+            if (_mesh && _mesh != null) Object.Destroy(_mesh);
+            GC.SuppressFinalize(this);
+            _disposed = true;
         }
     }
 }

@@ -11,7 +11,7 @@ namespace CyDecal.Runtime.Scripts.Core
     ///     また、メッシュの向きがデカールボックスと逆向きになっているメッシュも枝切りします。<br />
     ///     枝切りはUnityのジョブシステムを利用して並列に実行されます。
     /// </remarks>
-    public static class CyBroadPhaseDetectionConvexPolygons
+    internal static class CyBroadPhaseConvexPolygonsDetection
     {
         /// <summary>
         ///     ブロードフェーズを実行。
@@ -30,7 +30,7 @@ namespace CyDecal.Runtime.Scripts.Core
             threshold *= 1.414f;
             threshold *= threshold;
             broadPhaseConvexPolygonInfos.Capacity = convexPolygonInfos.Count;
-            for( int i = 0; i < convexPolygonInfos.Count; i++)
+            for (var i = 0; i < convexPolygonInfos.Count; i++)
             {
                 var convexPolygonInfo = convexPolygonInfos[i];
                 if (Vector3.Dot(decalSpaceNormalWs, convexPolygonInfo.ConvexPolygon.FaceNormal) < 0)
