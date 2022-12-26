@@ -4759,6 +4759,58 @@ MeshCollider:
   m_Convex: 0
   m_CookingOptions: 30
   m_Mesh: {fileID: 4300004, guid: 29032ffe50eebbd41b9e5c4017762813, type: 3}
+--- !u!1 &2010473301
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2010473303}
+  - component: {fileID: 2010473302}
+  m_Layer: 0
+  m_Name: DecalProjector
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &2010473302
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2010473301}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c40ad09df30c15a4ca225d7dd6cf6327, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  width: 0.2
+  height: 0.2
+  depth: 0.5
+  receiverObject: {fileID: 871373255}
+  decalMaterial: {fileID: 2100000, guid: 434c39936d241ab45a19d599d9a2785a, type: 2}
+  launchOnAwake: 1
+  onFinishedLaunch:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!4 &2010473303
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2010473301}
+  m_LocalRotation: {x: -0.11770913, y: -0.012574922, z: -0.054307457, w: 0.9914823}
+  m_LocalPosition: {x: -2.763, y: 1.543, z: -0.136}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 9
+  m_LocalEulerAnglesHint: {x: -13.579, y: -0.716, z: -6.185}
 --- !u!1 &2027643228
 GameObject:
   m_ObjectHideFlags: 0

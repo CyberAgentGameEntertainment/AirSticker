@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using CyDecal.Runtime.Scripts.Core;
@@ -326,7 +327,36 @@ namespace CyDecal.Runtime.Scripts
 
             return false;
         }
-
+        private void OnDrawGizmosSelected()
+        {
+            var cache = Gizmos.matrix;
+            Gizmos.matrix = Matrix4x4.TRS(transform.position, transform.rotation, Vector3.one);
+            // Draw the decal box.
+            Gizmos.DrawWireCube(Vector3.zero, new Vector3(width, height, depth));
+            Gizmos.matrix = cache;
+            Gizmos.color = Color.white;
+            // Draw the arrow of the projection's direction.
+            var arrowStart = transform.position;
+            var arrowEnd = transform.position + transform.forward * depth;
+            Gizmos.DrawLine(arrowStart, arrowEnd);
+            Vector3 arrowTangent;
+            if (Mathf.Abs(transform.forward.y) > 0.999f)
+            {
+                arrowTangent =Vector3.Cross(transform.forward, Vector3.right); 
+            }
+            else
+            {
+                arrowTangent =Vector3.Cross(transform.forward, Vector3.up);   
+            }
+            var rotAxis = Vector3.Cross(transform.forward, arrowTangent);
+            var rotQuat = Quaternion.AngleAxis(45.0f, rotAxis.normalized);
+            var arrowLeft = rotQuat * transform.forward * depth * -0.2f;
+            Gizmos.DrawLine(arrowEnd,arrowEnd + arrowLeft);
+            rotQuat = Quaternion.AngleAxis(-45.0f, rotAxis.normalized);
+            var arrowRight = rotQuat * transform.forward * depth * -0.2f;
+            Gizmos.DrawLine(arrowEnd,arrowEnd + arrowRight);
+            Gizmos.matrix = cache;
+        }
         /// <summary>
         ///     分割平面
         /// </summary>
