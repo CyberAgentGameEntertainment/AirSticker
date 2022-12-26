@@ -356,6 +356,7 @@ namespace CyDecal.Runtime.Scripts
             rotQuat = Quaternion.AngleAxis(-45.0f, rotAxis.normalized);
             var arrowRight = rotQuat * transform.forward * depth * -0.2f;
             Gizmos.DrawLine(arrowEnd,arrowEnd + arrowRight);
+            Gizmos.matrix = cache;
         }
 #endif
         /// <summary>
