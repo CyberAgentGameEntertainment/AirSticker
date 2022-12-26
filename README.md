@@ -113,8 +113,6 @@ CyDecalProjectorコンポーネントには5つのパラメータを設定する
 <font color="grey">CyDecalProjectorの使用方法</font>
 </p>
 
-> **Note**<br/>
-> 現在、CyDecalProjectorは投影範囲の可視化に対応していないため、シーンビューで配置する場合はURPプロジェクターと併用すると、視覚的に分かりやすくなります。
 
 ### 3.3 ランタイムでのCyDecalProjectorの生成
 デカールのランタイムでの使用例として、FPSなどの弾痕を背景に貼り付ける処理があります。このような処理をCyDecalで行うためには、背景と銃弾との衝突判定を行い、衝突点の情報を元にCyDecalProjectorコンポーネントを生成して、デカールメッシュを構築することで実現できます。<br/><br/>
