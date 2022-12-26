@@ -327,7 +327,6 @@ namespace CyDecal.Runtime.Scripts
 
             return false;
         }
-#if UNITY_EDITOR
         private void OnDrawGizmosSelected()
         {
             var cache = Gizmos.matrix;
@@ -358,7 +357,6 @@ namespace CyDecal.Runtime.Scripts
             Gizmos.DrawLine(arrowEnd,arrowEnd + arrowRight);
             Gizmos.matrix = cache;
         }
-#endif
         /// <summary>
         ///     分割平面
         /// </summary>
