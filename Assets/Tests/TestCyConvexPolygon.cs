@@ -41,6 +41,7 @@ namespace Tests
                 lines,
                 null,
                 0,
+                3,
                 3);
             Vector3 hitPoint;
             // 当たるかテスト

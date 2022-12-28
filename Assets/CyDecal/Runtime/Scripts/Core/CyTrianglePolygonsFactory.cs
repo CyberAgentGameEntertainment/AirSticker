@@ -10,6 +10,7 @@ namespace CyDecal.Runtime.Scripts.Core
     /// </summary>
     public static class CyTrianglePolygonsFactory
     {
+        private static readonly int VertexCountOfTrianglePolygon = 3;
         public static int MaxGeneratedPolygonPerFrame { get; set; } = 100; //
 
         /// <summary>
@@ -178,7 +179,7 @@ namespace CyDecal.Runtime.Scripts.Core
                     continue;
                 var mesh = meshFilter.sharedMesh;
                 var numPoly = mesh.triangles.Length / 3;
-                bufferSize += numPoly * CyConvexPolygon.MaxVertex;
+                bufferSize += numPoly * VertexCountOfTrianglePolygon;
             }
 
             // Allocate some buffers.
@@ -233,10 +234,11 @@ namespace CyDecal.Runtime.Scripts.Core
                             lineBuffer,
                             meshRenderers[rendererNo],
                             startOffsetOfBuffer,
-                            3)
+                            VertexCountOfTrianglePolygon,
+                            VertexCountOfTrianglePolygon)
                     };
                     newConvexPolygonNo++;
-                    startOffsetOfBuffer += CyConvexPolygon.MaxVertex;
+                    startOffsetOfBuffer += VertexCountOfTrianglePolygon;
                 }
 
                 rendererNo++;
@@ -272,7 +274,7 @@ namespace CyDecal.Runtime.Scripts.Core
                     continue;
                 var mesh = skinnedMeshRenderer.sharedMesh;
                 var numPoly = mesh.triangles.Length / 3;
-                bufferSize += numPoly * CyConvexPolygon.MaxVertex;
+                bufferSize += numPoly * VertexCountOfTrianglePolygon;
             }
 
             // Allocate some buffers.
@@ -393,10 +395,11 @@ namespace CyDecal.Runtime.Scripts.Core
                             lineBuffer,
                             skinnedMeshRenderer,
                             startOffsetOfBuffer,
-                            3)
+                            3,
+                            VertexCountOfTrianglePolygon)
                     };
                     newConvexPolygonNo++;
-                    startOffsetOfBuffer += CyConvexPolygon.MaxVertex;
+                    startOffsetOfBuffer += VertexCountOfTrianglePolygon;
                 }
 
                 skinnedMeshRendererNo++;

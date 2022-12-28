@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.Assertions;
 
 namespace CyDecal.Runtime.Scripts.Core
 {
@@ -8,13 +9,14 @@ namespace CyDecal.Runtime.Scripts.Core
     /// </summary>
     public sealed class CyConvexPolygon
     {
-        public const int MaxVertex = 64; // 凸多角形の最大頂点
+        private const int DafaultMaxVertex = 64;
         private readonly BoneWeight[] _boneWeightBuffer; // ボーンウェイトバッファ
         private readonly Vector3 _faceNormal; // 面法線
         private readonly CyLine[] _lineBuffer; // 凸多角形を構成するエッジ情報のバッファ
         private readonly Vector3[] _normalBuffer; // 頂点法線バッファ
         private readonly Vector3[] _positionBuffer; // 頂点座標バッファ
         private readonly int _startOffsetOfBuffer;
+        private readonly int _maxVertex; //  凸多角形の最大頂点
 
         /// <summary>
         ///     コンストラクタ
@@ -30,8 +32,10 @@ namespace CyDecal.Runtime.Scripts.Core
             CyLine[] lineBuffer,
             Renderer receiverMeshRenderer,
             int startOffsetOfBuffer,
-            int vertexCount)
+            int vertexCount,
+            int maxVertex = DafaultMaxVertex)
         {
+            _maxVertex = maxVertex;
             _boneWeightBuffer = boneWeightBuffer;
             _positionBuffer = positionBuffer;
             _normalBuffer = normalBuffer;
@@ -64,14 +68,20 @@ namespace CyDecal.Runtime.Scripts.Core
         ///     コピーコンストラクタ
         /// </summary>
         /// <param name="srcConvexPolygon">コピー元となる凸多角形</param>
-        public CyConvexPolygon(CyConvexPolygon srcConvexPolygon)
+        /// <param name="maxVertex">
+        ///     凸多角形の最大頂点数。分割可能頂点数を変更したい場合に最大頂点数を指定して下さい。
+        ///     最大頂点数がsrcConvexPolygonのmaxVertexの値より小さい場合は無視されます。
+        /// </param>
+        public CyConvexPolygon(CyConvexPolygon srcConvexPolygon, int maxVertex = DafaultMaxVertex)
         {
             ReceiverMeshRenderer = srcConvexPolygon.ReceiverMeshRenderer;
             VertexCount = srcConvexPolygon.VertexCount;
-            _positionBuffer = new Vector3[MaxVertex];
-            _normalBuffer = new Vector3[MaxVertex];
-            _boneWeightBuffer = new BoneWeight[MaxVertex];
-            _lineBuffer = new CyLine[MaxVertex];
+
+            _maxVertex = Mathf.Max(maxVertex, srcConvexPolygon._maxVertex);
+            _positionBuffer = new Vector3[_maxVertex];
+            _normalBuffer = new Vector3[_maxVertex];
+            _boneWeightBuffer = new BoneWeight[_maxVertex];
+            _lineBuffer = new CyLine[_maxVertex];
 
             Array.Copy(srcConvexPolygon._positionBuffer, srcConvexPolygon._startOffsetOfBuffer,
                 _positionBuffer, 0, srcConvexPolygon.VertexCount);
@@ -209,6 +219,7 @@ namespace CyDecal.Runtime.Scripts.Core
 
         private int GetIndexOfBuffer(int vertNo)
         {
+            Assert.IsTrue(vertNo < _maxVertex, "The vertex number is over. MaxVertex should be checked.");
             return _startOffsetOfBuffer + vertNo;
         }
 
