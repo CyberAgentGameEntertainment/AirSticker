@@ -114,9 +114,9 @@ namespace CyDecal.Runtime.Scripts.Core
             foreach (var convexPolygon in convexPolygons)
             {
                 if (convexPolygon.ReceiverMeshRenderer != _receiverMeshRenderer) continue;
-                deltaVertex += convexPolygon.VertexCount;
+                deltaVertex += convexPolygon.InitVertexCount;
                 // インデックスバッファが増えるのは三角形の数＊３
-                deltaIndex += (convexPolygon.VertexCount - 2) * 3;
+                deltaIndex += (convexPolygon.InitVertexCount - 2) * 3;
             }
 
             var addVertNo = _numVertex;
@@ -137,7 +137,7 @@ namespace CyDecal.Runtime.Scripts.Core
             {
                 if (convexPolygon.ReceiverMeshRenderer != _receiverMeshRenderer) continue;
 
-                var numVertex = convexPolygon.VertexCount;
+                var numVertex = convexPolygon.InitVertexCount;
                 for (var vertNo = 0; vertNo < numVertex; vertNo++)
                 {
                     var vertPos = convexPolygon.GetVertexPosition(vertNo);
