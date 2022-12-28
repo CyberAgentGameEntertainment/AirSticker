@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace CyDecal.Runtime.Scripts.Core
@@ -7,45 +8,55 @@ namespace CyDecal.Runtime.Scripts.Core
     /// </summary>
     public sealed class CyConvexPolygon
     {
-        private const int MaxVertex = 64; // 凸多角形の最大頂点
-        private readonly BoneWeight[] _boneWeights = new BoneWeight[MaxVertex]; // ボーンウェイト
+        public const int MaxVertex = 64; // 凸多角形の最大頂点
+        private readonly BoneWeight[] _boneWeightBuffer; // ボーンウェイトバッファ
         private readonly Vector3 _faceNormal; // 面法線
-        private readonly CyLine[] _line = new CyLine[MaxVertex]; // 凸多角形を構成するエッジの情報
-        private readonly Vector3[] _normals = new Vector3[MaxVertex]; // 頂点法線
-        private readonly Vector3[] _vertices = new Vector3[MaxVertex]; // 頂点座標
+        private readonly CyLine[] _lineBuffer; // 凸多角形を構成するエッジ情報のバッファ
+        private readonly Vector3[] _normalBuffer; // 頂点法線バッファ
+        private readonly Vector3[] _positionBuffer; // 頂点座標バッファ
+        private readonly int _startOffsetOfBuffer;
 
         /// <summary>
         ///     コンストラクタ
         /// </summary>
         /// <param name="vertices">多角形を構築する頂点の座標</param>
-        /// <param name="normals">多角形を構築する頂点の法線</param>
-        /// <param name="boneWeights">多角形を構築する頂点のボーンウェイト</param>
+        /// <param name="normalBuffer">多角形を構築する頂点の法線</param>
+        /// <param name="boneWeightBuffer">多角形を構築する頂点のボーンウェイト</param>
         /// <param name="receiverMeshRenderer">デカールメッシュを貼り付けメッシュのレンダラ</param>
         public CyConvexPolygon(
-            Vector3[] vertices,
-            Vector3[] normals,
-            BoneWeight[] boneWeights,
-            Renderer receiverMeshRenderer)
+            Vector3[] positionBuffer,
+            Vector3[] normalBuffer,
+            BoneWeight[] boneWeightBuffer,
+            CyLine[] lineBuffer,
+            Renderer receiverMeshRenderer,
+            int startOffsetOfBuffer,
+            int vertexCount)
         {
+            _boneWeightBuffer = boneWeightBuffer;
+            _positionBuffer = positionBuffer;
+            _normalBuffer = normalBuffer;
+            _lineBuffer = lineBuffer;
+            _startOffsetOfBuffer = startOffsetOfBuffer;
             ReceiverMeshRenderer = receiverMeshRenderer;
-            NumVertices = vertices.Length;
-            vertices.CopyTo(_vertices, 0);
-            normals.CopyTo(_normals, 0);
-            boneWeights.CopyTo(_boneWeights, 0);
-            for (var vertNo = 0; vertNo < NumVertices; vertNo++)
+            VertexCount = vertexCount;
+
+            for (var vertNo = 0; vertNo < VertexCount; vertNo++)
             {
-                var nextVertNo = (vertNo + 1) % NumVertices;
-                _line[vertNo] = new CyLine(
-                    vertices[vertNo],
-                    vertices[nextVertNo],
-                    normals[vertNo],
-                    normals[nextVertNo]);
-                _line[vertNo].SetStartEndBoneWeights(
-                    boneWeights[vertNo],
-                    boneWeights[nextVertNo]);
+                var nextVertNo = (vertNo + 1) % VertexCount;
+                var line = new CyLine(
+                    GetVertexPosition(vertNo),
+                    GetVertexPosition(nextVertNo),
+                    GetVertexNormal(vertNo),
+                    GetVertexNormal(nextVertNo));
+                line.SetStartEndBoneWeights(
+                    GetVertexBoneWeight(vertNo),
+                    GetVertexBoneWeight(nextVertNo));
+                SetLine(vertNo, line);
             }
 
-            _faceNormal = Vector3.Cross(vertices[1] - vertices[0], vertices[2] - vertices[0]);
+            _faceNormal = Vector3.Cross(
+                GetVertexPosition(1) - GetVertexPosition(0),
+                GetVertexPosition(2) - GetVertexPosition(0));
             _faceNormal.Normalize();
         }
 
@@ -56,11 +67,22 @@ namespace CyDecal.Runtime.Scripts.Core
         public CyConvexPolygon(CyConvexPolygon srcConvexPolygon)
         {
             ReceiverMeshRenderer = srcConvexPolygon.ReceiverMeshRenderer;
-            NumVertices = srcConvexPolygon.NumVertices;
-            srcConvexPolygon._vertices.CopyTo(_vertices, 0);
-            srcConvexPolygon._normals.CopyTo(_normals, 0);
-            srcConvexPolygon._boneWeights.CopyTo(_boneWeights, 0);
-            srcConvexPolygon._line.CopyTo(_line, 0);
+            VertexCount = srcConvexPolygon.VertexCount;
+            _positionBuffer = new Vector3[MaxVertex];
+            _normalBuffer = new Vector3[MaxVertex];
+            _boneWeightBuffer = new BoneWeight[MaxVertex];
+            _lineBuffer = new CyLine[MaxVertex];
+
+            Array.Copy(srcConvexPolygon._positionBuffer, srcConvexPolygon._startOffsetOfBuffer,
+                _positionBuffer, 0, srcConvexPolygon.VertexCount);
+            Array.Copy(srcConvexPolygon._normalBuffer, srcConvexPolygon._startOffsetOfBuffer,
+                _normalBuffer, 0, srcConvexPolygon.VertexCount);
+            Array.Copy(srcConvexPolygon._boneWeightBuffer, srcConvexPolygon._startOffsetOfBuffer,
+                _boneWeightBuffer, 0, srcConvexPolygon.VertexCount);
+            Array.Copy(srcConvexPolygon._lineBuffer, srcConvexPolygon._startOffsetOfBuffer,
+                _lineBuffer, 0, srcConvexPolygon.VertexCount);
+            _startOffsetOfBuffer = 0;
+
             _faceNormal = srcConvexPolygon._faceNormal;
         }
 
@@ -72,7 +94,7 @@ namespace CyDecal.Runtime.Scripts.Core
         /// <summary>
         ///     頂点数プロパティ
         /// </summary>
-        public int NumVertices { get; private set; }
+        public int VertexCount { get; private set; }
 
         /// <summary>
         ///     デカールを貼り付けられるレシーバーメッシュのレンダラー。
@@ -185,6 +207,11 @@ namespace CyDecal.Runtime.Scripts.Core
             }
         }
 
+        private int GetIndexOfBuffer(int vertNo)
+        {
+            return _startOffsetOfBuffer + vertNo;
+        }
+
         /// <summary>
         ///     頂点座標を取得。
         /// </summary>
@@ -192,7 +219,17 @@ namespace CyDecal.Runtime.Scripts.Core
         /// <returns></returns>
         public Vector3 GetVertexPosition(int vertNo)
         {
-            return _vertices[vertNo];
+            return _positionBuffer[GetIndexOfBuffer(vertNo)];
+        }
+
+        private void SetVertexPosition(int vertNo, Vector3 position)
+        {
+            _positionBuffer[GetIndexOfBuffer(vertNo)] = position;
+        }
+
+        private void CopyVertexPosition(int destVertNo, int srcVertNo)
+        {
+            _positionBuffer[GetIndexOfBuffer(destVertNo)] = _positionBuffer[GetIndexOfBuffer(srcVertNo)];
         }
 
         /// <summary>
@@ -202,7 +239,37 @@ namespace CyDecal.Runtime.Scripts.Core
         /// <returns></returns>
         public Vector3 GetVertexNormal(int vertNo)
         {
-            return _normals[vertNo];
+            return _normalBuffer[GetIndexOfBuffer(vertNo)];
+        }
+
+        private void SetVertexNormal(int vertNo, Vector3 normal)
+        {
+            _normalBuffer[GetIndexOfBuffer(vertNo)] = normal;
+        }
+
+        private void CopyVertexNormal(int destVertNo, int srcVertNo)
+        {
+            _normalBuffer[GetIndexOfBuffer(destVertNo)] = _normalBuffer[GetIndexOfBuffer(srcVertNo)];
+        }
+
+        public CyLine GetLine(int lineNo)
+        {
+            return _lineBuffer[GetIndexOfBuffer(lineNo)];
+        }
+
+        private ref CyLine GetLineRef(int lineNo)
+        {
+            return ref _lineBuffer[GetIndexOfBuffer(lineNo)];
+        }
+
+        private void SetLine(int lineNo, CyLine line)
+        {
+            _lineBuffer[GetIndexOfBuffer(lineNo)] = line;
+        }
+
+        private void CopyLine(int destLineNo, int srcLineNo)
+        {
+            _lineBuffer[GetIndexOfBuffer(destLineNo)] = _lineBuffer[GetIndexOfBuffer(srcLineNo)];
         }
 
         /// <summary>
@@ -236,9 +303,9 @@ namespace CyDecal.Runtime.Scripts.Core
             var removeVertEndNo = 0;
             var remainVertStartNo = -1;
             var remainVertEndNo = 0;
-            for (var no = 0; no < NumVertices; no++)
+            for (var no = 0; no < VertexCount; no++)
             {
-                var t = Vector4.Dot(clipPlane, Vector3ToVector4(_vertices[no]));
+                var t = Vector4.Dot(clipPlane, Vector3ToVector4(GetVertexPosition(no)));
                 if (t < 0)
                 {
                     // 外側
@@ -256,7 +323,7 @@ namespace CyDecal.Runtime.Scripts.Core
                 }
             }
 
-            if (numOutsideVertex == NumVertices)
+            if (numOutsideVertex == VertexCount)
             {
                 // 全ての頂点がクリップ平面の外側にいるので分割は行えない。
                 allVertexIsOutside = true;
@@ -276,16 +343,17 @@ namespace CyDecal.Runtime.Scripts.Core
             {
                 // 0番目の頂点が除外される
                 // 平面と交差する二つのラインの情報をバックアップ。
-                var l0 = _line[remainVertStartNo - 1];
-                var l1 = _line[remainVertEndNo];
+                var l0 = GetLine(remainVertStartNo - 1);
+                var l1 = GetLine(remainVertEndNo);
                 // 残る頂点を前方に詰める。
                 var vertNo = 0;
                 for (var i = remainVertStartNo; i < remainVertEndNo + 1; i++)
                 {
-                    _vertices[vertNo] = _vertices[i];
-                    _normals[vertNo] = _normals[i];
-                    _boneWeights[vertNo] = _boneWeights[i];
-                    _line[vertNo] = _line[i];
+                    CopyVertexPosition(vertNo, i);
+                    CopyVertexNormal(vertNo, i);
+                    CopyVertexBoneWeight(vertNo, i);
+                    CopyLine(vertNo, i);
+
                     vertNo++;
                 }
 
@@ -307,56 +375,61 @@ namespace CyDecal.Runtime.Scripts.Core
                 var newVertNo0 = vertNo;
                 var newVertNo1 = vertNo + 1;
 
-                _vertices[newVertNo0] = newVert0;
-                _vertices[newVertNo1] = newVert1;
-                _normals[newVertNo0] = newNormal0;
-                _normals[newVertNo1] = newNormal1;
-                _boneWeights[newVertNo0] = newBoneWeight0;
-                _boneWeights[newVertNo1] = newBoneWeight1;
+                SetVertexPosition(newVertNo0, newVert0);
+                SetVertexPosition(newVertNo1, newVert1);
+
+                SetVertexNormal(newVertNo0, newNormal0);
+                SetVertexNormal(newVertNo1, newNormal1);
+
+                SetVertexBoneWeight(newVertNo0, newBoneWeight0);
+                SetVertexBoneWeight(newVertNo1, newBoneWeight1);
 
                 // ライン情報の構築。
-                NumVertices += deltaVerticesSize;
-                _line[newVertNo0 - 1].SetEndAndCalcStartToEnd(newVert0, newNormal0);
-                _line[newVertNo0].SetStartEndAndCalcStartToEnd(
+                VertexCount += deltaVerticesSize;
+                ref var line_0 = ref GetLineRef(newVertNo0 - 1);
+                ref var line_1 = ref GetLineRef(newVertNo0);
+                ref var line_2 = ref GetLineRef(newVertNo1);
+                line_0.SetEndAndCalcStartToEnd(newVert0, newNormal0);
+                line_1.SetStartEndAndCalcStartToEnd(
                     newVert0,
                     newVert1,
                     newNormal0,
                     newNormal1);
-                _line[newVertNo1].SetStartEndAndCalcStartToEnd(
+                line_2.SetStartEndAndCalcStartToEnd(
                     newVert1,
-                    _vertices[(newVertNo1 + 1) % NumVertices],
+                    GetVertexPosition((newVertNo1 + 1) % VertexCount),
                     newNormal1,
-                    _normals[(newVertNo1 + 1) % NumVertices]);
+                    GetVertexNormal((newVertNo1 + 1) % VertexCount));
 
-                _line[newVertNo0 - 1].SetEndBoneWeight(newBoneWeight0);
-                _line[newVertNo0].SetStartEndBoneWeights(newBoneWeight0, newBoneWeight1);
-                _line[newVertNo1].SetStartEndBoneWeights(
+                line_0.SetEndBoneWeight(newBoneWeight0);
+                line_1.SetStartEndBoneWeights(newBoneWeight0, newBoneWeight1);
+                line_2.SetStartEndBoneWeights(
                     newBoneWeight1,
-                    _boneWeights[(newVertNo1 + 1) % NumVertices]);
+                    GetVertexBoneWeight((newVertNo1 + 1) % VertexCount));
             }
             else
             {
                 // それ以外
                 // 平面と交差する二つのラインの情報をバックアップ。
-                var l0 = _line[removeVertStartNo - 1];
-                var l1 = _line[removeVertEndNo];
+                var l0 = GetLine(removeVertStartNo - 1);
+                var l1 = GetLine(removeVertEndNo);
                 if (deltaVerticesSize > 0)
                     // 頂点が増える。
-                    for (var i = NumVertices - 1; i > removeVertEndNo; i--)
+                    for (var i = VertexCount - 1; i > removeVertEndNo; i--)
                     {
-                        _vertices[i + deltaVerticesSize] = _vertices[i];
-                        _normals[i + deltaVerticesSize] = _normals[i];
-                        _boneWeights[i + deltaVerticesSize] = _boneWeights[i];
-                        _line[i + deltaVerticesSize] = _line[i];
+                        CopyVertexPosition(i + deltaVerticesSize, i);
+                        CopyVertexNormal(i + deltaVerticesSize, i);
+                        CopyVertexBoneWeight(i + deltaVerticesSize, i);
+                        CopyLine(i + deltaVerticesSize, i);
                     }
                 else
                     // 頂点が減る or 同じ
-                    for (var i = removeVertEndNo + 1; i < NumVertices; i++)
+                    for (var i = removeVertEndNo + 1; i < VertexCount; i++)
                     {
-                        _vertices[i + deltaVerticesSize] = _vertices[i];
-                        _normals[i + deltaVerticesSize] = _normals[i];
-                        _boneWeights[i + deltaVerticesSize] = _boneWeights[i];
-                        _line[i + deltaVerticesSize] = _line[i];
+                        CopyVertexPosition(i + deltaVerticesSize, i);
+                        CopyVertexNormal(i + deltaVerticesSize, i);
+                        CopyVertexBoneWeight(i + deltaVerticesSize, i);
+                        CopyLine(i + deltaVerticesSize, i);
                     }
 
                 // 頂点を二つ追加する。
@@ -373,32 +446,37 @@ namespace CyDecal.Runtime.Scripts.Core
                 var newVertNo_0 = removeVertStartNo;
                 var newVertNo_1 = removeVertStartNo + 1;
 
-                _vertices[newVertNo_0] = newVert0;
-                _vertices[newVertNo_1] = newVert1;
-                _normals[newVertNo_0] = newNormal0;
-                _normals[newVertNo_1] = newNormal1;
-                _boneWeights[newVertNo_0] = newBoneWeight0;
-                _boneWeights[newVertNo_1] = newBoneWeight1;
+                SetVertexPosition(newVertNo_0, newVert0);
+                SetVertexPosition(newVertNo_1, newVert1);
+
+                SetVertexNormal(newVertNo_0, newNormal0);
+                SetVertexNormal(newVertNo_1, newNormal1);
+
+                SetVertexBoneWeight(newVertNo_0, newBoneWeight0);
+                SetVertexBoneWeight(newVertNo_1, newBoneWeight1);
 
                 // ライン情報の構築。
-                NumVertices += deltaVerticesSize;
-                _line[newVertNo_0 - 1].SetEndAndCalcStartToEnd(newVert0, newNormal0);
-                _line[newVertNo_0].SetStartEndAndCalcStartToEnd(
+                VertexCount += deltaVerticesSize;
+                ref var line_0 = ref GetLineRef(newVertNo_0 - 1);
+                ref var line_1 = ref GetLineRef(newVertNo_0);
+                ref var line_2 = ref GetLineRef(newVertNo_1);
+                line_0.SetEndAndCalcStartToEnd(newVert0, newNormal0);
+                line_1.SetStartEndAndCalcStartToEnd(
                     newVert0,
                     newVert1,
                     newNormal0,
                     newNormal1);
-                _line[newVertNo_1].SetStartEndAndCalcStartToEnd(
+                line_2.SetStartEndAndCalcStartToEnd(
                     newVert1,
-                    _vertices[(newVertNo_1 + 1) % NumVertices],
+                    GetVertexPosition((newVertNo_1 + 1) % VertexCount),
                     newNormal1,
-                    _normals[(newVertNo_1 + 1) % NumVertices]);
+                    GetVertexNormal((newVertNo_1 + 1) % VertexCount));
 
-                _line[newVertNo_0 - 1].SetEndBoneWeight(newBoneWeight0);
-                _line[newVertNo_0].SetStartEndBoneWeights(newBoneWeight0, newBoneWeight1);
-                _line[newVertNo_1].SetStartEndBoneWeights(
+                line_0.SetEndBoneWeight(newBoneWeight0);
+                line_1.SetStartEndBoneWeights(newBoneWeight0, newBoneWeight1);
+                line_2.SetStartEndBoneWeights(
                     newBoneWeight1,
-                    _boneWeights[(newVertNo_1 + 1) % NumVertices]);
+                    GetVertexBoneWeight((newVertNo_1 + 1) % VertexCount));
             }
         }
 
@@ -415,11 +493,11 @@ namespace CyDecal.Runtime.Scripts.Core
         public bool IsIntersectRayToTriangle(out Vector3 hitPoint, Vector3 rayStartPos, Vector3 rayEndPos)
         {
             hitPoint = Vector3.zero;
-            if (NumVertices != 3) return false;
+            if (VertexCount != 3) return false;
 
-            var v0Pos = _vertices[0];
-            var v1Pos = _vertices[1];
-            var v2Pos = _vertices[2];
+            var v0Pos = GetVertexPosition(0);
+            var v1Pos = GetVertexPosition(1);
+            var v2Pos = GetVertexPosition(2);
 
             // 平面とレイの交差を調べる。
             var v0ToRayStart = rayStartPos - v0Pos;
@@ -442,9 +520,9 @@ namespace CyDecal.Runtime.Scripts.Core
                 v0ToIntersectPos.Normalize();
                 v1ToIntersectPos.Normalize();
                 v2ToIntersectPos.Normalize();
-                var v0ToV1 = _line[0].StartToEndVec;
-                var v1ToV2 = _line[1].StartToEndVec;
-                var v2ToV0 = _line[2].StartToEndVec;
+                var v0ToV1 = GetLine(0).StartToEndVec;
+                var v1ToV2 = GetLine(1).StartToEndVec;
+                var v2ToV0 = GetLine(2).StartToEndVec;
                 v0ToV1.Normalize();
                 v1ToV2.Normalize();
                 v2ToV0.Normalize();
@@ -473,9 +551,19 @@ namespace CyDecal.Runtime.Scripts.Core
         /// </summary>
         /// <param name="vertNo">頂点番号</param>
         /// <returns>ボーンウェイト</returns>
-        public BoneWeight GetBoneWeight(int vertNo)
+        public BoneWeight GetVertexBoneWeight(int vertNo)
         {
-            return _boneWeights[vertNo];
+            return _boneWeightBuffer[GetIndexOfBuffer(vertNo)];
+        }
+
+        private void SetVertexBoneWeight(int vertNo, BoneWeight boneWeight)
+        {
+            _boneWeightBuffer[GetIndexOfBuffer(vertNo)] = boneWeight;
+        }
+
+        private void CopyVertexBoneWeight(int destVertNo, int srcVertNo)
+        {
+            _boneWeightBuffer[GetIndexOfBuffer(destVertNo)] = _boneWeightBuffer[GetIndexOfBuffer(srcVertNo)];
         }
     }
 }

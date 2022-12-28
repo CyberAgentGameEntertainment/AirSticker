@@ -1,0 +1,34 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CalculateSkinnedVertex
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+struct InputVertex
+{
+    float3 position;
+    float3 normal;
+    float4 boneWeights;
+    int4 boneIndices;
+};
+struct OutputVertex
+{
+    float3 position;
+    float3 normal;
+};
+StructuredBuffer<float4x4> boneMatricesPallet;
+StructuredBuffer<InputVertex> vertexBuffer;
+RWStructuredBuffer<OutputVertex> skinnedVertexBuffer;
+
+[numthreads(64,1,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    InputVertex inputVertex = vertexBuffer[id.x];
+    float4x4 skinMatrix;
+    skinMatrix = boneMatricesPallet[inputVertex.boneIndices.x] * inputVertex.boneWeights.x;
+    skinMatrix += boneMatricesPallet[inputVertex.boneIndices.y] * inputVertex.boneWeights.y;
+    skinMatrix += boneMatricesPallet[inputVertex.boneIndices.z] * inputVertex.boneWeights.z;
+    skinMatrix += boneMatricesPallet[inputVertex.boneIndices.w] * inputVertex.boneWeights.w;
+
+    skinnedVertexBuffer[id.x].position = mul( skinMatrix, float4(inputVertex.position, 1.0f));
+    skinnedVertexBuffer[id.x].normal = mul( skinMatrix, inputVertex.normal);
+}

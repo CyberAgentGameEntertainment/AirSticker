@@ -1,4 +1,3 @@
-using CyDecal.Runtime.Scripts;
 using CyDecal.Runtime.Scripts.Core;
 using NUnit.Framework;
 using UnityEngine;
@@ -23,31 +22,35 @@ namespace Tests
             boneWeights[0] = new BoneWeight();
             boneWeights[1] = new BoneWeight();
             boneWeights[2] = new BoneWeight();
-            
+            var lines = new CyLine[3];
+
             var rayStart = new Vector3();
             rayStart.x = 0.0f;
             rayStart.y = 0.0f;
             rayStart.z = 2.0f;
-            
+
             var rayEnd = new Vector3();
             rayEnd.x = 0.0f;
             rayEnd.y = 0.0f;
             rayEnd.z = -2.0f;
+
             var convexPolygon = new CyConvexPolygon(
                 vertices,
                 normals,
                 boneWeights,
-                null
-                );
+                lines,
+                null,
+                0,
+                3);
             Vector3 hitPoint;
             // 当たるかテスト
-            bool isIntersect = convexPolygon.IsIntersectRayToTriangle(out hitPoint, rayStart, rayEnd);
+            var isIntersect = convexPolygon.IsIntersectRayToTriangle(out hitPoint, rayStart, rayEnd);
             Assert.AreEqual(isIntersect, true);
-            
+
             rayStart.x = 1.0f;
             rayStart.y = 0.0f;
             rayStart.z = 2.0f;
-            
+
             rayEnd.x = 1.0f;
             rayEnd.y = 0.0f;
             rayEnd.z = -2.0f;

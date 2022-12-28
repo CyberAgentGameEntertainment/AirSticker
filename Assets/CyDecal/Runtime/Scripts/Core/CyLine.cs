@@ -5,7 +5,7 @@ namespace CyDecal.Runtime.Scripts.Core
     /// <summary>
     ///     ラインを表すクラス。
     /// </summary>
-    internal struct CyLine
+    public struct CyLine
     {
         public Vector3 StartPosition { get; private set; } // ラインの始点の座標
         public Vector3 EndPosition { get; private set; } // ラインの終点の座標
