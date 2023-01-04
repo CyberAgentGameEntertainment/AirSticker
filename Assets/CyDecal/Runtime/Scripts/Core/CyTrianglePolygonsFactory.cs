@@ -1,7 +1,7 @@
 #if UNITY_EDITOR
 // If this symbol is defined, the time of the BuildFromSkinMeshRenderer method is measured. 
 // It is defined for debugging. 
-#define MEASUREMENT_METHOD_BuildFromSkinMeshRenderer
+// #define MEASUREMENT_METHOD_BuildFromSkinMeshRenderer
 #endif
 
 using System;
