@@ -21,20 +21,28 @@ namespace CyDecal.Runtime.Scripts.Core
         private static readonly int VertexCountOfTrianglePolygon = 3;
         private static readonly int MaxWorkingVertexCount = 65536;
         private static readonly int MaxWorkingTriangleCount = 65536;
-        public static int MaxGeneratedPolygonPerFrame { get; set; } = 100000; //
-        
-        private NativeArray<Vector3> _workingVertexPositions = new NativeArray<Vector3>(MaxWorkingVertexCount, Allocator.Persistent);
-        private NativeArray<Vector3> _workingVertexNormals = new NativeArray<Vector3>(MaxWorkingVertexCount, Allocator.Persistent);
-        private NativeArray<int> _workingTriangles = new NativeArray<int>(MaxWorkingTriangleCount, Allocator.Persistent);
-        private readonly List<int> _workingTrianglesForCalcPolygonCount = new List<int>(MaxWorkingTriangleCount);
         private readonly List<BoneWeight> _workingBoneWeights = new List<BoneWeight>(MaxWorkingVertexCount);
-        
+        private readonly List<int> _workingTrianglesForCalcPolygonCount = new List<int>(MaxWorkingTriangleCount);
+
+        private NativeArray<int> _workingTriangles =
+            new NativeArray<int>(MaxWorkingTriangleCount, Allocator.Persistent);
+
+        private NativeArray<Vector3> _workingVertexNormals =
+            new NativeArray<Vector3>(MaxWorkingVertexCount, Allocator.Persistent);
+
+        private NativeArray<Vector3> _workingVertexPositions =
+            new NativeArray<Vector3>(MaxWorkingVertexCount, Allocator.Persistent);
+
+        public static int MaxGeneratedPolygonPerFrame { get; set; } = 100000; //
+        public static float[] Time_BuildFromSkinMeshRenderer { get; set; } = new float[3];
+
         public void Dispose()
         {
             _workingVertexPositions.Dispose();
             _workingVertexNormals.Dispose();
             _workingTriangles.Dispose();
         }
+
         /// <summary>
         ///     行列をスカラー倍する
         /// </summary>
@@ -201,11 +209,11 @@ namespace CyDecal.Runtime.Scripts.Core
                 if (!meshFilter || meshFilter.sharedMesh == null)
                     continue;
                 var mesh = meshFilter.sharedMesh;
-                int subMeshCount = mesh.subMeshCount;
+                var subMeshCount = mesh.subMeshCount;
                 for (var meshNo = 0; meshNo < subMeshCount; meshNo++)
                 {
-                    mesh.GetTriangles( _workingTrianglesForCalcPolygonCount, meshNo);
-                    var numPoly =  _workingTrianglesForCalcPolygonCount.Count / 3;
+                    mesh.GetTriangles(_workingTrianglesForCalcPolygonCount, meshNo);
+                    var numPoly = _workingTrianglesForCalcPolygonCount.Count / 3;
                     bufferSize += numPoly * VertexCountOfTrianglePolygon;
                     polygonCounts.Add(numPoly);
                 }
@@ -220,7 +228,7 @@ namespace CyDecal.Runtime.Scripts.Core
 
             var rendererNo = 0;
             var newConvexPolygonNo = 0;
-            int indexOfPolygonCounts = 0;
+            var indexOfPolygonCounts = 0;
             foreach (var meshFilter in meshFilters)
             {
                 if (!meshFilter || meshFilter.sharedMesh == null)
@@ -232,7 +240,7 @@ namespace CyDecal.Runtime.Scripts.Core
                 var meshData = meshDataArray[0];
                 meshData.GetVertices(_workingVertexPositions);
                 meshData.GetNormals(_workingVertexNormals);
-                int subMeshCount = meshData.subMeshCount;
+                var subMeshCount = meshData.subMeshCount;
                 for (var meshNo = 0; meshNo < subMeshCount; meshNo++)
                 {
                     meshData.GetIndices(_workingTriangles, meshNo);
@@ -249,15 +257,19 @@ namespace CyDecal.Runtime.Scripts.Core
                         var v1_no = _workingTriangles[i * 3 + 1];
                         var v2_no = _workingTriangles[i * 3 + 2];
 
-                        positionBuffer[startOffsetOfBuffer] = localToWorldMatrix.MultiplyPoint3x4(_workingVertexPositions[v0_no]);
+                        positionBuffer[startOffsetOfBuffer] =
+                            localToWorldMatrix.MultiplyPoint3x4(_workingVertexPositions[v0_no]);
                         positionBuffer[startOffsetOfBuffer + 1] =
                             localToWorldMatrix.MultiplyPoint3x4(_workingVertexPositions[v1_no]);
                         positionBuffer[startOffsetOfBuffer + 2] =
                             localToWorldMatrix.MultiplyPoint3x4(_workingVertexPositions[v2_no]);
 
-                        normalBuffer[startOffsetOfBuffer] = localToWorldMatrix.MultiplyVector(_workingVertexNormals[v0_no]);
-                        normalBuffer[startOffsetOfBuffer + 1] = localToWorldMatrix.MultiplyVector(_workingVertexNormals[v1_no]);
-                        normalBuffer[startOffsetOfBuffer + 2] = localToWorldMatrix.MultiplyVector(_workingVertexNormals[v2_no]);
+                        normalBuffer[startOffsetOfBuffer] =
+                            localToWorldMatrix.MultiplyVector(_workingVertexNormals[v0_no]);
+                        normalBuffer[startOffsetOfBuffer + 1] =
+                            localToWorldMatrix.MultiplyVector(_workingVertexNormals[v1_no]);
+                        normalBuffer[startOffsetOfBuffer + 2] =
+                            localToWorldMatrix.MultiplyVector(_workingVertexNormals[v2_no]);
 
                         boneWeightBuffer[startOffsetOfBuffer] = default;
                         boneWeightBuffer[startOffsetOfBuffer + 1] = default;
@@ -278,12 +290,12 @@ namespace CyDecal.Runtime.Scripts.Core
                         startOffsetOfBuffer += VertexCountOfTrianglePolygon;
                     }
                 }
+
                 rendererNo++;
             }
 
             convexPolygonInfos.AddRange(newConvexPolygonInfos);
         }
-        public static float[] Time_BuildFromSkinMeshRenderer { get; set; } = new float[3];
 
         /// <summary>
         ///     SkinModelRendererから凸ポリゴン情報を登録する
@@ -310,18 +322,18 @@ namespace CyDecal.Runtime.Scripts.Core
             // Calculate size of some buffers and store the count of the polygons.
             var bufferSize = 0;
             var polygonCounts = new List<int>();
-            for( var rendererNo = 0; rendererNo < skinnedMeshRenderers.Length; rendererNo++)
+            for (var rendererNo = 0; rendererNo < skinnedMeshRenderers.Length; rendererNo++)
             {
                 var skinnedMeshRenderer = skinnedMeshRenderers[rendererNo];
                 if (!skinnedMeshRenderer || skinnedMeshRenderer.sharedMesh == null)
                     // スキンモデルレンダラーが無効になっているので打ち切る。
                     continue;
                 var mesh = skinnedMeshRenderer.sharedMesh;
-                int subMeshCount = mesh.subMeshCount;
-                for (int meshNo = 0; meshNo < subMeshCount; meshNo++)
+                var subMeshCount = mesh.subMeshCount;
+                for (var meshNo = 0; meshNo < subMeshCount; meshNo++)
                 {
-                    mesh.GetTriangles( _workingTrianglesForCalcPolygonCount, meshNo);
-                    var numPoly =  _workingTrianglesForCalcPolygonCount.Count / 3;
+                    mesh.GetTriangles(_workingTrianglesForCalcPolygonCount, meshNo);
+                    var numPoly = _workingTrianglesForCalcPolygonCount.Count / 3;
                     bufferSize += numPoly * VertexCountOfTrianglePolygon;
                     polygonCounts.Add(numPoly);
                 }
@@ -339,8 +351,8 @@ namespace CyDecal.Runtime.Scripts.Core
             sw = new Stopwatch();
             sw.Start();
 #endif
-            int indexOfPolygonCount = 0;
-            for( var rendererNo = 0; rendererNo < skinnedMeshRenderers.Length; rendererNo++)
+            var indexOfPolygonCount = 0;
+            for (var rendererNo = 0; rendererNo < skinnedMeshRenderers.Length; rendererNo++)
             {
                 var skinnedMeshRenderer = skinnedMeshRenderers[rendererNo];
                 if (!skinnedMeshRenderer || skinnedMeshRenderer.sharedMesh == null)
@@ -353,9 +365,9 @@ namespace CyDecal.Runtime.Scripts.Core
                 var meshData = meshDataArray[0];
                 meshData.GetVertices(_workingVertexPositions);
                 meshData.GetNormals(_workingVertexNormals);
-                int subMeshCount = meshData.subMeshCount;
+                var subMeshCount = meshData.subMeshCount;
                 mesh.GetBoneWeights(_workingBoneWeights);
-                for( int meshNo = 0; meshNo < subMeshCount; meshNo++)
+                for (var meshNo = 0; meshNo < subMeshCount; meshNo++)
                 {
                     meshData.GetIndices(_workingTriangles, meshNo);
                     var numPoly = polygonCounts[indexOfPolygonCount++];

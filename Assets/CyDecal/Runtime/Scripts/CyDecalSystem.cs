@@ -1,4 +1,3 @@
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using CyDecal.Runtime.Scripts.Core;
@@ -13,7 +12,6 @@ namespace CyDecal.Runtime.Scripts
     {
         // デカールメッシュプール。
         private readonly ICyDecalMeshPool _decalMeshPool = new CyDecalMeshPool();
-        private CyTrianglePolygonsFactory _trianglePolygonsFactory;
 
         // デカールプロジェクタのラウンチリクエストキュー
         private readonly ICyDecalProjectorLauncher _decalProjectorLauncher =
@@ -22,6 +20,8 @@ namespace CyDecal.Runtime.Scripts
         // デカールメッシュを貼り付けるレシーバーオブジェクトのプール。
         private readonly ICyReceiverObjectTrianglePolygonsPool _receiverObjectTrianglePolygonsPool =
             new CyReceiverObjectTrianglePolygonsPool();
+
+        private CyTrianglePolygonsFactory _trianglePolygonsFactory;
 
         public static CyDecalProjectorLauncher DecalProjectorLauncher
         {
@@ -50,6 +50,8 @@ namespace CyDecal.Runtime.Scripts
             }
         }
 
+        private static CyDecalSystem Instance { get; set; }
+
         private void Awake()
         {
             Debug.Assert(Instance == null,
@@ -57,15 +59,6 @@ namespace CyDecal.Runtime.Scripts
             Instance = this;
             _trianglePolygonsFactory = new CyTrianglePolygonsFactory();
         }
-
-        private void OnDestroy()
-        {
-            _decalMeshPool.Dispose();
-            _trianglePolygonsFactory.Dispose();
-            Instance = null;
-        }
-
-        private static CyDecalSystem Instance { get; set; }
 
         /// <summary>
         ///     更新
@@ -79,8 +72,15 @@ namespace CyDecal.Runtime.Scripts
             _decalProjectorLauncher.Update();
         }
 
+        private void OnDestroy()
+        {
+            _decalMeshPool.Dispose();
+            _trianglePolygonsFactory.Dispose();
+            Instance = null;
+        }
+
         /// <summary>
-        /// \三角形ポリゴンスープをレシーバーおジェクトから構築する
+        ///     三角形ポリゴンスープをレシーバーオジェクトから構築する
         /// </summary>
         /// <param name="meshFilters"></param>
         /// <param name="meshRenderers"></param>
@@ -118,7 +118,7 @@ namespace CyDecal.Runtime.Scripts
         }
 
         /// <summary>
-        /// 編集するデカールメッシュを収集する。
+        ///     編集するデカールメッシュを収集する。
         /// </summary>
         internal static void CollectEditDecalMeshes(
             List<CyDecalMesh> results,
