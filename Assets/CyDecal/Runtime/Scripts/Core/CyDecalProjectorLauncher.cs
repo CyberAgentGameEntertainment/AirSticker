@@ -43,6 +43,7 @@ namespace CyDecal.Runtime.Scripts.Core
             if (!IsCurrentRequestIsFinished())
             {
                 //　まだ処理中なので次のリクエストの処理は行わない。
+                return;
             }
 
             // 次のリクエストを処理する。

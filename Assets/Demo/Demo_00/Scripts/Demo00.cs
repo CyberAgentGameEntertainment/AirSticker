@@ -23,7 +23,6 @@ namespace Demo.Demo_00.Scripts
         private bool _isMouseLButtonPress;
         private Mode _mode = Mode.Normal;
         private Vector3 _projectorSize;
-        private bool _runningAgingTest = false;
 #if UNITY_2021_1_OR_NEWER
         private DecalProjector _urpDecalProjector;
 #endif

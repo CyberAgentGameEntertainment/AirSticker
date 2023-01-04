@@ -13,6 +13,7 @@ namespace CyDecal.Runtime.Scripts
     {
         // デカールメッシュプール。
         private readonly ICyDecalMeshPool _decalMeshPool = new CyDecalMeshPool();
+        private CyTrianglePolygonsFactory _trianglePolygonsFactory;
 
         // デカールプロジェクタのラウンチリクエストキュー
         private readonly ICyDecalProjectorLauncher _decalProjectorLauncher =
@@ -53,13 +54,14 @@ namespace CyDecal.Runtime.Scripts
         {
             Debug.Assert(Instance == null,
                 "CyDecalSystem can't be instantiated multiply, but but it has already been instantiated.");
-
             Instance = this;
+            _trianglePolygonsFactory = new CyTrianglePolygonsFactory();
         }
 
         private void OnDestroy()
         {
             _decalMeshPool.Dispose();
+            _trianglePolygonsFactory.Dispose();
             Instance = null;
         }
 
@@ -91,7 +93,7 @@ namespace CyDecal.Runtime.Scripts
             SkinnedMeshRenderer[] skinnedMeshRenderers,
             List<ConvexPolygonInfo> convexPolygonInfos)
         {
-            yield return CyTrianglePolygonsFactory.BuildFromReceiverObject(
+            yield return Instance._trianglePolygonsFactory.BuildFromReceiverObject(
                 meshFilters,
                 meshRenderers,
                 skinnedMeshRenderers,

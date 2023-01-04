@@ -1,6 +1,14 @@
+#if UNITY_EDITOR
+// If this symbol is defined, the time of the BuildFromSkinMeshRenderer method is measured. 
+// It is defined for debugging. 
+#define MEASUREMENT_METHOD_BuildFromSkinMeshRenderer
+#endif
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
+using Unity.Collections;
 using UnityEngine;
 
 namespace CyDecal.Runtime.Scripts.Core
@@ -8,11 +16,25 @@ namespace CyDecal.Runtime.Scripts.Core
     /// <summary>
     ///     三角ポリゴン情報のファクトリ
     /// </summary>
-    public static class CyTrianglePolygonsFactory
+    public class CyTrianglePolygonsFactory : IDisposable
     {
         private static readonly int VertexCountOfTrianglePolygon = 3;
-        public static int MaxGeneratedPolygonPerFrame { get; set; } = 100; //
-
+        private static readonly int MaxWorkingVertexCount = 65536;
+        private static readonly int MaxWorkingTriangleCount = 65536;
+        public static int MaxGeneratedPolygonPerFrame { get; set; } = 100000; //
+        
+        private NativeArray<Vector3> _workingVertexPositions = new NativeArray<Vector3>(MaxWorkingVertexCount, Allocator.Persistent);
+        private NativeArray<Vector3> _workingVertexNormals = new NativeArray<Vector3>(MaxWorkingVertexCount, Allocator.Persistent);
+        private NativeArray<int> _workingTriangles = new NativeArray<int>(MaxWorkingTriangleCount, Allocator.Persistent);
+        private readonly List<int> _workingTrianglesForCalcPolygonCount = new List<int>(MaxWorkingTriangleCount);
+        private readonly List<BoneWeight> _workingBoneWeights = new List<BoneWeight>(MaxWorkingVertexCount);
+        
+        public void Dispose()
+        {
+            _workingVertexPositions.Dispose();
+            _workingVertexNormals.Dispose();
+            _workingTriangles.Dispose();
+        }
         /// <summary>
         ///     行列をスカラー倍する
         /// </summary>
@@ -87,7 +109,7 @@ namespace CyDecal.Runtime.Scripts.Core
         /// <param name="meshRenderers">レシーバーオブジェクトのメッシュレンダラー</param>
         /// <param name="skinnedMeshRenderers">レシーバーオブジェクトのスキンメッシュレンダラー</param>
         /// <param name="convexPolygonInfos">凸ポリゴン情報の格納先</param>
-        internal static IEnumerator BuildFromReceiverObject(
+        internal IEnumerator BuildFromReceiverObject(
             MeshFilter[] meshFilters,
             MeshRenderer[] meshRenderers,
             SkinnedMeshRenderer[] skinnedMeshRenderers,
@@ -164,22 +186,29 @@ namespace CyDecal.Runtime.Scripts.Core
         /// <param name="meshFilters">レシーバーオブジェクトのメッシュフィルター</param>
         /// <param name="meshRenderers">レシーバーオブジェクトのメッシュレンダラー</param>
         /// <param name="convexPolygonInfos">凸ポリゴン情報の格納先</param>
-        private static IEnumerator BuildFromMeshFilter(MeshFilter[] meshFilters, MeshRenderer[] meshRenderers,
+        private IEnumerator BuildFromMeshFilter(MeshFilter[] meshFilters, MeshRenderer[] meshRenderers,
             List<ConvexPolygonInfo> convexPolygonInfos)
         {
             var numBuildConvexPolygon = GetNumPolygonsFromMeshFilters(meshFilters);
             if (numBuildConvexPolygon < 0) yield break;
             var newConvexPolygonInfos = new ConvexPolygonInfo[numBuildConvexPolygon];
 
-            // Calculate size of some buffers.
+            // Calculate size of some buffers and store the count of the polygons.
             var bufferSize = 0;
+            var polygonCounts = new List<int>();
             foreach (var meshFilter in meshFilters)
             {
                 if (!meshFilter || meshFilter.sharedMesh == null)
                     continue;
                 var mesh = meshFilter.sharedMesh;
-                var numPoly = mesh.triangles.Length / 3;
-                bufferSize += numPoly * VertexCountOfTrianglePolygon;
+                int subMeshCount = mesh.subMeshCount;
+                for (var meshNo = 0; meshNo < subMeshCount; meshNo++)
+                {
+                    mesh.GetTriangles( _workingTrianglesForCalcPolygonCount, meshNo);
+                    var numPoly =  _workingTrianglesForCalcPolygonCount.Count / 3;
+                    bufferSize += numPoly * VertexCountOfTrianglePolygon;
+                    polygonCounts.Add(numPoly);
+                }
             }
 
             // Allocate some buffers.
@@ -191,6 +220,7 @@ namespace CyDecal.Runtime.Scripts.Core
 
             var rendererNo = 0;
             var newConvexPolygonNo = 0;
+            int indexOfPolygonCounts = 0;
             foreach (var meshFilter in meshFilters)
             {
                 if (!meshFilter || meshFilter.sharedMesh == null)
@@ -198,63 +228,75 @@ namespace CyDecal.Runtime.Scripts.Core
                     yield break;
                 var localToWorldMatrix = meshFilter.transform.localToWorldMatrix;
                 var mesh = meshFilter.sharedMesh;
-                var numPoly = mesh.triangles.Length / 3;
-                var meshTriangles = mesh.triangles;
-                var meshVertices = mesh.vertices;
-                var meshNormals = mesh.normals;
-                for (var i = 0; i < numPoly; i++)
+                using var meshDataArray = Mesh.AcquireReadOnlyMeshData(mesh);
+                var meshData = meshDataArray[0];
+                meshData.GetVertices(_workingVertexPositions);
+                meshData.GetNormals(_workingVertexNormals);
+                int subMeshCount = meshData.subMeshCount;
+                for (var meshNo = 0; meshNo < subMeshCount; meshNo++)
                 {
-                    if ((newConvexPolygonNo + 1) % MaxGeneratedPolygonPerFrame == 0)
-                        // 1フレームに処理するポリゴンは最大で100まで
-                        yield return null;
-                    if (!meshFilter || meshFilter.sharedMesh == null)
-                        // meshFilterが削除されているので打ち切る
-                        yield break;
-                    var v0_no = meshTriangles[i * 3];
-                    var v1_no = meshTriangles[i * 3 + 1];
-                    var v2_no = meshTriangles[i * 3 + 2];
-
-                    positionBuffer[startOffsetOfBuffer] = localToWorldMatrix.MultiplyPoint3x4(meshVertices[v0_no]);
-                    positionBuffer[startOffsetOfBuffer + 1] = localToWorldMatrix.MultiplyPoint3x4(meshVertices[v1_no]);
-                    positionBuffer[startOffsetOfBuffer + 2] = localToWorldMatrix.MultiplyPoint3x4(meshVertices[v2_no]);
-
-                    normalBuffer[startOffsetOfBuffer] = localToWorldMatrix.MultiplyVector(meshNormals[v0_no]);
-                    normalBuffer[startOffsetOfBuffer + 1] = localToWorldMatrix.MultiplyVector(meshNormals[v1_no]);
-                    normalBuffer[startOffsetOfBuffer + 2] = localToWorldMatrix.MultiplyVector(meshNormals[v2_no]);
-
-                    boneWeightBuffer[startOffsetOfBuffer] = default;
-                    boneWeightBuffer[startOffsetOfBuffer + 1] = default;
-                    boneWeightBuffer[startOffsetOfBuffer + 2] = default;
-                    newConvexPolygonInfos[newConvexPolygonNo] = new ConvexPolygonInfo
+                    meshData.GetIndices(_workingTriangles, meshNo);
+                    var numPoly = polygonCounts[indexOfPolygonCounts++];
+                    for (var i = 0; i < numPoly; i++)
                     {
-                        ConvexPolygon = new CyConvexPolygon(
-                            positionBuffer,
-                            normalBuffer,
-                            boneWeightBuffer,
-                            lineBuffer,
-                            meshRenderers[rendererNo],
-                            startOffsetOfBuffer,
-                            VertexCountOfTrianglePolygon,
-                            VertexCountOfTrianglePolygon)
-                    };
-                    newConvexPolygonNo++;
-                    startOffsetOfBuffer += VertexCountOfTrianglePolygon;
-                }
+                        if ((newConvexPolygonNo + 1) % MaxGeneratedPolygonPerFrame == 0)
+                            // 1フレームに処理するポリゴンは最大で100まで
+                            yield return null;
+                        if (!meshFilter || meshFilter.sharedMesh == null)
+                            // meshFilterが削除されているので打ち切る
+                            yield break;
+                        var v0_no = _workingTriangles[i * 3];
+                        var v1_no = _workingTriangles[i * 3 + 1];
+                        var v2_no = _workingTriangles[i * 3 + 2];
 
+                        positionBuffer[startOffsetOfBuffer] = localToWorldMatrix.MultiplyPoint3x4(_workingVertexPositions[v0_no]);
+                        positionBuffer[startOffsetOfBuffer + 1] =
+                            localToWorldMatrix.MultiplyPoint3x4(_workingVertexPositions[v1_no]);
+                        positionBuffer[startOffsetOfBuffer + 2] =
+                            localToWorldMatrix.MultiplyPoint3x4(_workingVertexPositions[v2_no]);
+
+                        normalBuffer[startOffsetOfBuffer] = localToWorldMatrix.MultiplyVector(_workingVertexNormals[v0_no]);
+                        normalBuffer[startOffsetOfBuffer + 1] = localToWorldMatrix.MultiplyVector(_workingVertexNormals[v1_no]);
+                        normalBuffer[startOffsetOfBuffer + 2] = localToWorldMatrix.MultiplyVector(_workingVertexNormals[v2_no]);
+
+                        boneWeightBuffer[startOffsetOfBuffer] = default;
+                        boneWeightBuffer[startOffsetOfBuffer + 1] = default;
+                        boneWeightBuffer[startOffsetOfBuffer + 2] = default;
+                        newConvexPolygonInfos[newConvexPolygonNo] = new ConvexPolygonInfo
+                        {
+                            ConvexPolygon = new CyConvexPolygon(
+                                positionBuffer,
+                                normalBuffer,
+                                boneWeightBuffer,
+                                lineBuffer,
+                                meshRenderers[rendererNo],
+                                startOffsetOfBuffer,
+                                VertexCountOfTrianglePolygon,
+                                VertexCountOfTrianglePolygon)
+                        };
+                        newConvexPolygonNo++;
+                        startOffsetOfBuffer += VertexCountOfTrianglePolygon;
+                    }
+                }
                 rendererNo++;
             }
 
             convexPolygonInfos.AddRange(newConvexPolygonInfos);
         }
+        public static float[] Time_BuildFromSkinMeshRenderer { get; set; } = new float[3];
 
         /// <summary>
         ///     SkinModelRendererから凸ポリゴン情報を登録する
         /// </summary>
         /// <param name="skinnedMeshRenderers">レシーバーオブジェクトのスキンメッシュレンダラー</param>
         /// <param name="convexPolygonInfos">凸ポリゴン情報の格納先</param>
-        private static IEnumerator BuildFromSkinMeshRenderer(SkinnedMeshRenderer[] skinnedMeshRenderers,
+        private IEnumerator BuildFromSkinMeshRenderer(SkinnedMeshRenderer[] skinnedMeshRenderers,
             List<ConvexPolygonInfo> convexPolygonInfos)
         {
+#if MEASUREMENT_METHOD_BuildFromSkinMeshRenderer
+            var sw = new Stopwatch();
+            sw.Start();
+#endif
             var numBuildConvexPolygon = GetNumPolygonsFromSkinModelRenderers(skinnedMeshRenderers);
             if (numBuildConvexPolygon < 0) yield break;
 
@@ -265,16 +307,24 @@ namespace CyDecal.Runtime.Scripts.Core
             var skinnedMeshRendererNo = 0;
             var newConvexPolygonNo = 0;
 
-            // Calculate size of some buffers.
+            // Calculate size of some buffers and store the count of the polygons.
             var bufferSize = 0;
-            foreach (var skinnedMeshRenderer in skinnedMeshRenderers)
+            var polygonCounts = new List<int>();
+            for( var rendererNo = 0; rendererNo < skinnedMeshRenderers.Length; rendererNo++)
             {
+                var skinnedMeshRenderer = skinnedMeshRenderers[rendererNo];
                 if (!skinnedMeshRenderer || skinnedMeshRenderer.sharedMesh == null)
                     // スキンモデルレンダラーが無効になっているので打ち切る。
                     continue;
                 var mesh = skinnedMeshRenderer.sharedMesh;
-                var numPoly = mesh.triangles.Length / 3;
-                bufferSize += numPoly * VertexCountOfTrianglePolygon;
+                int subMeshCount = mesh.subMeshCount;
+                for (int meshNo = 0; meshNo < subMeshCount; meshNo++)
+                {
+                    mesh.GetTriangles( _workingTrianglesForCalcPolygonCount, meshNo);
+                    var numPoly =  _workingTrianglesForCalcPolygonCount.Count / 3;
+                    bufferSize += numPoly * VertexCountOfTrianglePolygon;
+                    polygonCounts.Add(numPoly);
+                }
             }
 
             // Allocate some buffers.
@@ -283,129 +333,150 @@ namespace CyDecal.Runtime.Scripts.Core
             var normalBuffer = new Vector3[bufferSize];
             var lineBuffer = new CyLine[bufferSize];
             var startOffsetOfBuffer = 0;
-            foreach (var skinnedMeshRenderer in skinnedMeshRenderers)
+#if MEASUREMENT_METHOD_BuildFromSkinMeshRenderer
+            sw.Stop();
+            Time_BuildFromSkinMeshRenderer[0] = sw.ElapsedMilliseconds;
+            sw = new Stopwatch();
+            sw.Start();
+#endif
+            int indexOfPolygonCount = 0;
+            for( var rendererNo = 0; rendererNo < skinnedMeshRenderers.Length; rendererNo++)
             {
+                var skinnedMeshRenderer = skinnedMeshRenderers[rendererNo];
                 if (!skinnedMeshRenderer || skinnedMeshRenderer.sharedMesh == null)
                     // スキンモデルレンダラーが無効になっているので打ち切る。
                     yield break;
                 var localToWorldMatrix = skinnedMeshRenderer.localToWorldMatrix;
                 var mesh = skinnedMeshRenderer.sharedMesh;
-                var numPoly = mesh.triangles.Length / 3;
-                var meshTriangles = mesh.triangles;
-                var meshVertices = mesh.vertices;
-                var meshNormals = mesh.normals;
-                var meshBoneWeights = mesh.boneWeights;
 
-                for (var i = 0; i < numPoly; i++)
+                using var meshDataArray = Mesh.AcquireReadOnlyMeshData(mesh);
+                var meshData = meshDataArray[0];
+                meshData.GetVertices(_workingVertexPositions);
+                meshData.GetNormals(_workingVertexNormals);
+                int subMeshCount = meshData.subMeshCount;
+                mesh.GetBoneWeights(_workingBoneWeights);
+                for( int meshNo = 0; meshNo < subMeshCount; meshNo++)
                 {
-                    if ((newConvexPolygonNo + 1) % MaxGeneratedPolygonPerFrame == 0)
-                        // 1フレームに処理するポリゴンは最大でMaxGeneratedPolygonPerFrameまで
-                        yield return null;
-                    if (!skinnedMeshRenderer || skinnedMeshRenderer.sharedMesh == null)
-                        // スキンモデルレンダラーが無効になっているので打ち切る。
-                        yield break;
-                    var v0No = meshTriangles[i * 3];
-                    var v1No = meshTriangles[i * 3 + 1];
-                    var v2No = meshTriangles[i * 3 + 2];
-
-                    // ワールド行列を計算。
-                    if (skinnedMeshRenderer.rootBone != null)
+                    meshData.GetIndices(_workingTriangles, meshNo);
+                    var numPoly = polygonCounts[indexOfPolygonCount++];
+                    for (var i = 0; i < numPoly; i++)
                     {
-                        var boneMatrices = boneMatricesPallet[skinnedMeshRendererNo];
-                        boneWeights[0] = meshBoneWeights[v0No];
-                        boneWeights[1] = meshBoneWeights[v1No];
-                        boneWeights[2] = meshBoneWeights[v2No];
-                        boneWeightBuffer[startOffsetOfBuffer] = boneWeights[0];
-                        boneWeightBuffer[startOffsetOfBuffer + 1] = boneWeights[1];
-                        boneWeightBuffer[startOffsetOfBuffer + 2] = boneWeights[2];
-                        Multiply(ref localToWorldMatrices[0],
-                            boneMatrices[boneWeights[0].boneIndex0],
-                            boneWeights[0].weight0);
-                        MultiplyAdd(
-                            ref localToWorldMatrices[0],
-                            boneMatrices[boneWeights[0].boneIndex1],
-                            boneWeights[0].weight1);
-                        MultiplyAdd(
-                            ref localToWorldMatrices[0],
-                            boneMatrices[boneWeights[0].boneIndex2],
-                            boneWeights[0].weight2);
-                        MultiplyAdd(
-                            ref localToWorldMatrices[0],
-                            boneMatrices[boneWeights[0].boneIndex3],
-                            boneWeights[0].weight3);
+                        if ((newConvexPolygonNo + 1) % MaxGeneratedPolygonPerFrame == 0)
+                            // 1フレームに処理するポリゴンは最大でMaxGeneratedPolygonPerFrameまで
+                            yield return null;
+                        if (!skinnedMeshRenderer || skinnedMeshRenderer.sharedMesh == null)
+                            // スキンモデルレンダラーが無効になっているので打ち切る。
+                            yield break;
+                        var v0No = _workingTriangles[i * 3];
+                        var v1No = _workingTriangles[i * 3 + 1];
+                        var v2No = _workingTriangles[i * 3 + 2];
 
-                        Multiply(ref localToWorldMatrices[1],
-                            boneMatrices[boneWeights[1].boneIndex0],
-                            boneWeights[1].weight0);
-                        MultiplyAdd(
-                            ref localToWorldMatrices[1],
-                            boneMatrices[boneWeights[1].boneIndex1],
-                            boneWeights[1].weight1);
-                        MultiplyAdd(
-                            ref localToWorldMatrices[1],
-                            boneMatrices[boneWeights[1].boneIndex2],
-                            boneWeights[1].weight2);
-                        MultiplyAdd(
-                            ref localToWorldMatrices[1],
-                            boneMatrices[boneWeights[1].boneIndex3],
-                            boneWeights[1].weight3);
+                        // ワールド行列を計算。
+                        if (skinnedMeshRenderer.rootBone != null)
+                        {
+                            var boneMatrices = boneMatricesPallet[skinnedMeshRendererNo];
+                            boneWeights[0] = _workingBoneWeights[v0No];
+                            boneWeights[1] = _workingBoneWeights[v1No];
+                            boneWeights[2] = _workingBoneWeights[v2No];
+                            boneWeightBuffer[startOffsetOfBuffer] = boneWeights[0];
+                            boneWeightBuffer[startOffsetOfBuffer + 1] = boneWeights[1];
+                            boneWeightBuffer[startOffsetOfBuffer + 2] = boneWeights[2];
+                            Multiply(ref localToWorldMatrices[0],
+                                boneMatrices[boneWeights[0].boneIndex0],
+                                boneWeights[0].weight0);
+                            MultiplyAdd(
+                                ref localToWorldMatrices[0],
+                                boneMatrices[boneWeights[0].boneIndex1],
+                                boneWeights[0].weight1);
+                            MultiplyAdd(
+                                ref localToWorldMatrices[0],
+                                boneMatrices[boneWeights[0].boneIndex2],
+                                boneWeights[0].weight2);
+                            MultiplyAdd(
+                                ref localToWorldMatrices[0],
+                                boneMatrices[boneWeights[0].boneIndex3],
+                                boneWeights[0].weight3);
 
-                        Multiply(ref localToWorldMatrices[2],
-                            boneMatrices[boneWeights[2].boneIndex0],
-                            boneWeights[2].weight0);
-                        MultiplyAdd(
-                            ref localToWorldMatrices[2],
-                            boneMatrices[boneWeights[2].boneIndex1],
-                            boneWeights[2].weight1);
-                        MultiplyAdd(
-                            ref localToWorldMatrices[2],
-                            boneMatrices[boneWeights[2].boneIndex2],
-                            boneWeights[2].weight2);
-                        MultiplyAdd(
-                            ref localToWorldMatrices[2],
-                            boneMatrices[boneWeights[2].boneIndex3],
-                            boneWeights[2].weight3);
+                            Multiply(ref localToWorldMatrices[1],
+                                boneMatrices[boneWeights[1].boneIndex0],
+                                boneWeights[1].weight0);
+                            MultiplyAdd(
+                                ref localToWorldMatrices[1],
+                                boneMatrices[boneWeights[1].boneIndex1],
+                                boneWeights[1].weight1);
+                            MultiplyAdd(
+                                ref localToWorldMatrices[1],
+                                boneMatrices[boneWeights[1].boneIndex2],
+                                boneWeights[1].weight2);
+                            MultiplyAdd(
+                                ref localToWorldMatrices[1],
+                                boneMatrices[boneWeights[1].boneIndex3],
+                                boneWeights[1].weight3);
+                            Multiply(ref localToWorldMatrices[2],
+                                boneMatrices[boneWeights[2].boneIndex0],
+                                boneWeights[2].weight0);
+                            MultiplyAdd(
+                                ref localToWorldMatrices[2],
+                                boneMatrices[boneWeights[2].boneIndex1],
+                                boneWeights[2].weight1);
+                            MultiplyAdd(
+                                ref localToWorldMatrices[2],
+                                boneMatrices[boneWeights[2].boneIndex2],
+                                boneWeights[2].weight2);
+                            MultiplyAdd(
+                                ref localToWorldMatrices[2],
+                                boneMatrices[boneWeights[2].boneIndex3],
+                                boneWeights[2].weight3);
+                        }
+                        else
+                        {
+                            boneWeightBuffer[startOffsetOfBuffer] = default;
+                            boneWeightBuffer[startOffsetOfBuffer + 1] = default;
+                            boneWeightBuffer[startOffsetOfBuffer + 2] = default;
+
+                            localToWorldMatrices[0] = localToWorldMatrix;
+                            localToWorldMatrices[1] = localToWorldMatrix;
+                            localToWorldMatrices[2] = localToWorldMatrix;
+                        }
+
+                        positionBuffer[startOffsetOfBuffer] =
+                            localToWorldMatrices[0].MultiplyPoint3x4(_workingVertexPositions[v0No]);
+                        positionBuffer[startOffsetOfBuffer + 1] =
+                            localToWorldMatrices[1].MultiplyPoint3x4(_workingVertexPositions[v1No]);
+                        positionBuffer[startOffsetOfBuffer + 2] =
+                            localToWorldMatrices[2].MultiplyPoint3x4(_workingVertexPositions[v2No]);
+
+                        normalBuffer[startOffsetOfBuffer] =
+                            localToWorldMatrices[0].MultiplyVector(_workingVertexNormals[v0No]);
+                        normalBuffer[startOffsetOfBuffer + 1] =
+                            localToWorldMatrices[1].MultiplyVector(_workingVertexNormals[v1No]);
+                        normalBuffer[startOffsetOfBuffer + 2] =
+                            localToWorldMatrices[2].MultiplyVector(_workingVertexNormals[v2No]);
+                        newConvexPolygonInfos[newConvexPolygonNo] = new ConvexPolygonInfo
+                        {
+                            ConvexPolygon = new CyConvexPolygon(
+                                positionBuffer,
+                                normalBuffer,
+                                boneWeightBuffer,
+                                lineBuffer,
+                                skinnedMeshRenderer,
+                                startOffsetOfBuffer,
+                                3,
+                                VertexCountOfTrianglePolygon)
+                        };
+                        newConvexPolygonNo++;
+                        startOffsetOfBuffer += VertexCountOfTrianglePolygon;
                     }
-                    else
-                    {
-                        boneWeightBuffer[startOffsetOfBuffer] = default;
-                        boneWeightBuffer[startOffsetOfBuffer + 1] = default;
-                        boneWeightBuffer[startOffsetOfBuffer + 2] = default;
-
-                        localToWorldMatrices[0] = localToWorldMatrix;
-                        localToWorldMatrices[1] = localToWorldMatrix;
-                        localToWorldMatrices[2] = localToWorldMatrix;
-                    }
-
-                    positionBuffer[startOffsetOfBuffer] = localToWorldMatrices[0].MultiplyPoint3x4(meshVertices[v0No]);
-                    positionBuffer[startOffsetOfBuffer + 1] =
-                        localToWorldMatrices[1].MultiplyPoint3x4(meshVertices[v1No]);
-                    positionBuffer[startOffsetOfBuffer + 2] =
-                        localToWorldMatrices[2].MultiplyPoint3x4(meshVertices[v2No]);
-
-                    normalBuffer[startOffsetOfBuffer] = localToWorldMatrices[0].MultiplyVector(meshNormals[v0No]);
-                    normalBuffer[startOffsetOfBuffer + 1] = localToWorldMatrices[1].MultiplyVector(meshNormals[v1No]);
-                    normalBuffer[startOffsetOfBuffer + 2] = localToWorldMatrices[2].MultiplyVector(meshNormals[v2No]);
-                    newConvexPolygonInfos[newConvexPolygonNo] = new ConvexPolygonInfo
-                    {
-                        ConvexPolygon = new CyConvexPolygon(
-                            positionBuffer,
-                            normalBuffer,
-                            boneWeightBuffer,
-                            lineBuffer,
-                            skinnedMeshRenderer,
-                            startOffsetOfBuffer,
-                            3,
-                            VertexCountOfTrianglePolygon)
-                    };
-                    newConvexPolygonNo++;
-                    startOffsetOfBuffer += VertexCountOfTrianglePolygon;
                 }
 
                 skinnedMeshRendererNo++;
             }
 
             convexPolygonInfos.AddRange(newConvexPolygonInfos);
+#if MEASUREMENT_METHOD_BuildFromSkinMeshRenderer
+            sw.Stop();
+            Time_BuildFromSkinMeshRenderer[1] = sw.ElapsedMilliseconds;
+#endif
         }
 
 

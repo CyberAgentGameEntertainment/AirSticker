@@ -40,6 +40,8 @@ namespace Demo.Demo_00.Scripts
                             + $"Triangle Polygons Pool Size = {CyDecalSystem.ReceiverObjectTrianglePolygonsPool.GetPoolSize()}\n"
                             + $"Used Memory = {usedMemory:0.0} MB\n"
                             + $"Collect poly per frame = {CyTrianglePolygonsFactory.MaxGeneratedPolygonPerFrame}\n";
+            /*_logText.text = $"timer[0] = {CyTrianglePolygonsFactory.Time_BuildFromSkinMeshRenderer[0]}\n"
+                                 + $"timer[1] = {CyTrianglePolygonsFactory.Time_BuildFromSkinMeshRenderer[1]}\n";*/
         }
     }
 }
