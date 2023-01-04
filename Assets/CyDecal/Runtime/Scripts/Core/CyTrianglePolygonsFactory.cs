@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using Unity.Jobs;
 using UnityEngine;
 
 namespace CyDecal.Runtime.Scripts.Core
@@ -11,6 +10,7 @@ namespace CyDecal.Runtime.Scripts.Core
     /// </summary>
     public static class CyTrianglePolygonsFactory
     {
+        private static readonly int VertexCountOfTrianglePolygon = 3;
         public static int MaxGeneratedPolygonPerFrame { get; set; } = 100; //
 
         /// <summary>
@@ -170,9 +170,24 @@ namespace CyDecal.Runtime.Scripts.Core
             var numBuildConvexPolygon = GetNumPolygonsFromMeshFilters(meshFilters);
             if (numBuildConvexPolygon < 0) yield break;
             var newConvexPolygonInfos = new ConvexPolygonInfo[numBuildConvexPolygon];
-            var vertices = new Vector3[3];
-            var normals = new Vector3[3];
-            var boneWeights = new BoneWeight[3];
+
+            // Calculate size of some buffers.
+            var bufferSize = 0;
+            foreach (var meshFilter in meshFilters)
+            {
+                if (!meshFilter || meshFilter.sharedMesh == null)
+                    continue;
+                var mesh = meshFilter.sharedMesh;
+                var numPoly = mesh.triangles.Length / 3;
+                bufferSize += numPoly * VertexCountOfTrianglePolygon;
+            }
+
+            // Allocate some buffers.
+            var positionBuffer = new Vector3[bufferSize];
+            var boneWeightBuffer = new BoneWeight[bufferSize];
+            var normalBuffer = new Vector3[bufferSize];
+            var lineBuffer = new CyLine[bufferSize];
+            var startOffsetOfBuffer = 0;
 
             var rendererNo = 0;
             var newConvexPolygonNo = 0;
@@ -199,26 +214,31 @@ namespace CyDecal.Runtime.Scripts.Core
                     var v1_no = meshTriangles[i * 3 + 1];
                     var v2_no = meshTriangles[i * 3 + 2];
 
-                    vertices[0] = localToWorldMatrix.MultiplyPoint3x4(meshVertices[v0_no]);
-                    vertices[1] = localToWorldMatrix.MultiplyPoint3x4(meshVertices[v1_no]);
-                    vertices[2] = localToWorldMatrix.MultiplyPoint3x4(meshVertices[v2_no]);
+                    positionBuffer[startOffsetOfBuffer] = localToWorldMatrix.MultiplyPoint3x4(meshVertices[v0_no]);
+                    positionBuffer[startOffsetOfBuffer + 1] = localToWorldMatrix.MultiplyPoint3x4(meshVertices[v1_no]);
+                    positionBuffer[startOffsetOfBuffer + 2] = localToWorldMatrix.MultiplyPoint3x4(meshVertices[v2_no]);
 
-                    normals[0] = localToWorldMatrix.MultiplyVector(meshNormals[v0_no]);
-                    normals[1] = localToWorldMatrix.MultiplyVector(meshNormals[v1_no]);
-                    normals[2] = localToWorldMatrix.MultiplyVector(meshNormals[v2_no]);
+                    normalBuffer[startOffsetOfBuffer] = localToWorldMatrix.MultiplyVector(meshNormals[v0_no]);
+                    normalBuffer[startOffsetOfBuffer + 1] = localToWorldMatrix.MultiplyVector(meshNormals[v1_no]);
+                    normalBuffer[startOffsetOfBuffer + 2] = localToWorldMatrix.MultiplyVector(meshNormals[v2_no]);
 
-                    boneWeights[0] = default;
-                    boneWeights[1] = default;
-                    boneWeights[2] = default;
+                    boneWeightBuffer[startOffsetOfBuffer] = default;
+                    boneWeightBuffer[startOffsetOfBuffer + 1] = default;
+                    boneWeightBuffer[startOffsetOfBuffer + 2] = default;
                     newConvexPolygonInfos[newConvexPolygonNo] = new ConvexPolygonInfo
                     {
                         ConvexPolygon = new CyConvexPolygon(
-                            vertices,
-                            normals,
-                            boneWeights,
-                            meshRenderers[rendererNo])
+                            positionBuffer,
+                            normalBuffer,
+                            boneWeightBuffer,
+                            lineBuffer,
+                            meshRenderers[rendererNo],
+                            startOffsetOfBuffer,
+                            VertexCountOfTrianglePolygon,
+                            VertexCountOfTrianglePolygon)
                     };
                     newConvexPolygonNo++;
+                    startOffsetOfBuffer += VertexCountOfTrianglePolygon;
                 }
 
                 rendererNo++;
@@ -237,15 +257,32 @@ namespace CyDecal.Runtime.Scripts.Core
         {
             var numBuildConvexPolygon = GetNumPolygonsFromSkinModelRenderers(skinnedMeshRenderers);
             if (numBuildConvexPolygon < 0) yield break;
+
             var newConvexPolygonInfos = new ConvexPolygonInfo[numBuildConvexPolygon];
-            var vertices = new Vector3[3];
-            var normals = new Vector3[3];
             var boneWeights = new BoneWeight[3];
             var localToWorldMatrices = new Matrix4x4[3];
             var boneMatricesPallet = CalculateMatricesPallet(skinnedMeshRenderers);
             var skinnedMeshRendererNo = 0;
             var newConvexPolygonNo = 0;
-            var jobHandles = new List<JobHandle>();
+
+            // Calculate size of some buffers.
+            var bufferSize = 0;
+            foreach (var skinnedMeshRenderer in skinnedMeshRenderers)
+            {
+                if (!skinnedMeshRenderer || skinnedMeshRenderer.sharedMesh == null)
+                    // スキンモデルレンダラーが無効になっているので打ち切る。
+                    continue;
+                var mesh = skinnedMeshRenderer.sharedMesh;
+                var numPoly = mesh.triangles.Length / 3;
+                bufferSize += numPoly * VertexCountOfTrianglePolygon;
+            }
+
+            // Allocate some buffers.
+            var positionBuffer = new Vector3[bufferSize];
+            var boneWeightBuffer = new BoneWeight[bufferSize];
+            var normalBuffer = new Vector3[bufferSize];
+            var lineBuffer = new CyLine[bufferSize];
+            var startOffsetOfBuffer = 0;
             foreach (var skinnedMeshRenderer in skinnedMeshRenderers)
             {
                 if (!skinnedMeshRenderer || skinnedMeshRenderer.sharedMesh == null)
@@ -278,7 +315,9 @@ namespace CyDecal.Runtime.Scripts.Core
                         boneWeights[0] = meshBoneWeights[v0No];
                         boneWeights[1] = meshBoneWeights[v1No];
                         boneWeights[2] = meshBoneWeights[v2No];
-
+                        boneWeightBuffer[startOffsetOfBuffer] = boneWeights[0];
+                        boneWeightBuffer[startOffsetOfBuffer + 1] = boneWeights[1];
+                        boneWeightBuffer[startOffsetOfBuffer + 2] = boneWeights[2];
                         Multiply(ref localToWorldMatrices[0],
                             boneMatrices[boneWeights[0].boneIndex0],
                             boneWeights[0].weight0);
@@ -294,7 +333,6 @@ namespace CyDecal.Runtime.Scripts.Core
                             ref localToWorldMatrices[0],
                             boneMatrices[boneWeights[0].boneIndex3],
                             boneWeights[0].weight3);
-
 
                         Multiply(ref localToWorldMatrices[1],
                             boneMatrices[boneWeights[1].boneIndex0],
@@ -330,31 +368,38 @@ namespace CyDecal.Runtime.Scripts.Core
                     }
                     else
                     {
-                        boneWeights[0] = default;
-                        boneWeights[1] = default;
-                        boneWeights[2] = default;
+                        boneWeightBuffer[startOffsetOfBuffer] = default;
+                        boneWeightBuffer[startOffsetOfBuffer + 1] = default;
+                        boneWeightBuffer[startOffsetOfBuffer + 2] = default;
 
                         localToWorldMatrices[0] = localToWorldMatrix;
                         localToWorldMatrices[1] = localToWorldMatrix;
                         localToWorldMatrices[2] = localToWorldMatrix;
                     }
 
-                    vertices[0] = localToWorldMatrices[0].MultiplyPoint3x4(meshVertices[v0No]);
-                    vertices[1] = localToWorldMatrices[1].MultiplyPoint3x4(meshVertices[v1No]);
-                    vertices[2] = localToWorldMatrices[2].MultiplyPoint3x4(meshVertices[v2No]);
+                    positionBuffer[startOffsetOfBuffer] = localToWorldMatrices[0].MultiplyPoint3x4(meshVertices[v0No]);
+                    positionBuffer[startOffsetOfBuffer + 1] =
+                        localToWorldMatrices[1].MultiplyPoint3x4(meshVertices[v1No]);
+                    positionBuffer[startOffsetOfBuffer + 2] =
+                        localToWorldMatrices[2].MultiplyPoint3x4(meshVertices[v2No]);
 
-                    normals[0] = localToWorldMatrices[0].MultiplyVector(meshNormals[v0No]);
-                    normals[1] = localToWorldMatrices[1].MultiplyVector(meshNormals[v1No]);
-                    normals[2] = localToWorldMatrices[2].MultiplyVector(meshNormals[v2No]);
+                    normalBuffer[startOffsetOfBuffer] = localToWorldMatrices[0].MultiplyVector(meshNormals[v0No]);
+                    normalBuffer[startOffsetOfBuffer + 1] = localToWorldMatrices[1].MultiplyVector(meshNormals[v1No]);
+                    normalBuffer[startOffsetOfBuffer + 2] = localToWorldMatrices[2].MultiplyVector(meshNormals[v2No]);
                     newConvexPolygonInfos[newConvexPolygonNo] = new ConvexPolygonInfo
                     {
                         ConvexPolygon = new CyConvexPolygon(
-                            vertices,
-                            normals,
-                            boneWeights,
-                            skinnedMeshRenderer)
+                            positionBuffer,
+                            normalBuffer,
+                            boneWeightBuffer,
+                            lineBuffer,
+                            skinnedMeshRenderer,
+                            startOffsetOfBuffer,
+                            3,
+                            VertexCountOfTrianglePolygon)
                     };
                     newConvexPolygonNo++;
+                    startOffsetOfBuffer += VertexCountOfTrianglePolygon;
                 }
 
                 skinnedMeshRendererNo++;
