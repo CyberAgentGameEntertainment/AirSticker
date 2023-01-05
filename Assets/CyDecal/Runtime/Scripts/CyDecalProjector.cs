@@ -1,10 +1,8 @@
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using CyDecal.Runtime.Scripts.Core;
 using UnityEngine;
 using UnityEngine.Events;
-using UnityEngine.Serialization;
 
 namespace CyDecal.Runtime.Scripts
 {
@@ -17,12 +15,14 @@ namespace CyDecal.Runtime.Scripts
     /// </remarks>
     public sealed class CyDecalProjector : MonoBehaviour
     {
-        public enum State{
+        public enum State
+        {
             NotLaunch,
-            Launching,  
+            Launching,
             LaunchingCompleted,
-            LaunchingCanceled,
+            LaunchingCanceled
         }
+
         [SerializeField] private float width; // デカールボックスの幅
         [SerializeField] private float height; // デカールボックスの高さ
         [SerializeField] private float depth; // デカールボックスの奥行
@@ -35,14 +35,12 @@ namespace CyDecal.Runtime.Scripts
         [SerializeField] private UnityEvent<State> onFinishedLaunch; //　デカールの投影処理が終了したときに呼ばれるイベント。
 
         private readonly Vector4[] _clipPlanes = new Vector4[(int)ClipPlane.Num]; // 分割平面
-        private float _basePointToFarClipDistance; // デカールを貼り付ける基準地点から、ファークリップまでの距離。
-        private float _basePointToNearClipDistance; // デカールを貼り付ける基準地点から、ニアクリップまでの距離。
         private List<ConvexPolygonInfo> _broadPhaseConvexPolygonInfos = new List<ConvexPolygonInfo>();
         private CyDecalSpace _decalSpace; // デカール空間。
-        private State _nowState = State.NotLaunch;
-        public State NowState => _nowState;
+        public State NowState { get; private set; } = State.NotLaunch;
 
-        /// <summary>.
+        /// <summary>
+        ///     .
         ///     生成されたデカールメッシュのリストのプロパティ
         /// </summary>
         public List<CyDecalMesh> DecalMeshes { get; } = new List<CyDecalMesh>();
@@ -58,15 +56,42 @@ namespace CyDecal.Runtime.Scripts
             OnFinished(State.LaunchingCanceled);
         }
 
+        private void OnDrawGizmosSelected()
+        {
+            var cache = Gizmos.matrix;
+            Gizmos.matrix = Matrix4x4.TRS(transform.position, transform.rotation, Vector3.one);
+            // Draw the decal box.
+            Gizmos.DrawWireCube(Vector3.zero, new Vector3(width, height, depth));
+            Gizmos.matrix = cache;
+            Gizmos.color = Color.white;
+            // Draw the arrow of the projection's direction.
+            var arrowStart = transform.position;
+            var arrowEnd = transform.position + transform.forward * depth;
+            Gizmos.DrawLine(arrowStart, arrowEnd);
+            Vector3 arrowTangent;
+            if (Mathf.Abs(transform.forward.y) > 0.999f)
+                arrowTangent = Vector3.Cross(transform.forward, Vector3.right);
+            else
+                arrowTangent = Vector3.Cross(transform.forward, Vector3.up);
+            var rotAxis = Vector3.Cross(transform.forward, arrowTangent);
+            var rotQuat = Quaternion.AngleAxis(45.0f, rotAxis.normalized);
+            var arrowLeft = rotQuat * transform.forward * depth * -0.2f;
+            Gizmos.DrawLine(arrowEnd, arrowEnd + arrowLeft);
+            rotQuat = Quaternion.AngleAxis(-45.0f, rotAxis.normalized);
+            var arrowRight = rotQuat * transform.forward * depth * -0.2f;
+            Gizmos.DrawLine(arrowEnd, arrowEnd + arrowRight);
+            Gizmos.matrix = cache;
+        }
+
         /// <summary>
         ///     投影終了時に呼び出される処理
         /// </summary>
         private void OnFinished(State finishedState)
         {
             if (onFinishedLaunch == null) return;
-            
+
             onFinishedLaunch.Invoke(finishedState);
-            _nowState = finishedState;
+            NowState = finishedState;
             onFinishedLaunch = null;
         }
 
@@ -81,7 +106,7 @@ namespace CyDecal.Runtime.Scripts
         private IEnumerator ExecuteLaunch()
         {
             InitializeOriginAxisInDecalSpace();
-            
+
             // 編集するデカールメッシュを収集する。
             CyDecalSystem.CollectEditDecalMeshes(DecalMeshes, receiverObject, decalMaterial);
 
@@ -96,7 +121,8 @@ namespace CyDecal.Runtime.Scripts
                     receiverObject.GetComponentsInChildren<MeshRenderer>(),
                     receiverObject.GetComponentsInChildren<SkinnedMeshRenderer>(),
                     convexPolygonInfos);
-                CyDecalSystem.ReceiverObjectTrianglePolygonsPool.RegisterConvexPolygons(receiverObject, convexPolygonInfos);
+                CyDecalSystem.ReceiverObjectTrianglePolygonsPool.RegisterConvexPolygons(receiverObject,
+                    convexPolygonInfos);
             }
 
             if (!receiverObject)
@@ -115,12 +141,14 @@ namespace CyDecal.Runtime.Scripts
                 height,
                 depth,
                 convexPolygonInfos);
-            if (IntersectRayToTrianglePolygons(out var hitPoint))
-            {
-                BuildClipPlanes(hitPoint);
-                SplitConvexPolygonsByPlanes();
-                AddTrianglePolygonsToDecalMeshFromConvexPolygons(hitPoint);
-            }
+
+            var trans = transform;
+            // basePosition is center of the decal box.
+            var basePosition = trans.position + trans.forward * depth * 0.5f;
+            BuildClipPlanes(basePosition);
+            SplitConvexPolygonsByPlanes();
+            AddTrianglePolygonsToDecalMeshFromConvexPolygons(basePosition);
+
 
             OnFinished(State.LaunchingCompleted);
             yield return null;
@@ -175,12 +203,10 @@ namespace CyDecal.Runtime.Scripts
         /// </remarks>
         public void Launch(UnityAction<State> onFinishedLaunch)
         {
-            if (_nowState != State.NotLaunch)
-            {
+            if (NowState != State.NotLaunch)
                 Debug.LogError("This function can be called only once, but it was called multiply.");
-            }
 
-            _nowState = State.Launching;
+            NowState = State.Launching;
             if (onFinishedLaunch != null) this.onFinishedLaunch.AddListener(onFinishedLaunch);
             // Request the launching of the decal.
             CyDecalSystem.DecalProjectorLauncher.Request(
@@ -252,6 +278,8 @@ namespace CyDecal.Runtime.Scripts
         /// <param name="basePoint">デカールテクスチャを貼り付ける基準座標</param>
         private void BuildClipPlanes(Vector3 basePoint)
         {
+            var basePointToNearClipDistance = depth * 0.5f;
+            var basePointToFarClipDistance = depth * 0.5f;
             var decalSpaceTangentWs = _decalSpace.Ex;
             var decalSpaceBiNormalWs = _decalSpace.Ey;
             var decalSpaceNormalWs = _decalSpace.Ez;
@@ -293,7 +321,7 @@ namespace CyDecal.Runtime.Scripts
                 x = -decalSpaceNormalWs.x,
                 y = -decalSpaceNormalWs.y,
                 z = -decalSpaceNormalWs.z,
-                w = _basePointToNearClipDistance + Vector3.Dot(decalSpaceNormalWs, basePoint)
+                w = basePointToNearClipDistance + Vector3.Dot(decalSpaceNormalWs, basePoint)
             };
             // Build back plane.
             _clipPlanes[(int)ClipPlane.Back] = new Vector4
@@ -301,62 +329,10 @@ namespace CyDecal.Runtime.Scripts
                 x = decalSpaceNormalWs.x,
                 y = decalSpaceNormalWs.y,
                 z = decalSpaceNormalWs.z,
-                w = _basePointToFarClipDistance - Vector3.Dot(decalSpaceNormalWs, basePoint)
+                w = basePointToFarClipDistance - Vector3.Dot(decalSpaceNormalWs, basePoint)
             };
         }
 
-        /// <summary>
-        ///     デカールボックスの中心を通るレイとレシーバーオブジェクトの三角形オブジェクトの衝突判定を行う。
-        /// </summary>
-        /// <param name="hitPoint">衝突点の格納先</param>
-        /// <returns>trueが帰ってきたら衝突している</returns>
-        private bool IntersectRayToTrianglePolygons(out Vector3 hitPoint)
-        {
-            hitPoint = Vector3.zero;
-            var trans = transform;
-            var rayStartPos = trans.position;
-            var rayEndPos = rayStartPos + trans.forward * depth;
-
-            foreach (var triPolyInfo in _broadPhaseConvexPolygonInfos)
-                if (triPolyInfo.ConvexPolygon.IsIntersectRayToTriangle(out hitPoint, rayStartPos, rayEndPos))
-                {
-                    _basePointToNearClipDistance = Vector3.Distance(rayStartPos, hitPoint);
-                    _basePointToFarClipDistance = depth - _basePointToNearClipDistance;
-                    return true;
-                }
-
-            return false;
-        }
-        private void OnDrawGizmosSelected()
-        {
-            var cache = Gizmos.matrix;
-            Gizmos.matrix = Matrix4x4.TRS(transform.position, transform.rotation, Vector3.one);
-            // Draw the decal box.
-            Gizmos.DrawWireCube(Vector3.zero, new Vector3(width, height, depth));
-            Gizmos.matrix = cache;
-            Gizmos.color = Color.white;
-            // Draw the arrow of the projection's direction.
-            var arrowStart = transform.position;
-            var arrowEnd = transform.position + transform.forward * depth;
-            Gizmos.DrawLine(arrowStart, arrowEnd);
-            Vector3 arrowTangent;
-            if (Mathf.Abs(transform.forward.y) > 0.999f)
-            {
-                arrowTangent =Vector3.Cross(transform.forward, Vector3.right); 
-            }
-            else
-            {
-                arrowTangent =Vector3.Cross(transform.forward, Vector3.up);   
-            }
-            var rotAxis = Vector3.Cross(transform.forward, arrowTangent);
-            var rotQuat = Quaternion.AngleAxis(45.0f, rotAxis.normalized);
-            var arrowLeft = rotQuat * transform.forward * depth * -0.2f;
-            Gizmos.DrawLine(arrowEnd,arrowEnd + arrowLeft);
-            rotQuat = Quaternion.AngleAxis(-45.0f, rotAxis.normalized);
-            var arrowRight = rotQuat * transform.forward * depth * -0.2f;
-            Gizmos.DrawLine(arrowEnd,arrowEnd + arrowRight);
-            Gizmos.matrix = cache;
-        }
         /// <summary>
         ///     分割平面
         /// </summary>
