@@ -1,5 +1,7 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading;
 using CyDecal.Runtime.Scripts.Core;
 using UnityEngine;
 using UnityEngine.Events;
@@ -22,7 +24,7 @@ namespace CyDecal.Runtime.Scripts
             LaunchingCompleted,
             LaunchingCanceled
         }
-
+        
         [SerializeField] private float width; // デカールボックスの幅
         [SerializeField] private float height; // デカールボックスの高さ
         [SerializeField] private float depth; // デカールボックスの奥行
@@ -35,10 +37,11 @@ namespace CyDecal.Runtime.Scripts
         [SerializeField] private UnityEvent<State> onFinishedLaunch; //　デカールの投影処理が終了したときに呼ばれるイベント。
 
         private readonly Vector4[] _clipPlanes = new Vector4[(int)ClipPlane.Num]; // 分割平面
+        private List<ConvexPolygonInfo> _convexPolygonInfos;
         private List<ConvexPolygonInfo> _broadPhaseConvexPolygonInfos = new List<ConvexPolygonInfo>();
         private CyDecalSpace _decalSpace; // デカール空間。
         public State NowState { get; private set; } = State.NotLaunch;
-
+        private bool _executeLaunchingOnWorkerThread; 
         /// <summary>
         ///     .
         ///     生成されたデカールメッシュのリストのプロパティ
@@ -109,20 +112,19 @@ namespace CyDecal.Runtime.Scripts
 
             // 編集するデカールメッシュを収集する。
             CyDecalSystem.CollectEditDecalMeshes(DecalMeshes, receiverObject, decalMaterial);
-
-            List<ConvexPolygonInfo> convexPolygonInfos;
+            
             if (CyDecalSystem.ReceiverObjectTrianglePolygonsPool.Contains(receiverObject) == false)
             {
                 // 新規登録
-                convexPolygonInfos = new List<ConvexPolygonInfo>();
+                _convexPolygonInfos = new List<ConvexPolygonInfo>();
                 // 三角形ポリゴン情報を構築する。
                 yield return CyDecalSystem.BuildTrianglePolygonsFromReceiverObject(
                     receiverObject.GetComponentsInChildren<MeshFilter>(),
                     receiverObject.GetComponentsInChildren<MeshRenderer>(),
                     receiverObject.GetComponentsInChildren<SkinnedMeshRenderer>(),
-                    convexPolygonInfos);
+                    _convexPolygonInfos);
                 CyDecalSystem.ReceiverObjectTrianglePolygonsPool.RegisterConvexPolygons(receiverObject,
-                    convexPolygonInfos);
+                    _convexPolygonInfos);
             }
 
             if (!receiverObject)
@@ -131,27 +133,47 @@ namespace CyDecal.Runtime.Scripts
                 OnFinished(State.LaunchingCanceled);
                 yield break;
             }
-
-            convexPolygonInfos = CyDecalSystem.GetTrianglePolygonsFromPool(
+            
+            _convexPolygonInfos = CyDecalSystem.GetTrianglePolygonsFromPool(
                 receiverObject);
-            _broadPhaseConvexPolygonInfos = CyBroadPhaseConvexPolygonsDetection.Execute(
-                transform.position,
-                _decalSpace.Ez,
-                width,
-                height,
-                depth,
-                convexPolygonInfos);
-
-            var trans = transform;
+            var projectorPosition = transform.position;
             // basePosition is center of the decal box.
-            var basePosition = trans.position + trans.forward * depth * 0.5f;
-            BuildClipPlanes(basePosition);
-            SplitConvexPolygonsByPlanes();
-            AddTrianglePolygonsToDecalMeshFromConvexPolygons(basePosition);
+            var centerPositionOfDecalBox = transform.position + transform.forward * depth * 0.5f;
+            foreach (var cyDecalMesh in DecalMeshes)
+            {
+                cyDecalMesh.PrepareAddPolygonsToDecalMesh();
+            }
+            
+            // Split Convex Polygon.
+            _executeLaunchingOnWorkerThread = true;
+            ThreadPool.QueueUserWorkItem(RunActionByWorkerThread, new Action(() =>
+            {
+                _broadPhaseConvexPolygonInfos = CyBroadPhaseConvexPolygonsDetection.Execute(
+                    projectorPosition,
+                    _decalSpace.Ez,
+                    width,
+                    height,
+                    depth,
+                    _convexPolygonInfos);
 
+                BuildClipPlanes(centerPositionOfDecalBox);
+                SplitConvexPolygonsByPlanes();
+                AddTrianglePolygonsToDecalMeshFromConvexPolygons(centerPositionOfDecalBox);
+                _executeLaunchingOnWorkerThread = false;
 
+            }));
+            // Waiting to worker thread.
+            while (_executeLaunchingOnWorkerThread) yield return null;
+            
+            foreach (var cyDecalMesh in DecalMeshes) cyDecalMesh.PostProcessAddPolygonsToDecalMesh();
             OnFinished(State.LaunchingCompleted);
+            _convexPolygonInfos = null;
             yield return null;
+        }
+
+        private static void RunActionByWorkerThread(object action)
+        {
+            ((Action)action)();
         }
 
         /// <summary>

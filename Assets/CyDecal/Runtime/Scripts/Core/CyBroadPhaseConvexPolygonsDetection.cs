@@ -27,8 +27,6 @@ namespace CyDecal.Runtime.Scripts.Core
             float projectionDepth,
             List<ConvexPolygonInfo> convexPolygonInfos)
         {
-            var sw = new Stopwatch();
-            sw.Start();
             var threshold = Mathf.Max(width/2, height/2, projectionDepth);
             // ボックスの対角線の長さにする。
             threshold *= 1.414f;
@@ -91,9 +89,6 @@ namespace CyDecal.Runtime.Scripts.Core
 
                 convexPolygonInfo.IsOutsideClipSpace = false;
             }
-
-            sw.Stop();
-            UnityEngine.Debug.Log(sw.ElapsedMilliseconds);
             return broadPhaseConvexPolygonInfos;
         }
     }

@@ -25,6 +25,39 @@ namespace CyDecal.Runtime.Scripts.Core
         private Vector3[] _positionBuffer;
         private Vector2[] _uvBuffer;
         private bool _disposed = false;
+        private Matrix4x4 toReceiverMeshRendererSpace;
+
+        public void PrepareAddPolygonsToDecalMesh()
+        {
+            toReceiverMeshRendererSpace = _receiverMeshRenderer.worldToLocalMatrix;
+        }
+
+        public void PostProcessAddPolygonsToDecalMesh()
+        {
+            // デカールメッシュレンダラーを作成。
+            _decalMeshRenderer?.Destroy();
+            
+            if (_numVertex <= 0) return;
+            
+            _mesh.SetVertices(_positionBuffer);
+            _mesh.SetIndices(_indexBuffer, MeshTopology.Triangles, 0);
+            _mesh.SetNormals(_normalBuffer, 0, _numVertex);
+            if (_bindPoses != null && _bindPoses.Length > 0)
+            {
+                _mesh.boneWeights = _boneWeightsBuffer;
+                _mesh.bindposes = _bindPoses;
+            }
+
+            _mesh.RecalculateTangents();
+            _mesh.SetUVs(0, _uvBuffer);
+            _mesh.Optimize();
+            _mesh.RecalculateBounds();
+
+            _decalMeshRenderer = new CyDecalMeshRenderer(
+                _receiverMeshRenderer,
+                _decalMaterial,
+                _mesh);
+        }
         public CyDecalMesh(
             GameObject receiverObject,
             Material decalMaterial,
@@ -102,11 +135,11 @@ namespace CyDecal.Runtime.Scripts.Core
             Vector3 decalSpaceTangentWS,
             Vector3 decalSpaceBiNormalWS,
             float decalSpaceWidth,
-            float decalSpaceHeight
+            float decalSpaceHeight 
         )
         {
             if (!_receiverMeshRenderer) return;
-            var toReceiverObjectSpaceMatrix = _receiverMeshRenderer.transform.worldToLocalMatrix;
+            
             var uv = new Vector2();
             // 増える頂点数とインデックス数を計算する
             var deltaVertex = 0;
@@ -153,8 +186,8 @@ namespace CyDecal.Runtime.Scripts.Core
                            0.5f;
                     _uvBuffer[addVertNo] = uv;
                     // 座標と回転を親の空間に変換する。
-                    vertPos = toReceiverObjectSpaceMatrix.MultiplyPoint3x4(vertPos);
-                    normal = toReceiverObjectSpaceMatrix.MultiplyVector(normal);
+                    vertPos = toReceiverMeshRendererSpace.MultiplyPoint3x4(vertPos);
+                    normal = toReceiverMeshRendererSpace.MultiplyVector(normal);
 
                     vertPos += normal * 0.005f;
                     _positionBuffer[addVertNo] = vertPos;
@@ -174,30 +207,6 @@ namespace CyDecal.Runtime.Scripts.Core
 
                 indexBase += numVertex;
             }
-
-            // デカールメッシュレンダラーを作成。
-            _decalMeshRenderer?.Destroy();
-
-            if (_numVertex <= 0) return;
-
-            _mesh.SetVertices(_positionBuffer);
-            _mesh.SetIndices(_indexBuffer, MeshTopology.Triangles, 0);
-            _mesh.SetNormals(_normalBuffer, 0, _numVertex);
-            if (_bindPoses != null && _bindPoses.Length > 0)
-            {
-                _mesh.boneWeights = _boneWeightsBuffer;
-                _mesh.bindposes = _bindPoses;
-            }
-
-            _mesh.RecalculateTangents();
-            _mesh.SetUVs(0, _uvBuffer);
-            _mesh.Optimize();
-            _mesh.RecalculateBounds();
-
-            _decalMeshRenderer = new CyDecalMeshRenderer(
-                _receiverMeshRenderer,
-                _decalMaterial,
-                _mesh);
         }
 
         public void Dispose()
