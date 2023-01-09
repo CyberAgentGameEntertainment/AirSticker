@@ -14,7 +14,10 @@ namespace CyDecal.Runtime.Scripts.Core
         public Vector3 EndNormal { get; private set; } // 終点の法線
         public BoneWeight StartWeight { get; private set; } // 始点のボーンウェイト
         public BoneWeight EndWeight { get; private set; } // 終点のボーンウェイト
-
+        public Vector3 StartLocalPosition { get; private set; }
+        public Vector3 EndLocalPosition { get; private set; }
+        public Vector3 StartLocalNormal { get; private set; }
+        public Vector3 EndLocalNormal { get; private set; }
         /// <summary>
         ///     初期化
         /// </summary>
@@ -24,8 +27,10 @@ namespace CyDecal.Runtime.Scripts.Core
         /// <param name="endNormal">終点の法線</param>
         /// <param name="startWeight">始点のボーンウェイト</param>
         /// <param name="endWeight">終点のボーンウェイト</param>
+        /// <param name="startLocalPosition">始点のローカル座標</param>
         public void Initialize(Vector3 startPosition, Vector3 endPosition, Vector3 startNormal, Vector3 endNormal, 
-            BoneWeight startWeight, BoneWeight endWeight)
+            BoneWeight startWeight, BoneWeight endWeight, Vector3 startLocalPosition, Vector3 endLocalPosition, 
+            Vector3 startLocalNormal, Vector3 endLocalNormal)
         {
             StartPosition = startPosition;
             EndPosition = endPosition;
@@ -34,6 +39,10 @@ namespace CyDecal.Runtime.Scripts.Core
             StartToEndVec = EndPosition - StartPosition;
             StartWeight = startWeight;
             EndWeight = endWeight;
+            StartLocalPosition = startLocalPosition;
+            EndLocalPosition = endLocalPosition;
+            StartLocalNormal = startLocalNormal;
+            EndLocalNormal = endLocalNormal;
         }
 
         /// <summary>
@@ -41,10 +50,13 @@ namespace CyDecal.Runtime.Scripts.Core
         /// </summary>
         /// <param name="newEndPosition">新しいラインの終点の座標</param>
         /// <param name="newEndNormal">新しいラインの終点の法線</param>
-        public void SetEndAndCalcStartToEnd(Vector3 newEndPosition, Vector3 newEndNormal)
+        public void SetEndAndCalcStartToEnd(Vector3 newEndPosition, Vector3 newEndNormal,
+            Vector3 newEndLocalPosition, Vector3 newEndLocalNormal)
         {
             EndPosition = newEndPosition;
             EndNormal = newEndNormal;
+            EndLocalPosition = newEndLocalPosition;
+            EndLocalNormal = newEndLocalNormal;
             StartToEndVec = EndPosition - StartPosition;
         }
 
@@ -59,12 +71,22 @@ namespace CyDecal.Runtime.Scripts.Core
             Vector3 newStartPosition,
             Vector3 newEndPosition,
             Vector3 newStartNormal,
-            Vector3 newEndNormal)
+            Vector3 newEndNormal,
+            Vector3 newStartLocalPosition,
+            Vector3 newEndLocalPosition,
+            Vector3 newStartLocalNormal,
+            Vector3 newEndLocalNormal)
         {
             StartPosition = newStartPosition;
             EndPosition = newEndPosition;
             StartNormal = newStartNormal;
             EndNormal = newEndNormal;
+            
+            StartLocalPosition = newStartLocalPosition;
+            EndLocalPosition = newEndLocalPosition;
+            StartLocalNormal = newStartLocalNormal;
+            EndLocalNormal = newEndLocalNormal;
+            
             StartToEndVec = EndPosition - StartPosition;
         }
 

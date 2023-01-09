@@ -69,7 +69,7 @@ namespace Demo.Demo_00.Scripts
                 projectorSize.x = 0.05f;
                 projectorSize.y = 0.05f;
                 if (decalMaterialIndex == 3) projectorSize.x *= 4.496f;
-                projectorSize.z = 0.2f;
+                projectorSize.z = 2.0f;
                 projectorObj.transform.localPosition =
                     hit_info.point + Camera.main.transform.forward * -0.1f;
                 CyDecalProjector.CreateAndLaunch(
@@ -124,7 +124,7 @@ namespace Demo.Demo_00.Scripts
                             _projectorSize.x = 0.08f;
                             _projectorSize.y = 0.08f;
                             if (CurrentDecalMaterialIndex == 3) _projectorSize.x *= 4.496f;
-                            _projectorSize.z = 0.15f;
+                            _projectorSize.z = 0.5f;
 #if UNITY_2021_1_OR_NEWER
                             _urpDecalProjector = _currentProjectorObject.AddComponent<DecalProjector>();
                             _urpDecalProjector.size = _projectorSize;

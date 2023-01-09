@@ -186,8 +186,10 @@ namespace CyDecal.Runtime.Scripts.Core
                            0.5f;
                     _uvBuffer[addVertNo] = uv;
                     // 座標と回転を親の空間に変換する。
-                    vertPos = toReceiverMeshRendererSpace.MultiplyPoint3x4(vertPos);
-                    normal = toReceiverMeshRendererSpace.MultiplyVector(normal);
+                    // vertPos = toReceiverMeshRendererSpace.MultiplyPoint3x4(vertPos);
+                    // normal = toReceiverMeshRendererSpace.MultiplyVector(normal);
+                    vertPos = convexPolygon.GetVertexLocalPosition(vertNo);
+                    normal = convexPolygon.GetVertexLocalNormal(vertNo);
 
                     vertPos += normal * 0.005f;
                     _positionBuffer[addVertNo] = vertPos;

@@ -68,10 +68,12 @@ namespace CyDecal.Runtime.Scripts.Core
             var broadPhaseConvexPolygonInfos = new List<ConvexPolygonInfo>(broacphaseConvexPolygonCount);
             var positionBuffer = new Vector3[CyConvexPolygon.DefaultMaxVertex * broacphaseConvexPolygonCount];
             var normalBuffer = new Vector3[CyConvexPolygon.DefaultMaxVertex * broacphaseConvexPolygonCount];
+            var localPositionBuffer = new Vector3[CyConvexPolygon.DefaultMaxVertex * broacphaseConvexPolygonCount];
+            var localNormalBuffer = new Vector3[CyConvexPolygon.DefaultMaxVertex * broacphaseConvexPolygonCount];
             var boneWeightBuffer = new BoneWeight[CyConvexPolygon.DefaultMaxVertex * broacphaseConvexPolygonCount];
             var lineBuffer = new CyLine[CyConvexPolygon.DefaultMaxVertex * broacphaseConvexPolygonCount];
             var startOffsetInBuffer = 0;
-            var needDispose = true; 
+             
             for (var i = 0; i < convexPolygonInfos.Count; i++)
             {
                 var convexPolygonInfo = convexPolygonInfos[i];
@@ -80,10 +82,11 @@ namespace CyDecal.Runtime.Scripts.Core
                     broadPhaseConvexPolygonInfos.Add(new ConvexPolygonInfo
                     {
                         ConvexPolygon = new CyConvexPolygon(convexPolygonInfo.ConvexPolygon, positionBuffer,
-                            normalBuffer, boneWeightBuffer, lineBuffer, startOffsetInBuffer),
+                            normalBuffer, boneWeightBuffer, lineBuffer,localPositionBuffer, localNormalBuffer,
+                            startOffsetInBuffer),
                         IsOutsideClipSpace = convexPolygonInfo.IsOutsideClipSpace
                     });
-                    needDispose = false;
+                    
                     startOffsetInBuffer += CyConvexPolygon.DefaultMaxVertex;
                 }
 

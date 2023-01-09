@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using CyDecal.Runtime.Scripts.Core;
 using UnityEngine;
@@ -99,6 +100,37 @@ namespace CyDecal.Runtime.Scripts
         }
 
         /// <summary>
+        ///     スキニングのための行列パレットを計算
+        /// </summary>
+        /// <param name="skinnedMeshRenderers">レシーバーオブジェクトのスキンメッシュレンダラー</param>
+        /// <returns>計算された行列パレット</returns>
+        private static Matrix4x4[][] CalculateMatricesPallet(SkinnedMeshRenderer[] skinnedMeshRenderers)
+        {
+            var boneMatricesPallet = new Matrix4x4[skinnedMeshRenderers.Length][];
+            var skindMeshRendererNo = 0;
+            foreach (var skinnedMeshRenderer in skinnedMeshRenderers)
+            {
+                if (!skinnedMeshRenderer) continue;
+                if (skinnedMeshRenderer.rootBone != null)
+                {
+                    var mesh = skinnedMeshRenderer.sharedMesh;
+                    var numBone = skinnedMeshRenderer.bones.Length;
+
+                    var boneMatrices = new Matrix4x4[numBone];
+                    for (var boneNo = 0; boneNo < numBone; boneNo++)
+                        boneMatrices[boneNo] = skinnedMeshRenderer.bones[boneNo].localToWorldMatrix
+                                               * mesh.bindposes[boneNo];
+
+                    boneMatricesPallet[skindMeshRendererNo] = boneMatrices;
+                }
+
+                skindMeshRendererNo++;
+            }
+
+            return boneMatricesPallet;
+        }
+
+        /// <summary>
         ///     デカールの投影処理を実行。
         /// </summary>
         /// <remarks>
@@ -113,6 +145,9 @@ namespace CyDecal.Runtime.Scripts
             // 編集するデカールメッシュを収集する。
             CyDecalSystem.CollectEditDecalMeshes(DecalMeshes, receiverObject, decalMaterial);
             
+            var skinnedMeshRenderers = receiverObject.GetComponentsInChildren<SkinnedMeshRenderer>();
+            skinnedMeshRenderers = skinnedMeshRenderers.Where(s => s.name != "CyDecalRenderer").ToArray();
+            
             if (CyDecalSystem.ReceiverObjectTrianglePolygonsPool.Contains(receiverObject) == false)
             {
                 // 新規登録
@@ -121,7 +156,7 @@ namespace CyDecal.Runtime.Scripts
                 yield return CyDecalSystem.BuildTrianglePolygonsFromReceiverObject(
                     receiverObject.GetComponentsInChildren<MeshFilter>(),
                     receiverObject.GetComponentsInChildren<MeshRenderer>(),
-                    receiverObject.GetComponentsInChildren<SkinnedMeshRenderer>(),
+                    skinnedMeshRenderers,
                     _convexPolygonInfos);
                 CyDecalSystem.ReceiverObjectTrianglePolygonsPool.RegisterConvexPolygons(receiverObject,
                     _convexPolygonInfos);
@@ -136,6 +171,10 @@ namespace CyDecal.Runtime.Scripts
             
             _convexPolygonInfos = CyDecalSystem.GetTrianglePolygonsFromPool(
                 receiverObject);
+
+            // Calculate bone matrix pallet.
+            var boneMatricesPallet = CalculateMatricesPallet(skinnedMeshRenderers);
+
             var projectorPosition = transform.position;
             // basePosition is center of the decal box.
             var centerPositionOfDecalBox = transform.position + transform.forward * depth * 0.5f;
@@ -143,11 +182,22 @@ namespace CyDecal.Runtime.Scripts
             {
                 cyDecalMesh.PrepareAddPolygonsToDecalMesh();
             }
-            
+            for (int polyNo = 0; polyNo < _convexPolygonInfos.Count; polyNo++)
+            {
+                _convexPolygonInfos[polyNo].ConvexPolygon.PrepareRunActionByWorkerThread();
+            }
             // Split Convex Polygon.
             _executeLaunchingOnWorkerThread = true;
             ThreadPool.QueueUserWorkItem(RunActionByWorkerThread, new Action(() =>
             {
+                var localToWorldMatrices = new Matrix4x4[3];
+                var boneWeights = new BoneWeight[3];
+                for (int polyNo = 0; polyNo < _convexPolygonInfos.Count; polyNo++)
+                {
+                    _convexPolygonInfos[polyNo].ConvexPolygon.CalculatePositionsAndNormalsInWorldSpace(
+                        boneMatricesPallet, localToWorldMatrices, boneWeights);
+                }
+                
                 _broadPhaseConvexPolygonInfos = CyBroadPhaseConvexPolygonsDetection.Execute(
                     projectorPosition,
                     _decalSpace.Ez,

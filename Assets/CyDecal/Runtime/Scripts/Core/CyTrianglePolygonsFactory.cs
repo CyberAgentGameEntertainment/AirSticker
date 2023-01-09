@@ -44,73 +44,6 @@ namespace CyDecal.Runtime.Scripts.Core
         }
 
         /// <summary>
-        ///     行列をスカラー倍する
-        /// </summary>
-        /// <remarks>
-        ///     下記の計算が行われます。<br />
-        ///     mOut = m * s;
-        /// </remarks>
-        /// <param name="mOut">計算結果の格納先</param>
-        /// <param name="m">行列</param>
-        /// <param name="s">スカラー倍</param>
-        private static void Multiply(ref Matrix4x4 mOut, Matrix4x4 m, float s)
-        {
-            mOut = m;
-            mOut.m00 *= s;
-            mOut.m01 *= s;
-            mOut.m02 *= s;
-            mOut.m03 *= s;
-
-            mOut.m10 *= s;
-            mOut.m11 *= s;
-            mOut.m12 *= s;
-            mOut.m13 *= s;
-
-            mOut.m20 *= s;
-            mOut.m21 *= s;
-            mOut.m22 *= s;
-            mOut.m23 *= s;
-
-            mOut.m30 *= s;
-            mOut.m31 *= s;
-            mOut.m32 *= s;
-            mOut.m33 *= s;
-        }
-
-        /// <summary>
-        ///     行列をスカラー倍して加算する。
-        /// </summary>
-        /// <remarks>
-        ///     下記の計算が行われます。<br />
-        ///     mOut *= m * s;
-        /// </remarks>
-        /// <param name="mOut">計算結果の格納先</param>
-        /// <param name="m">行列</param>
-        /// <param name="s">スカラー倍</param>
-        private static void MultiplyAdd(ref Matrix4x4 mOut, Matrix4x4 m, float s)
-        {
-            mOut.m00 += m.m00 * s;
-            mOut.m01 += m.m01 * s;
-            mOut.m02 += m.m02 * s;
-            mOut.m03 += m.m03 * s;
-
-            mOut.m10 += m.m10 * s;
-            mOut.m11 += m.m11 * s;
-            mOut.m12 += m.m12 * s;
-            mOut.m13 += m.m13 * s;
-
-            mOut.m20 += m.m20 * s;
-            mOut.m21 += m.m21 * s;
-            mOut.m22 += m.m22 * s;
-            mOut.m23 += m.m23 * s;
-
-            mOut.m30 += m.m30 * s;
-            mOut.m31 += m.m31 * s;
-            mOut.m32 += m.m32 * s;
-            mOut.m33 += m.m33 * s;
-        }
-
-        /// <summary>
         ///     デカールを貼り付けられるレシーバーオブジェクトの情報から凸ポリゴン情報を登録する。
         /// </summary>
         /// <param name="meshFilters">レシーバーオブジェクトのメッシュフィルター</param>
@@ -224,6 +157,8 @@ namespace CyDecal.Runtime.Scripts.Core
             var boneWeightBuffer = new BoneWeight[bufferSize];
             var normalBuffer = new Vector3[bufferSize];
             var lineBuffer = new CyLine[bufferSize];
+            var localPositionBuffer = new Vector3[bufferSize];
+            var localNormalBuffer = new Vector3[bufferSize];
             var startOffsetOfBuffer = 0;
 
             var rendererNo = 0;
@@ -234,7 +169,6 @@ namespace CyDecal.Runtime.Scripts.Core
                 if (!meshFilter || meshFilter.sharedMesh == null)
                     // meshFilterが削除されているので打ち切る
                     yield break;
-                var localToWorldMatrix = meshFilter.transform.localToWorldMatrix;
                 var mesh = meshFilter.sharedMesh;
                 using var meshDataArray = Mesh.AcquireReadOnlyMeshData(mesh);
                 var meshData = meshDataArray[0];
@@ -257,20 +191,14 @@ namespace CyDecal.Runtime.Scripts.Core
                         var v1_no = _workingTriangles[i * 3 + 1];
                         var v2_no = _workingTriangles[i * 3 + 2];
 
-                        positionBuffer[startOffsetOfBuffer] =
-                            localToWorldMatrix.MultiplyPoint3x4(_workingVertexPositions[v0_no]);
-                        positionBuffer[startOffsetOfBuffer + 1] =
-                            localToWorldMatrix.MultiplyPoint3x4(_workingVertexPositions[v1_no]);
-                        positionBuffer[startOffsetOfBuffer + 2] =
-                            localToWorldMatrix.MultiplyPoint3x4(_workingVertexPositions[v2_no]);
-
-                        normalBuffer[startOffsetOfBuffer] =
-                            localToWorldMatrix.MultiplyVector(_workingVertexNormals[v0_no]);
-                        normalBuffer[startOffsetOfBuffer + 1] =
-                            localToWorldMatrix.MultiplyVector(_workingVertexNormals[v1_no]);
-                        normalBuffer[startOffsetOfBuffer + 2] =
-                            localToWorldMatrix.MultiplyVector(_workingVertexNormals[v2_no]);
-
+                        localPositionBuffer[startOffsetOfBuffer] = _workingVertexPositions[v0_no];
+                        localPositionBuffer[startOffsetOfBuffer + 1] = _workingVertexPositions[v1_no];
+                        localPositionBuffer[startOffsetOfBuffer + 2] = _workingVertexPositions[v2_no];
+                        
+                        localNormalBuffer[startOffsetOfBuffer] = _workingVertexNormals[v0_no];
+                        localNormalBuffer[startOffsetOfBuffer + 1] = _workingVertexNormals[v1_no];
+                        localNormalBuffer[startOffsetOfBuffer + 2] = _workingVertexNormals[v2_no];
+                        
                         boneWeightBuffer[startOffsetOfBuffer] = default;
                         boneWeightBuffer[startOffsetOfBuffer + 1] = default;
                         boneWeightBuffer[startOffsetOfBuffer + 2] = default;
@@ -281,9 +209,12 @@ namespace CyDecal.Runtime.Scripts.Core
                                 normalBuffer,
                                 boneWeightBuffer,
                                 lineBuffer,
+                                localPositionBuffer,
+                                localNormalBuffer,
                                 meshRenderers[rendererNo],
                                 startOffsetOfBuffer,
                                 VertexCountOfTrianglePolygon,
+                                rendererNo,
                                 VertexCountOfTrianglePolygon)
                         };
                         newConvexPolygonNo++;
@@ -341,8 +272,10 @@ namespace CyDecal.Runtime.Scripts.Core
 
             // Allocate some buffers.
             var positionBuffer = new Vector3[bufferSize];
+            var localPositionBuffer = new Vector3[bufferSize];
             var boneWeightBuffer = new BoneWeight[bufferSize];
             var normalBuffer = new Vector3[bufferSize];
+            var localNormalBuffer = new Vector3[bufferSize];
             var lineBuffer = new CyLine[bufferSize];
             var startOffsetOfBuffer = 0;
 #if MEASUREMENT_METHOD_BuildFromSkinMeshRenderer
@@ -386,84 +319,29 @@ namespace CyDecal.Runtime.Scripts.Core
                         // ワールド行列を計算。
                         if (skinnedMeshRenderer.rootBone != null)
                         {
-                            var boneMatrices = boneMatricesPallet[skinnedMeshRendererNo];
                             boneWeights[0] = _workingBoneWeights[v0No];
                             boneWeights[1] = _workingBoneWeights[v1No];
                             boneWeights[2] = _workingBoneWeights[v2No];
                             boneWeightBuffer[startOffsetOfBuffer] = boneWeights[0];
                             boneWeightBuffer[startOffsetOfBuffer + 1] = boneWeights[1];
                             boneWeightBuffer[startOffsetOfBuffer + 2] = boneWeights[2];
-                            Multiply(ref localToWorldMatrices[0],
-                                boneMatrices[boneWeights[0].boneIndex0],
-                                boneWeights[0].weight0);
-                            MultiplyAdd(
-                                ref localToWorldMatrices[0],
-                                boneMatrices[boneWeights[0].boneIndex1],
-                                boneWeights[0].weight1);
-                            MultiplyAdd(
-                                ref localToWorldMatrices[0],
-                                boneMatrices[boneWeights[0].boneIndex2],
-                                boneWeights[0].weight2);
-                            MultiplyAdd(
-                                ref localToWorldMatrices[0],
-                                boneMatrices[boneWeights[0].boneIndex3],
-                                boneWeights[0].weight3);
-
-                            Multiply(ref localToWorldMatrices[1],
-                                boneMatrices[boneWeights[1].boneIndex0],
-                                boneWeights[1].weight0);
-                            MultiplyAdd(
-                                ref localToWorldMatrices[1],
-                                boneMatrices[boneWeights[1].boneIndex1],
-                                boneWeights[1].weight1);
-                            MultiplyAdd(
-                                ref localToWorldMatrices[1],
-                                boneMatrices[boneWeights[1].boneIndex2],
-                                boneWeights[1].weight2);
-                            MultiplyAdd(
-                                ref localToWorldMatrices[1],
-                                boneMatrices[boneWeights[1].boneIndex3],
-                                boneWeights[1].weight3);
-                            Multiply(ref localToWorldMatrices[2],
-                                boneMatrices[boneWeights[2].boneIndex0],
-                                boneWeights[2].weight0);
-                            MultiplyAdd(
-                                ref localToWorldMatrices[2],
-                                boneMatrices[boneWeights[2].boneIndex1],
-                                boneWeights[2].weight1);
-                            MultiplyAdd(
-                                ref localToWorldMatrices[2],
-                                boneMatrices[boneWeights[2].boneIndex2],
-                                boneWeights[2].weight2);
-                            MultiplyAdd(
-                                ref localToWorldMatrices[2],
-                                boneMatrices[boneWeights[2].boneIndex3],
-                                boneWeights[2].weight3);
                         }
                         else
                         {
                             boneWeightBuffer[startOffsetOfBuffer] = default;
                             boneWeightBuffer[startOffsetOfBuffer + 1] = default;
                             boneWeightBuffer[startOffsetOfBuffer + 2] = default;
-
-                            localToWorldMatrices[0] = localToWorldMatrix;
-                            localToWorldMatrices[1] = localToWorldMatrix;
-                            localToWorldMatrices[2] = localToWorldMatrix;
                         }
-
-                        positionBuffer[startOffsetOfBuffer] =
-                            localToWorldMatrices[0].MultiplyPoint3x4(_workingVertexPositions[v0No]);
-                        positionBuffer[startOffsetOfBuffer + 1] =
-                            localToWorldMatrices[1].MultiplyPoint3x4(_workingVertexPositions[v1No]);
-                        positionBuffer[startOffsetOfBuffer + 2] =
-                            localToWorldMatrices[2].MultiplyPoint3x4(_workingVertexPositions[v2No]);
-
-                        normalBuffer[startOffsetOfBuffer] =
-                            localToWorldMatrices[0].MultiplyVector(_workingVertexNormals[v0No]);
-                        normalBuffer[startOffsetOfBuffer + 1] =
-                            localToWorldMatrices[1].MultiplyVector(_workingVertexNormals[v1No]);
-                        normalBuffer[startOffsetOfBuffer + 2] =
-                            localToWorldMatrices[2].MultiplyVector(_workingVertexNormals[v2No]);
+                        
+                        localPositionBuffer[startOffsetOfBuffer] = _workingVertexPositions[v0No];
+                        localPositionBuffer[startOffsetOfBuffer + 1] = _workingVertexPositions[v1No];
+                        localPositionBuffer[startOffsetOfBuffer + 2] = _workingVertexPositions[v2No];
+                        
+                        localNormalBuffer[startOffsetOfBuffer] = _workingVertexNormals[v0No];
+                        localNormalBuffer[startOffsetOfBuffer + 1] = _workingVertexNormals[v1No];
+                        localNormalBuffer[startOffsetOfBuffer + 2] = _workingVertexNormals[v2No];
+                        
+                        
                         newConvexPolygonInfos[newConvexPolygonNo] = new ConvexPolygonInfo
                         {
                             ConvexPolygon = new CyConvexPolygon(
@@ -471,9 +349,12 @@ namespace CyDecal.Runtime.Scripts.Core
                                 normalBuffer,
                                 boneWeightBuffer,
                                 lineBuffer,
+                                localPositionBuffer,
+                                localNormalBuffer,
                                 skinnedMeshRenderer,
                                 startOffsetOfBuffer,
                                 3,
+                                rendererNo,
                                 VertexCountOfTrianglePolygon)
                         };
                         newConvexPolygonNo++;
