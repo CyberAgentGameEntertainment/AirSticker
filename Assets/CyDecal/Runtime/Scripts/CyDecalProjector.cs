@@ -170,18 +170,27 @@ namespace CyDecal.Runtime.Scripts
                 yield break;
             }
 
+            #region Prepare to run on worker threads.
+
             _convexPolygonInfos = CyDecalSystem.GetTrianglePolygonsFromPool(
                 receiverObject);
-
             // Calculate bone matrix pallet.
             var boneMatricesPallet = CalculateMatricesPallet(skinnedMeshRenderers);
 
-            var projectorPosition = transform.position;
+            var transform1 = transform;
+            var projectorPosition = transform1.position;
             // basePosition is center of the decal box.
-            var centerPositionOfDecalBox = transform.position + transform.forward * depth * 0.5f;
-            foreach (var cyDecalMesh in DecalMeshes) cyDecalMesh.PrepareAddPolygonsToDecalMesh();
+            var centerPositionOfDecalBox = projectorPosition + transform1.forward * (depth * 0.5f);
+
+            for (var meshNo = 0; meshNo < DecalMeshes.Count; meshNo++)
+                DecalMeshes[meshNo].PrepareToRunOnWorkerThread();
             for (var polyNo = 0; polyNo < _convexPolygonInfos.Count; polyNo++)
-                _convexPolygonInfos[polyNo].ConvexPolygon.PrepareRunActionByWorkerThread();
+                _convexPolygonInfos[polyNo].ConvexPolygon.PrepareToRunOnWorkerThread();
+
+            #endregion // Prepare to run on worker threads.
+
+            #region Run worker thread.
+
             // Split Convex Polygon.
             _executeLaunchingOnWorkerThread = true;
             ThreadPool.QueueUserWorkItem(RunActionByWorkerThread, new Action(() =>
@@ -205,16 +214,22 @@ namespace CyDecal.Runtime.Scripts
                 AddTrianglePolygonsToDecalMeshFromConvexPolygons(centerPositionOfDecalBox);
                 _executeLaunchingOnWorkerThread = false;
             }));
+
+            #endregion // Run worker thread. 
+
             // Waiting to worker thread.
             while (_executeLaunchingOnWorkerThread) yield return null;
 
-            foreach (var cyDecalMesh in DecalMeshes) cyDecalMesh.PostProcessAddPolygonsToDecalMesh();
+            foreach (var cyDecalMesh in DecalMeshes) cyDecalMesh.ExecutePostProcessingAfterWorkerThread();
             OnFinished(State.LaunchingCompleted);
             _convexPolygonInfos = null;
 
             yield return null;
         }
-
+        /// <summary>
+        ///     This function is called by worker thread.
+        /// </summary>
+        /// <param name="action"></param>
         private static void RunActionByWorkerThread(object action)
         {
             ((Action)action)();

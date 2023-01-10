@@ -43,15 +43,18 @@ namespace CyDecal.Runtime.Scripts.Core
                     continue;
                 }
 
-                var v0 = convexPolygonInfo.ConvexPolygon.GetVertexPosition(0);
+                var vertNo_0 = convexPolygonInfo.ConvexPolygon.GetRealVertexNo(0);
+                var v0 = convexPolygonInfo.ConvexPolygon.GetVertexPositionInWorldSpace(vertNo_0);
                 v0 -= centerPosInDecalBox;
                 if (v0.sqrMagnitude > threshold)
                 {
-                    var v1 = convexPolygonInfo.ConvexPolygon.GetVertexPosition(1);
+                    var vertNo_1 = convexPolygonInfo.ConvexPolygon.GetRealVertexNo(1);
+                    var v1 = convexPolygonInfo.ConvexPolygon.GetVertexPositionInWorldSpace(vertNo_1);
                     v1 -= centerPosInDecalBox;
                     if (v1.sqrMagnitude > threshold)
                     {
-                        var v2 = convexPolygonInfo.ConvexPolygon.GetVertexPosition(2);
+                        var vertNo_2 = convexPolygonInfo.ConvexPolygon.GetRealVertexNo(2);
+                        var v2 = convexPolygonInfo.ConvexPolygon.GetVertexPositionInWorldSpace(vertNo_2);
                         v2 -= centerPosInDecalBox;
                         if (v2.sqrMagnitude > threshold)
                         {

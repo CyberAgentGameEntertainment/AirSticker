@@ -25,7 +25,6 @@ namespace CyDecal.Runtime.Scripts.Core
         private int _numVertex;
         private Vector3[] _positionBuffer;
         private Vector2[] _uvBuffer;
-        private Matrix4x4 toReceiverMeshRendererSpace;
 
         public CyDecalMesh(
             GameObject receiverObject,
@@ -48,15 +47,23 @@ namespace CyDecal.Runtime.Scripts.Core
             GC.SuppressFinalize(this);
             _disposed = true;
         }
-
-        public void PrepareAddPolygonsToDecalMesh()
+        /// <summary>
+        ///     Prepare to run on worker threads.
+        /// </summary>
+        /// <remarks>
+        ///     Some unity APIs aren't working on the worker threads.
+        ///     Therefore, cache the necessary data in the worker thread. 
+        /// </remarks>
+        public void PrepareToRunOnWorkerThread()
         {
-            toReceiverMeshRendererSpace = _receiverMeshRenderer.worldToLocalMatrix;
         }
-
-        public void PostProcessAddPolygonsToDecalMesh()
+        /// <summary>
+        ///     Post-processing with results of worker thread execution.<br/>
+        ///     1. Create the decal mesh.<br/>
+        ///     2. Create the decal mesh renderer.<br/>
+        /// </summary>
+        public void ExecutePostProcessingAfterWorkerThread()
         {
-            // デカールメッシュレンダラーを作成。
             _decalMeshRenderer?.Destroy();
 
             if (_numVertex <= 0) return;
@@ -180,10 +187,11 @@ namespace CyDecal.Runtime.Scripts.Core
                 if (convexPolygon.ReceiverMeshRenderer != _receiverMeshRenderer) continue;
 
                 var numVertex = convexPolygon.VertexCount;
-                for (var vertNo = 0; vertNo < numVertex; vertNo++)
+                for (var localVertNo = 0; localVertNo < numVertex; localVertNo++)
                 {
-                    var vertPos = convexPolygon.GetVertexPosition(vertNo);
-                    var normal = convexPolygon.GetVertexNormal(vertNo);
+                    var vertNo = convexPolygon.GetRealVertexNo(localVertNo);
+                    var vertPos = convexPolygon.GetVertexPositionInWorldSpace(vertNo);
+                    var normal = convexPolygon.GetVertexNormalInWorldSpace(vertNo);
 
                     // Zファイティング回避のために、デカールの投影方向の逆向きに少しオフセットを加える。
                     // TODO: この数値は後で調整できるようにする。
@@ -195,8 +203,8 @@ namespace CyDecal.Runtime.Scripts.Core
                            0.5f;
                     _uvBuffer[addVertNo] = uv;
                     // 座標と回転を親の空間に変換する。
-                    vertPos = convexPolygon.GetVertexLocalPosition(vertNo);
-                    normal = convexPolygon.GetVertexLocalNormal(vertNo);
+                    vertPos = convexPolygon.GetVertexPositionInModelSpace(vertNo);
+                    normal = convexPolygon.GetVertexNormalInModelSpace(vertNo);
 
                     vertPos += normal * 0.005f;
                     _positionBuffer[addVertNo] = vertPos;
