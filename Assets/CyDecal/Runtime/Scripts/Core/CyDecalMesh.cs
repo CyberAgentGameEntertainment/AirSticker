@@ -16,6 +16,7 @@ namespace CyDecal.Runtime.Scripts.Core
         private readonly GameObject _receiverObject; // デカールメッシュを貼り付けるレシーバーオブジェクト
         private BoneWeight[] _boneWeightsBuffer;
         private CyDecalMeshRenderer _decalMeshRenderer;
+        private bool _disposed;
 
         private int[] _indexBuffer;
         private Mesh _mesh; // デカールテクスチャを貼り付けるためのデカールメッシュ
@@ -24,8 +25,29 @@ namespace CyDecal.Runtime.Scripts.Core
         private int _numVertex;
         private Vector3[] _positionBuffer;
         private Vector2[] _uvBuffer;
-        private bool _disposed = false;
         private Matrix4x4 toReceiverMeshRendererSpace;
+
+        public CyDecalMesh(
+            GameObject receiverObject,
+            Material decalMaterial,
+            Renderer receiverMeshRenderer)
+        {
+            _mesh = new Mesh();
+            _receiverMeshRenderer = receiverMeshRenderer;
+            _decalMaterial = decalMaterial;
+            _receiverObject = receiverObject;
+
+            if (_receiverMeshRenderer is SkinnedMeshRenderer skinnedMeshRenderer)
+                _bindPoses = skinnedMeshRenderer.sharedMesh.bindposes;
+        }
+
+        public void Dispose()
+        {
+            if (_disposed) return;
+            if (_mesh && _mesh != null) Object.Destroy(_mesh);
+            GC.SuppressFinalize(this);
+            _disposed = true;
+        }
 
         public void PrepareAddPolygonsToDecalMesh()
         {
@@ -36,9 +58,9 @@ namespace CyDecal.Runtime.Scripts.Core
         {
             // デカールメッシュレンダラーを作成。
             _decalMeshRenderer?.Destroy();
-            
+
             if (_numVertex <= 0) return;
-            
+
             _mesh.SetVertices(_positionBuffer);
             _mesh.SetIndices(_indexBuffer, MeshTopology.Triangles, 0);
             _mesh.SetNormals(_normalBuffer, 0, _numVertex);
@@ -57,19 +79,6 @@ namespace CyDecal.Runtime.Scripts.Core
                 _receiverMeshRenderer,
                 _decalMaterial,
                 _mesh);
-        }
-        public CyDecalMesh(
-            GameObject receiverObject,
-            Material decalMaterial,
-            Renderer receiverMeshRenderer)
-        {
-            _mesh = new Mesh();
-            _receiverMeshRenderer = receiverMeshRenderer;
-            _decalMaterial = decalMaterial;
-            _receiverObject = receiverObject;
-
-            if (_receiverMeshRenderer is SkinnedMeshRenderer skinnedMeshRenderer)
-                _bindPoses = skinnedMeshRenderer.sharedMesh.bindposes;
         }
 
         ~CyDecalMesh()
@@ -135,11 +144,11 @@ namespace CyDecal.Runtime.Scripts.Core
             Vector3 decalSpaceTangentWS,
             Vector3 decalSpaceBiNormalWS,
             float decalSpaceWidth,
-            float decalSpaceHeight 
+            float decalSpaceHeight
         )
         {
             if (!_receiverMeshRenderer) return;
-            
+
             var uv = new Vector2();
             // 増える頂点数とインデックス数を計算する
             var deltaVertex = 0;
@@ -186,8 +195,6 @@ namespace CyDecal.Runtime.Scripts.Core
                            0.5f;
                     _uvBuffer[addVertNo] = uv;
                     // 座標と回転を親の空間に変換する。
-                    // vertPos = toReceiverMeshRendererSpace.MultiplyPoint3x4(vertPos);
-                    // normal = toReceiverMeshRendererSpace.MultiplyVector(normal);
                     vertPos = convexPolygon.GetVertexLocalPosition(vertNo);
                     normal = convexPolygon.GetVertexLocalNormal(vertNo);
 
@@ -209,14 +216,6 @@ namespace CyDecal.Runtime.Scripts.Core
 
                 indexBase += numVertex;
             }
-        }
-
-        public void Dispose()
-        {
-            if (_disposed) return;
-            if (_mesh && _mesh != null) Object.Destroy(_mesh);
-            GC.SuppressFinalize(this);
-            _disposed = true;
         }
     }
 }

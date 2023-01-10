@@ -1,6 +1,5 @@
 using System;
 using System.Runtime.CompilerServices;
-using Unity.Collections;
 using UnityEngine;
 using UnityEngine.Assertions;
 
@@ -13,16 +12,20 @@ namespace CyDecal.Runtime.Scripts.Core
     {
         public const int DefaultMaxVertex = 64;
         private readonly BoneWeight[] _boneWeightBuffer; // ボーンウェイトバッファ
-        private Vector3 _faceNormal; // 面法線
         private readonly CyLine[] _lineBuffer; // 凸多角形を構成するエッジ情報のバッファ
+        private readonly Vector3[] _localNormalBuffer;
+        private readonly Vector3[] _localPositionBuffer;
+        private readonly int _maxVertex; //  凸多角形の最大頂点
         private readonly Vector3[] _normalBuffer; // 頂点法線バッファ
         private readonly Vector3[] _positionBuffer; // 頂点座標バッファ
-        private readonly Vector3[] _localPositionBuffer;
-        private readonly Vector3[] _localNormalBuffer; 
         private readonly int _startOffsetInBuffer;
-        private readonly int _maxVertex; //  凸多角形の最大頂点
-        private int _rendererNo;
-        private bool _isSkinnedMeshRenderer;
+        private bool _existsRootBone;
+        private Vector3 _faceNormal; // 面法線
+        private readonly bool _isSkinnedMeshRenderer;
+
+        private Matrix4x4 _localToWorldMatrix;
+        private readonly int _rendererNo;
+
         /// <summary>
         ///     コンストラクタ
         /// </summary>
@@ -69,7 +72,7 @@ namespace CyDecal.Runtime.Scripts.Core
         ///     凸多角形の最大頂点数。分割可能頂点数を変更したい場合に最大頂点数を指定して下さい。
         ///     最大頂点数がsrcConvexPolygonのmaxVertexの値より小さい場合は無視されます。
         /// </param>
-        public CyConvexPolygon(CyConvexPolygon srcConvexPolygon, 
+        public CyConvexPolygon(CyConvexPolygon srcConvexPolygon,
             Vector3[] positionBuffer,
             Vector3[] normalBuffer,
             BoneWeight[] boneWeightBuffer,
@@ -81,7 +84,7 @@ namespace CyDecal.Runtime.Scripts.Core
         {
             ReceiverMeshRenderer = srcConvexPolygon.ReceiverMeshRenderer;
             VertexCount = srcConvexPolygon.VertexCount;
-            
+
             _isSkinnedMeshRenderer = srcConvexPolygon._isSkinnedMeshRenderer;
             _maxVertex = Mathf.Max(maxVertex, srcConvexPolygon._maxVertex);
             _rendererNo = srcConvexPolygon._rendererNo;
@@ -92,7 +95,7 @@ namespace CyDecal.Runtime.Scripts.Core
             _boneWeightBuffer = boneWeightBuffer;
             _lineBuffer = lineBuffer;
             _startOffsetInBuffer = startOffsetInBuffer;
-            
+
             Array.Copy(srcConvexPolygon._positionBuffer, srcConvexPolygon._startOffsetInBuffer,
                 _positionBuffer, _startOffsetInBuffer, srcConvexPolygon.VertexCount);
             Array.Copy(srcConvexPolygon._normalBuffer, srcConvexPolygon._startOffsetInBuffer,
@@ -102,7 +105,7 @@ namespace CyDecal.Runtime.Scripts.Core
                 _localPositionBuffer, _startOffsetInBuffer, srcConvexPolygon.VertexCount);
             Array.Copy(srcConvexPolygon._localNormalBuffer, srcConvexPolygon._startOffsetInBuffer,
                 _localNormalBuffer, _startOffsetInBuffer, srcConvexPolygon.VertexCount);
-            
+
             Array.Copy(srcConvexPolygon._boneWeightBuffer, srcConvexPolygon._startOffsetInBuffer,
                 _boneWeightBuffer, _startOffsetInBuffer, srcConvexPolygon.VertexCount);
             Array.Copy(srcConvexPolygon._lineBuffer, srcConvexPolygon._startOffsetInBuffer,
@@ -158,7 +161,7 @@ namespace CyDecal.Runtime.Scripts.Core
             newVert0 = Vector3.Lerp(l0.EndPosition, l0.StartPosition, t);
             newNormal0 = Vector3.Lerp(l0.EndNormal, l0.StartNormal, t);
             newNormal0.Normalize();
-            
+
             newLocalVert0 = Vector3.Lerp(l0.EndLocalPosition, l0.StartLocalPosition, t);
             newLocalNormal0 = Vector3.Lerp(l0.EndLocalNormal, l0.StartLocalNormal, t);
             newLocalNormal0.Normalize();
@@ -169,11 +172,11 @@ namespace CyDecal.Runtime.Scripts.Core
             newVert1 = Vector3.Lerp(l1.StartPosition, l1.EndPosition, t);
             newNormal1 = Vector3.Lerp(l1.StartNormal, l1.EndNormal, t);
             newNormal1.Normalize();
-            
+
             newLocalVert1 = Vector3.Lerp(l1.StartLocalPosition, l1.EndLocalPosition, t);
             newLocalNormal1 = Vector3.Lerp(l1.StartLocalNormal, l1.EndLocalNormal, t);
             newLocalNormal1.Normalize();
-            
+
             newBoneWeight0 = new BoneWeight();
             newBoneWeight1 = new BoneWeight();
 
@@ -249,7 +252,7 @@ namespace CyDecal.Runtime.Scripts.Core
         /// </summary>
         /// <param name="vertNo">頂点番号</param>
         /// <returns>バッファ内インデックス</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int GetIndexInBufferFromVertexNo(int vertNo)
         {
             Assert.IsTrue(vertNo < _maxVertex, "The vertex number is over. MaxVertex should be checked.");
@@ -261,21 +264,33 @@ namespace CyDecal.Runtime.Scripts.Core
         /// </summary>
         /// <param name="vertNo">頂点番号</param>
         /// <returns></returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector3 GetVertexPosition(int vertNo)
         {
             return _positionBuffer[GetIndexInBufferFromVertexNo(vertNo)];
         }
-        
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Vector3 GetVertexPosition_Direct(int vertNo)
+        {
+            return _positionBuffer[vertNo];
+        }
+
         /// <summary>
         ///     頂点座標を設定
         /// </summary>
         /// <param name="vertNo"></param>
         /// <param name="position"></param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SetVertexPosition(int vertNo, Vector3 position)
         {
             _positionBuffer[GetIndexInBufferFromVertexNo(vertNo)] = position;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void SetVertexPosition_Direct(int vertNo, Vector3 position)
+        {
+            _positionBuffer[vertNo] = position;
         }
 
         /// <summary>
@@ -283,28 +298,56 @@ namespace CyDecal.Runtime.Scripts.Core
         /// </summary>
         /// <param name="destVertNo">コピー先の頂点番号</param>
         /// <param name="srcVertNo">コピー元の頂点番号</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void CopyVertexPosition(int destVertNo, int srcVertNo)
         {
             _positionBuffer[GetIndexInBufferFromVertexNo(destVertNo)] =
                 _positionBuffer[GetIndexInBufferFromVertexNo(srcVertNo)];
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void CopyVertexPosition_Direct(int destVertNo, int srcVertNo)
+        {
+            _positionBuffer[destVertNo] = _positionBuffer[srcVertNo];
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector3 GetVertexLocalPosition(int vertNo)
         {
             return _localPositionBuffer[GetIndexInBufferFromVertexNo(vertNo)];
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Vector3 GetVertexLocalPosition_Direct(int vertNo)
+        {
+            return _localPositionBuffer[vertNo];
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetVertexLocalPosition(int vertNo, Vector3 position)
         {
             _localPositionBuffer[GetIndexInBufferFromVertexNo(vertNo)] = position;
         }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void CopyVertexLocalPosition(int destVertNo, int srcVertNo)
+        public void SetVertexLocalPosition_Direct(int vertNo, Vector3 position)
+        {
+            _localPositionBuffer[vertNo] = position;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void CopyVertexLocalPosition(int destVertNo, int srcVertNo)
         {
             _localPositionBuffer[GetIndexInBufferFromVertexNo(destVertNo)] =
                 _localPositionBuffer[GetIndexInBufferFromVertexNo(srcVertNo)];
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void CopyVertexLocalPosition_Direct(int destVertNo, int srcVertNo)
+        {
+            _localPositionBuffer[destVertNo] = _localPositionBuffer[srcVertNo];
+        }
+
         /// <summary>
         ///     頂点法線を取得
         /// </summary>
@@ -314,6 +357,12 @@ namespace CyDecal.Runtime.Scripts.Core
         public Vector3 GetVertexNormal(int vertNo)
         {
             return _normalBuffer[GetIndexInBufferFromVertexNo(vertNo)];
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Vector3 GetVertexNormal_Direct(int vertNo)
+        {
+            return _normalBuffer[vertNo];
         }
 
         /// <summary>
@@ -327,6 +376,12 @@ namespace CyDecal.Runtime.Scripts.Core
             _normalBuffer[GetIndexInBufferFromVertexNo(vertNo)] = normal;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void SetVertexNormal_Direct(int vertNo, Vector3 normal)
+        {
+            _normalBuffer[vertNo] = normal;
+        }
+
         /// <summary>
         ///     頂点法線をコピー
         /// </summary>
@@ -338,23 +393,50 @@ namespace CyDecal.Runtime.Scripts.Core
             _normalBuffer[GetIndexInBufferFromVertexNo(destVertNo)] =
                 _normalBuffer[GetIndexInBufferFromVertexNo(srcVertNo)];
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void CopyVertexNormal_Direct(int destVertNo, int srcVertNo)
+        {
+            _normalBuffer[destVertNo] = _normalBuffer[srcVertNo];
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector3 GetVertexLocalNormal(int vertNo)
         {
             return _localNormalBuffer[GetIndexInBufferFromVertexNo(vertNo)];
-            
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Vector3 GetVertexLocalNormal_Direct(int vertNo)
+        {
+            return _localNormalBuffer[vertNo];
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SetVertexLocalNormal(int vertNo, Vector3 normal)
         {
             _localNormalBuffer[GetIndexInBufferFromVertexNo(vertNo)] = normal;
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void SetVertexLocalNormal_Direct(int vertNo, Vector3 normal)
+        {
+            _localNormalBuffer[vertNo] = normal;
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void CopyVertexLocalNormal(int destVertNo, int srcVertNo)
         {
             _localNormalBuffer[GetIndexInBufferFromVertexNo(destVertNo)] =
                 _localNormalBuffer[GetIndexInBufferFromVertexNo(srcVertNo)];
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void CopyVertexLocalNormal_Direct(int destVertNo, int srcVertNo)
+        {
+            _localNormalBuffer[destVertNo] = _localNormalBuffer[srcVertNo];
+        }
+
         /// <summary>
         ///     頂点番号を指定してその頂点から伸びているラインを取得します。
         /// </summary>
@@ -378,17 +460,6 @@ namespace CyDecal.Runtime.Scripts.Core
         }
 
         /// <summary>
-        ///     指定された頂点から伸びているラインを設定します。
-        /// </summary>
-        /// <param name="vertNo">頂点番号</param>
-        /// <param name="line">ライン</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void SetLine(int vertNo, CyLine line)
-        {
-            _lineBuffer[GetIndexInBufferFromVertexNo(vertNo)] = line;
-        }
-
-        /// <summary>
         ///     指定された頂点から伸びているラインをコピーします。
         /// </summary>
         /// <param name="destVertNo">コピー先のラインの始点になる頂点の番号</param>
@@ -398,6 +469,12 @@ namespace CyDecal.Runtime.Scripts.Core
         {
             _lineBuffer[GetIndexInBufferFromVertexNo(destVertNo)] =
                 _lineBuffer[GetIndexInBufferFromVertexNo(srcVertNo)];
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void CopyLine_Direct(int destVertNo, int srcVertNo)
+        {
+            _lineBuffer[destVertNo] = _lineBuffer[srcVertNo];
         }
 
         /// <summary>
@@ -478,12 +555,14 @@ namespace CyDecal.Runtime.Scripts.Core
                 var vertNo = 0;
                 for (var i = remainVertStartNo; i < remainVertEndNo + 1; i++)
                 {
-                    CopyVertexPosition(vertNo, i);
-                    CopyVertexNormal(vertNo, i);
-                    CopyVertexLocalPosition(vertNo, i);
-                    CopyVertexLocalNormal(vertNo, i);
-                    CopyVertexBoneWeight(vertNo, i);
-                    CopyLine(vertNo, i);
+                    var destVertNo = GetIndexInBufferFromVertexNo(vertNo);
+                    var srcVertNo = GetIndexInBufferFromVertexNo(i);
+                    CopyVertexPosition_Direct(destVertNo, srcVertNo);
+                    CopyVertexNormal_Direct(destVertNo, srcVertNo);
+                    CopyVertexLocalPosition_Direct(destVertNo, srcVertNo);
+                    CopyVertexLocalNormal_Direct(destVertNo, srcVertNo);
+                    CopyVertexBoneWeight_Direct(destVertNo, srcVertNo);
+                    CopyLine_Direct(destVertNo, srcVertNo);
 
                     vertNo++;
                 }
@@ -510,27 +589,29 @@ namespace CyDecal.Runtime.Scripts.Core
                 var newVertNo0 = vertNo;
                 var newVertNo1 = vertNo + 1;
 
-                SetVertexPosition(newVertNo0, newVert0);
-                SetVertexPosition(newVertNo1, newVert1);
+                var newVertNo0_Direct = GetIndexInBufferFromVertexNo(newVertNo0);
+                var newVertNo1_Direct = GetIndexInBufferFromVertexNo(newVertNo1);
+                SetVertexPosition_Direct(newVertNo0_Direct, newVert0);
+                SetVertexPosition_Direct(newVertNo1_Direct, newVert1);
 
-                SetVertexNormal(newVertNo0, newNormal0);
-                SetVertexNormal(newVertNo1, newNormal1);
-                
-                SetVertexLocalPosition(newVertNo0, newLocalVert0);
-                SetVertexLocalPosition(newVertNo1, newLocalVert1);
+                SetVertexNormal_Direct(newVertNo0_Direct, newNormal0);
+                SetVertexNormal_Direct(newVertNo1_Direct, newNormal1);
 
-                SetVertexLocalNormal(newVertNo0, newLocalNormal0);
-                SetVertexLocalNormal(newVertNo1, newLocalNormal1);
+                SetVertexLocalPosition_Direct(newVertNo0_Direct, newLocalVert0);
+                SetVertexLocalPosition_Direct(newVertNo1_Direct, newLocalVert1);
 
-                SetVertexBoneWeight(newVertNo0, newBoneWeight0);
-                SetVertexBoneWeight(newVertNo1, newBoneWeight1);
+                SetVertexLocalNormal_Direct(newVertNo0_Direct, newLocalNormal0);
+                SetVertexLocalNormal_Direct(newVertNo1_Direct, newLocalNormal1);
+
+                SetVertexBoneWeight_Direct(newVertNo0_Direct, newBoneWeight0);
+                SetVertexBoneWeight_Direct(newVertNo1_Direct, newBoneWeight1);
 
                 // ライン情報の構築。
                 VertexCount += deltaVerticesSize;
                 ref var line_0 = ref GetLineRef(newVertNo0 - 1);
                 ref var line_1 = ref GetLineRef(newVertNo0);
                 ref var line_2 = ref GetLineRef(newVertNo1);
-                line_0.SetEndAndCalcStartToEnd(newVert0, newNormal0, 
+                line_0.SetEndAndCalcStartToEnd(newVert0, newNormal0,
                     newLocalVert0, newLocalNormal0);
                 line_1.SetStartEndAndCalcStartToEnd(
                     newVert0,
@@ -541,21 +622,22 @@ namespace CyDecal.Runtime.Scripts.Core
                     newLocalVert1,
                     newLocalNormal0,
                     newLocalNormal1);
+                var endVertNo1_Direct = GetIndexInBufferFromVertexNo((newVertNo1 + 1) % VertexCount);
                 line_2.SetStartEndAndCalcStartToEnd(
                     newVert1,
-                    GetVertexPosition((newVertNo1 + 1) % VertexCount),
+                    GetVertexPosition_Direct(endVertNo1_Direct),
                     newNormal1,
-                    GetVertexNormal((newVertNo1 + 1) % VertexCount),
+                    GetVertexNormal_Direct(endVertNo1_Direct),
                     newLocalVert1,
-                    GetVertexLocalPosition((newVertNo1 + 1) % VertexCount),
+                    GetVertexLocalPosition_Direct(endVertNo1_Direct),
                     newLocalNormal1,
-                    GetVertexLocalNormal((newVertNo1 + 1) % VertexCount));
+                    GetVertexLocalNormal_Direct(endVertNo1_Direct));
 
                 line_0.SetEndBoneWeight(newBoneWeight0);
                 line_1.SetStartEndBoneWeights(newBoneWeight0, newBoneWeight1);
                 line_2.SetStartEndBoneWeights(
                     newBoneWeight1,
-                    GetVertexBoneWeight((newVertNo1 + 1) % VertexCount));
+                    GetVertexBoneWeight_Direct(endVertNo1_Direct));
             }
             else
             {
@@ -567,23 +649,28 @@ namespace CyDecal.Runtime.Scripts.Core
                     // 頂点が増える。
                     for (var i = VertexCount - 1; i > removeVertEndNo; i--)
                     {
-                        CopyVertexPosition(i + deltaVerticesSize, i);
-                        CopyVertexNormal(i + deltaVerticesSize, i);
-                        CopyVertexLocalPosition(i + deltaVerticesSize, i);
-                        CopyVertexLocalNormal(i + deltaVerticesSize, i);
-                        CopyVertexBoneWeight(i + deltaVerticesSize, i);
-                        CopyLine(i + deltaVerticesSize, i);
+                        var destVertNo = GetIndexInBufferFromVertexNo(i + deltaVerticesSize);
+                        var srcVertNo = GetIndexInBufferFromVertexNo(i);
+                        CopyVertexPosition_Direct(destVertNo, srcVertNo);
+                        CopyVertexNormal_Direct(destVertNo, srcVertNo);
+                        CopyVertexLocalPosition_Direct(destVertNo, srcVertNo);
+                        CopyVertexLocalNormal_Direct(destVertNo, srcVertNo);
+                        CopyVertexBoneWeight_Direct(destVertNo, srcVertNo);
+                        CopyLine_Direct(destVertNo, srcVertNo);
                     }
                 else
                     // 頂点が減る or 同じ
                     for (var i = removeVertEndNo + 1; i < VertexCount; i++)
                     {
-                        CopyVertexPosition(i + deltaVerticesSize, i);
-                        CopyVertexNormal(i + deltaVerticesSize, i);
-                        CopyVertexLocalPosition(i + deltaVerticesSize, i);
-                        CopyVertexLocalNormal(i + deltaVerticesSize, i);
-                        CopyVertexBoneWeight(i + deltaVerticesSize, i);
-                        CopyLine(i + deltaVerticesSize, i);
+                        var destVertNo = GetIndexInBufferFromVertexNo(i + deltaVerticesSize);
+                        var srcVertNo = GetIndexInBufferFromVertexNo(i);
+
+                        CopyVertexPosition_Direct(destVertNo, srcVertNo);
+                        CopyVertexNormal_Direct(destVertNo, srcVertNo);
+                        CopyVertexLocalPosition_Direct(destVertNo, srcVertNo);
+                        CopyVertexLocalNormal_Direct(destVertNo, srcVertNo);
+                        CopyVertexBoneWeight_Direct(destVertNo, srcVertNo);
+                        CopyLine_Direct(destVertNo, srcVertNo);
                     }
 
                 // 頂点を二つ追加する。
@@ -604,20 +691,22 @@ namespace CyDecal.Runtime.Scripts.Core
                 var newVertNo_0 = removeVertStartNo;
                 var newVertNo_1 = removeVertStartNo + 1;
 
-                SetVertexPosition(newVertNo_0, newVert0);
-                SetVertexPosition(newVertNo_1, newVert1);
+                var newVertNo0_Direct = GetIndexInBufferFromVertexNo(newVertNo_0);
+                var newVertNo1_Direct = GetIndexInBufferFromVertexNo(newVertNo_1);
+                SetVertexPosition_Direct(newVertNo0_Direct, newVert0);
+                SetVertexPosition_Direct(newVertNo1_Direct, newVert1);
 
-                SetVertexNormal(newVertNo_0, newNormal0);
-                SetVertexNormal(newVertNo_1, newNormal1);
-                
-                SetVertexLocalPosition(newVertNo_0, newLocalVert0);
-                SetVertexLocalPosition(newVertNo_1, newLocalVert1);
+                SetVertexNormal_Direct(newVertNo0_Direct, newNormal0);
+                SetVertexNormal_Direct(newVertNo1_Direct, newNormal1);
 
-                SetVertexLocalNormal(newVertNo_0, newLocalNormal0);
-                SetVertexLocalNormal(newVertNo_1, newLocalNormal1);
+                SetVertexLocalPosition_Direct(newVertNo0_Direct, newLocalVert0);
+                SetVertexLocalPosition_Direct(newVertNo1_Direct, newLocalVert1);
 
-                SetVertexBoneWeight(newVertNo_0, newBoneWeight0);
-                SetVertexBoneWeight(newVertNo_1, newBoneWeight1);
+                SetVertexLocalNormal_Direct(newVertNo0_Direct, newLocalNormal0);
+                SetVertexLocalNormal_Direct(newVertNo1_Direct, newLocalNormal1);
+
+                SetVertexBoneWeight_Direct(newVertNo0_Direct, newBoneWeight0);
+                SetVertexBoneWeight_Direct(newVertNo1_Direct, newBoneWeight1);
 
                 // ライン情報の構築。
                 VertexCount += deltaVerticesSize;
@@ -635,21 +724,23 @@ namespace CyDecal.Runtime.Scripts.Core
                     newLocalVert1,
                     newLocalNormal0,
                     newLocalNormal1);
+
+                var endVertNo1_Direct = GetIndexInBufferFromVertexNo((newVertNo_1 + 1) % VertexCount);
                 line_2.SetStartEndAndCalcStartToEnd(
                     newVert1,
-                    GetVertexPosition((newVertNo_1 + 1) % VertexCount),
+                    GetVertexPosition_Direct(endVertNo1_Direct),
                     newNormal1,
-                    GetVertexNormal((newVertNo_1 + 1) % VertexCount),
+                    GetVertexNormal_Direct(endVertNo1_Direct),
                     newLocalVert1,
-                    GetVertexLocalPosition((newVertNo_1 + 1) % VertexCount),
+                    GetVertexLocalPosition_Direct(endVertNo1_Direct),
                     newLocalNormal1,
-                    GetVertexLocalNormal((newVertNo_1 + 1) % VertexCount));
+                    GetVertexLocalNormal_Direct(endVertNo1_Direct));
 
                 line_0.SetEndBoneWeight(newBoneWeight0);
                 line_1.SetStartEndBoneWeights(newBoneWeight0, newBoneWeight1);
                 line_2.SetStartEndBoneWeights(
                     newBoneWeight1,
-                    GetVertexBoneWeight((newVertNo_1 + 1) % VertexCount));
+                    GetVertexBoneWeight_Direct(endVertNo1_Direct));
             }
         }
 
@@ -693,9 +784,9 @@ namespace CyDecal.Runtime.Scripts.Core
                 v0ToIntersectPos.Normalize();
                 v1ToIntersectPos.Normalize();
                 v2ToIntersectPos.Normalize();
-                var v0ToV1 = GetLine(0).StartToEndVec;
-                var v1ToV2 = GetLine(1).StartToEndVec;
-                var v2ToV0 = GetLine(2).StartToEndVec;
+                var v0ToV1 = GetLineRef(0).StartToEndVec;
+                var v1ToV2 = GetLineRef(1).StartToEndVec;
+                var v2ToV0 = GetLineRef(2).StartToEndVec;
                 v0ToV1.Normalize();
                 v1ToV2.Normalize();
                 v2ToV0.Normalize();
@@ -724,9 +815,16 @@ namespace CyDecal.Runtime.Scripts.Core
         /// </summary>
         /// <param name="vertNo">頂点番号</param>
         /// <returns>ボーンウェイト</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public BoneWeight GetVertexBoneWeight(int vertNo)
         {
             return _boneWeightBuffer[GetIndexInBufferFromVertexNo(vertNo)];
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public BoneWeight GetVertexBoneWeight_Direct(int vertNo)
+        {
+            return _boneWeightBuffer[vertNo];
         }
 
         /// <summary>
@@ -734,9 +832,16 @@ namespace CyDecal.Runtime.Scripts.Core
         /// </summary>
         /// <param name="vertNo"></param>
         /// <param name="boneWeight"></param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SetVertexBoneWeight(int vertNo, BoneWeight boneWeight)
         {
             _boneWeightBuffer[GetIndexInBufferFromVertexNo(vertNo)] = boneWeight;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void SetVertexBoneWeight_Direct(int vertNo, BoneWeight boneWeight)
+        {
+            _boneWeightBuffer[vertNo] = boneWeight;
         }
 
         /// <summary>
@@ -749,7 +854,12 @@ namespace CyDecal.Runtime.Scripts.Core
             _boneWeightBuffer[GetIndexInBufferFromVertexNo(destVertNo)] =
                 _boneWeightBuffer[GetIndexInBufferFromVertexNo(srcVertNo)];
         }
-        
+
+        private void CopyVertexBoneWeight_Direct(int destVertNo, int srcVertNo)
+        {
+            _boneWeightBuffer[destVertNo] = _boneWeightBuffer[srcVertNo];
+        }
+
         /// <summary>
         ///     行列をスカラー倍する
         /// </summary>
@@ -817,11 +927,8 @@ namespace CyDecal.Runtime.Scripts.Core
             mOut.m33 += m.m33 * s;
         }
 
-        private Matrix4x4 _localToWorldMatrix;
-        private bool _existsRootBone;
-
         /// <summary>
-        /// ワーカースレッドで処理を走らせる前の準備処理。
+        ///     ワーカースレッドで処理を走らせる前の準備処理。
         /// </summary>
         public void PrepareRunActionByWorkerThread()
         {
@@ -836,17 +943,21 @@ namespace CyDecal.Runtime.Scripts.Core
                 _existsRootBone = false;
             }
         }
-        public void CalculatePositionsAndNormalsInWorldSpace(Matrix4x4[][] boneMatricesPallet, 
+
+        public void CalculatePositionsAndNormalsInWorldSpace(Matrix4x4[][] boneMatricesPallet,
             Matrix4x4[] localToWorldMatrices, BoneWeight[] boneWeights)
         {
+            var vertNo0_Direct = GetIndexInBufferFromVertexNo(0);
+            var vertNo1_Direct = GetIndexInBufferFromVertexNo(1);
+            var vertNo2_Direct = GetIndexInBufferFromVertexNo(2);
             if (_isSkinnedMeshRenderer)
             {
                 if (_existsRootBone)
                 {
-                    boneWeights[0] = GetVertexBoneWeight(0);
-                    boneWeights[1] = GetVertexBoneWeight(1);
-                    boneWeights[2] = GetVertexBoneWeight(2);
-                    
+                    boneWeights[0] = GetVertexBoneWeight_Direct(vertNo0_Direct);
+                    boneWeights[1] = GetVertexBoneWeight_Direct(vertNo1_Direct);
+                    boneWeights[2] = GetVertexBoneWeight_Direct(vertNo2_Direct);
+
                     var boneMatrices = boneMatricesPallet[_rendererNo];
                     Multiply(ref localToWorldMatrices[0],
                         boneMatrices[boneWeights[0].boneIndex0],
@@ -908,36 +1019,43 @@ namespace CyDecal.Runtime.Scripts.Core
                 localToWorldMatrices[1] = _localToWorldMatrix;
                 localToWorldMatrices[2] = _localToWorldMatrix;
             }
-            SetVertexPosition(0, localToWorldMatrices[0].MultiplyPoint3x4(GetVertexLocalPosition(0)));
-            SetVertexPosition(1, localToWorldMatrices[1].MultiplyPoint3x4(GetVertexLocalPosition(1)));
-            SetVertexPosition(2, localToWorldMatrices[2].MultiplyPoint3x4(GetVertexLocalPosition(2)));
-            
-            SetVertexNormal(0, localToWorldMatrices[0].MultiplyVector(GetVertexLocalNormal(0)));
-            SetVertexNormal(1, localToWorldMatrices[1].MultiplyVector(GetVertexLocalNormal(1)));
-            SetVertexNormal(2, localToWorldMatrices[2].MultiplyVector(GetVertexLocalNormal(2)));
-            
+
+            SetVertexPosition_Direct(vertNo0_Direct,
+                localToWorldMatrices[0].MultiplyPoint3x4(GetVertexLocalPosition_Direct(vertNo0_Direct)));
+            SetVertexPosition_Direct(vertNo1_Direct,
+                localToWorldMatrices[1].MultiplyPoint3x4(GetVertexLocalPosition_Direct(vertNo1_Direct)));
+            SetVertexPosition_Direct(vertNo2_Direct,
+                localToWorldMatrices[2].MultiplyPoint3x4(GetVertexLocalPosition_Direct(vertNo2_Direct)));
+
+            SetVertexNormal_Direct(vertNo0_Direct,
+                localToWorldMatrices[0].MultiplyVector(GetVertexLocalNormal_Direct(vertNo0_Direct)));
+            SetVertexNormal_Direct(vertNo1_Direct,
+                localToWorldMatrices[1].MultiplyVector(GetVertexLocalNormal_Direct(vertNo1_Direct)));
+            SetVertexNormal_Direct(vertNo2_Direct,
+                localToWorldMatrices[2].MultiplyVector(GetVertexLocalNormal_Direct(vertNo2_Direct)));
+
             for (var vertNo = 0; vertNo < VertexCount; vertNo++)
             {
-                var nextVertNo = (vertNo + 1) % VertexCount;
+                var startVertNo_Direct = GetIndexInBufferFromVertexNo(vertNo);
+                var nextVertNo_Direct = GetIndexInBufferFromVertexNo((vertNo + 1) % VertexCount);
                 ref var line = ref GetLineRef(vertNo);
                 line.Initialize(
-                    GetVertexPosition(vertNo),
-                    GetVertexPosition(nextVertNo),
-                    GetVertexNormal(vertNo),
-                    GetVertexNormal(nextVertNo),
-                    GetVertexBoneWeight(vertNo),
-                    GetVertexBoneWeight(nextVertNo),
-                    GetVertexLocalPosition(vertNo),
-                    GetVertexLocalPosition(nextVertNo),
-                    GetVertexLocalNormal(vertNo),
-                    GetVertexLocalNormal(nextVertNo));
+                    GetVertexPosition_Direct(startVertNo_Direct),
+                    GetVertexPosition_Direct(nextVertNo_Direct),
+                    GetVertexNormal_Direct(startVertNo_Direct),
+                    GetVertexNormal_Direct(nextVertNo_Direct),
+                    GetVertexBoneWeight_Direct(startVertNo_Direct),
+                    GetVertexBoneWeight_Direct(nextVertNo_Direct),
+                    GetVertexLocalPosition_Direct(startVertNo_Direct),
+                    GetVertexLocalPosition_Direct(nextVertNo_Direct),
+                    GetVertexLocalNormal_Direct(startVertNo_Direct),
+                    GetVertexLocalNormal_Direct(nextVertNo_Direct));
             }
-            
+
             _faceNormal = Vector3.Cross(
-                GetVertexPosition(1) - GetVertexPosition(0),
-                GetVertexPosition(2) - GetVertexPosition(0));
+                GetVertexPosition_Direct(vertNo1_Direct) - GetVertexPosition_Direct(vertNo0_Direct),
+                GetVertexPosition_Direct(vertNo2_Direct) - GetVertexPosition_Direct(vertNo0_Direct));
             _faceNormal.Normalize();
         }
-        
     }
 }

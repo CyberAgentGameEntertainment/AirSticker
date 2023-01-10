@@ -25,7 +25,7 @@ namespace CyDecal.Runtime.Scripts
             LaunchingCompleted,
             LaunchingCanceled
         }
-        
+
         [SerializeField] private float width; // デカールボックスの幅
         [SerializeField] private float height; // デカールボックスの高さ
         [SerializeField] private float depth; // デカールボックスの奥行
@@ -38,11 +38,12 @@ namespace CyDecal.Runtime.Scripts
         [SerializeField] private UnityEvent<State> onFinishedLaunch; //　デカールの投影処理が終了したときに呼ばれるイベント。
 
         private readonly Vector4[] _clipPlanes = new Vector4[(int)ClipPlane.Num]; // 分割平面
-        private List<ConvexPolygonInfo> _convexPolygonInfos;
         private List<ConvexPolygonInfo> _broadPhaseConvexPolygonInfos = new List<ConvexPolygonInfo>();
+        private List<ConvexPolygonInfo> _convexPolygonInfos;
         private CyDecalSpace _decalSpace; // デカール空間。
+        private bool _executeLaunchingOnWorkerThread;
         public State NowState { get; private set; } = State.NotLaunch;
-        private bool _executeLaunchingOnWorkerThread; 
+
         /// <summary>
         ///     .
         ///     生成されたデカールメッシュのリストのプロパティ
@@ -144,10 +145,10 @@ namespace CyDecal.Runtime.Scripts
 
             // 編集するデカールメッシュを収集する。
             CyDecalSystem.CollectEditDecalMeshes(DecalMeshes, receiverObject, decalMaterial);
-            
+
             var skinnedMeshRenderers = receiverObject.GetComponentsInChildren<SkinnedMeshRenderer>();
             skinnedMeshRenderers = skinnedMeshRenderers.Where(s => s.name != "CyDecalRenderer").ToArray();
-            
+
             if (CyDecalSystem.ReceiverObjectTrianglePolygonsPool.Contains(receiverObject) == false)
             {
                 // 新規登録
@@ -168,7 +169,7 @@ namespace CyDecal.Runtime.Scripts
                 OnFinished(State.LaunchingCanceled);
                 yield break;
             }
-            
+
             _convexPolygonInfos = CyDecalSystem.GetTrianglePolygonsFromPool(
                 receiverObject);
 
@@ -178,26 +179,19 @@ namespace CyDecal.Runtime.Scripts
             var projectorPosition = transform.position;
             // basePosition is center of the decal box.
             var centerPositionOfDecalBox = transform.position + transform.forward * depth * 0.5f;
-            foreach (var cyDecalMesh in DecalMeshes)
-            {
-                cyDecalMesh.PrepareAddPolygonsToDecalMesh();
-            }
-            for (int polyNo = 0; polyNo < _convexPolygonInfos.Count; polyNo++)
-            {
+            foreach (var cyDecalMesh in DecalMeshes) cyDecalMesh.PrepareAddPolygonsToDecalMesh();
+            for (var polyNo = 0; polyNo < _convexPolygonInfos.Count; polyNo++)
                 _convexPolygonInfos[polyNo].ConvexPolygon.PrepareRunActionByWorkerThread();
-            }
             // Split Convex Polygon.
             _executeLaunchingOnWorkerThread = true;
             ThreadPool.QueueUserWorkItem(RunActionByWorkerThread, new Action(() =>
             {
                 var localToWorldMatrices = new Matrix4x4[3];
                 var boneWeights = new BoneWeight[3];
-                for (int polyNo = 0; polyNo < _convexPolygonInfos.Count; polyNo++)
-                {
+                for (var polyNo = 0; polyNo < _convexPolygonInfos.Count; polyNo++)
                     _convexPolygonInfos[polyNo].ConvexPolygon.CalculatePositionsAndNormalsInWorldSpace(
                         boneMatricesPallet, localToWorldMatrices, boneWeights);
-                }
-                
+
                 _broadPhaseConvexPolygonInfos = CyBroadPhaseConvexPolygonsDetection.Execute(
                     projectorPosition,
                     _decalSpace.Ez,
@@ -210,14 +204,14 @@ namespace CyDecal.Runtime.Scripts
                 SplitConvexPolygonsByPlanes();
                 AddTrianglePolygonsToDecalMeshFromConvexPolygons(centerPositionOfDecalBox);
                 _executeLaunchingOnWorkerThread = false;
-
             }));
             // Waiting to worker thread.
             while (_executeLaunchingOnWorkerThread) yield return null;
-            
+
             foreach (var cyDecalMesh in DecalMeshes) cyDecalMesh.PostProcessAddPolygonsToDecalMesh();
             OnFinished(State.LaunchingCompleted);
             _convexPolygonInfos = null;
+
             yield return null;
         }
 
@@ -265,6 +259,7 @@ namespace CyDecal.Runtime.Scripts
 
             return projector;
         }
+
         /// <summary>
         ///     デカール投影を始める。
         /// </summary>
