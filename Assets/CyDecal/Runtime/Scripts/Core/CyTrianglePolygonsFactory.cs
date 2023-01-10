@@ -7,7 +7,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using Unity.Collections;
 using UnityEngine;
 
@@ -33,14 +32,20 @@ namespace CyDecal.Runtime.Scripts.Core
         private NativeArray<Vector3> _workingVertexPositions =
             new NativeArray<Vector3>(MaxWorkingVertexCount, Allocator.Persistent);
 
+        private bool _disposed = false;
         public static int MaxGeneratedPolygonPerFrame { get; set; } = 100000; //
+#if MEASUREMENT_METHOD_BuildFromSkinMeshRenderer
         public static float[] Time_BuildFromSkinMeshRenderer { get; set; } = new float[3];
+#endif
 
         public void Dispose()
         {
+            if (_disposed) return;
             _workingVertexPositions.Dispose();
             _workingVertexNormals.Dispose();
             _workingTriangles.Dispose();
+            _disposed = true;
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
