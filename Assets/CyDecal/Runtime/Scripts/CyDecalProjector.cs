@@ -265,7 +265,6 @@ namespace CyDecal.Runtime.Scripts
 
             return projector;
         }
-
         /// <summary>
         ///     デカール投影を始める。
         /// </summary>

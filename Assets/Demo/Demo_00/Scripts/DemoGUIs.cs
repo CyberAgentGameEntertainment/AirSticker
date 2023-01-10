@@ -30,12 +30,18 @@ namespace Demo.Demo_00.Scripts
 
         public void OnClickChange()
         {
-            // 止まった。
-            CyDecalSystem.ReceiverObjectTrianglePolygonsPool.Clear();
-            StopAnimation();
-            StopRotation();
             var launcher = decalProjectorLauncherObject.GetComponent<Demo00>();
             launcher.SetNextReceiverObject();
+            
+            if (_isPlayAnim)
+                launcher.PlayAnimationToReceiverObject();
+            else
+                launcher.StopAnimationToReceiverObject();
+            
+            if (_isPlayRot)
+                launcher.PlayRotateToCurrentReceiverObject();
+            else
+                launcher.StopRotateToCurrentReceiverObject();
         }
 
         public void OnClickPlayAnim()
@@ -92,23 +98,23 @@ namespace Demo.Demo_00.Scripts
 
         public void StopAnimation()
         {
-            /*if (!_isPlayAnim) return;
+            if (!_isPlayAnim) return;
             _isPlayAnim = false;
             var launcher = decalProjectorLauncherObject.GetComponent<Demo00>();
             if (launcher.HasAnimatorInCurrentReceiverObject() == false) return;
             var text = playAnimTextObject.GetComponent<Text>();
             text.text = "Play Anim";
-            launcher.StopAnimationToReceiverObject();*/
+            launcher.StopAnimationToReceiverObject();
         }
 
         public void StopRotation()
         {
-            /*if (!_isPlayRot) return;
+            if (!_isPlayRot) return;
             var text = playRotTextObject.GetComponent<Text>();
             text.text = "Play Rot";
             _isPlayRot = false;
             var launcher = decalProjectorLauncherObject.GetComponent<Demo00>();
-            launcher.StopRotateToCurrentReceiverObject();*/
+            launcher.StopRotateToCurrentReceiverObject();
         }
 
         public void OnClickRunAgingTest()
