@@ -32,7 +32,7 @@ namespace CyDecal.Runtime.Scripts.Core
             threshold *= 1.414f;
             threshold *= threshold;
             
-            int broacphaseConvexPolygonCount = 0;
+            int broadPhaseConvexPolygonCount = 0;
             for (var i = 0; i < convexPolygonInfos.Count; i++)
             {
                 var convexPolygonInfo = convexPolygonInfos[i];
@@ -62,16 +62,16 @@ namespace CyDecal.Runtime.Scripts.Core
                     }
                 }
 
-                broacphaseConvexPolygonCount++;
+                broadPhaseConvexPolygonCount++;
             }
             
-            var broadPhaseConvexPolygonInfos = new List<ConvexPolygonInfo>(broacphaseConvexPolygonCount);
-            var positionBuffer = new Vector3[CyConvexPolygon.DefaultMaxVertex * broacphaseConvexPolygonCount];
-            var normalBuffer = new Vector3[CyConvexPolygon.DefaultMaxVertex * broacphaseConvexPolygonCount];
-            var localPositionBuffer = new Vector3[CyConvexPolygon.DefaultMaxVertex * broacphaseConvexPolygonCount];
-            var localNormalBuffer = new Vector3[CyConvexPolygon.DefaultMaxVertex * broacphaseConvexPolygonCount];
-            var boneWeightBuffer = new BoneWeight[CyConvexPolygon.DefaultMaxVertex * broacphaseConvexPolygonCount];
-            var lineBuffer = new CyLine[CyConvexPolygon.DefaultMaxVertex * broacphaseConvexPolygonCount];
+            var broadPhaseConvexPolygonInfos = new List<ConvexPolygonInfo>(broadPhaseConvexPolygonCount);
+            var positionBuffer = new Vector3[CyConvexPolygon.DefaultMaxVertex * broadPhaseConvexPolygonCount];
+            var normalBuffer = new Vector3[CyConvexPolygon.DefaultMaxVertex * broadPhaseConvexPolygonCount];
+            var localPositionBuffer = new Vector3[CyConvexPolygon.DefaultMaxVertex * broadPhaseConvexPolygonCount];
+            var localNormalBuffer = new Vector3[CyConvexPolygon.DefaultMaxVertex * broadPhaseConvexPolygonCount];
+            var boneWeightBuffer = new BoneWeight[CyConvexPolygon.DefaultMaxVertex * broadPhaseConvexPolygonCount];
+            var lineBuffer = new CyLine[CyConvexPolygon.DefaultMaxVertex * broadPhaseConvexPolygonCount];
             var startOffsetInBuffer = 0;
              
             for (var i = 0; i < convexPolygonInfos.Count; i++)
