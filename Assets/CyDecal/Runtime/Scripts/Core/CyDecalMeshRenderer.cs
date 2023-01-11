@@ -2,19 +2,10 @@ using UnityEngine;
 
 namespace CyDecal.Runtime.Scripts.Core
 {
-    /// <summary>
-    ///     デカールメッシュのレンダラー
-    /// </summary>
     internal sealed class CyDecalMeshRenderer
     {
         private readonly Renderer _renderer;
-
-        /// <summary>
-        ///     コンストラクタ
-        /// </summary>
-        /// <param name="receiverRenderer">デカールメッシュのレシーバーオブジェクトのレンダラー</param>
-        /// <param name="decalMaterial">デカールマテリアル</param>
-        /// <param name="mesh">デカールメッシュ</param>
+        
         public CyDecalMeshRenderer(Renderer receiverRenderer, Material decalMaterial, Mesh mesh)
         {
             Owner = new GameObject("CyDecalRenderer");
@@ -42,19 +33,13 @@ namespace CyDecal.Runtime.Scripts.Core
             Owner.transform.localScale = Vector3.one;
         }
 
-        public GameObject Owner { get; }
-
-        /// <summary>
-        ///     デカールメッシュレンダラーを無効にする。
-        /// </summary>
+        private GameObject Owner { get; }
+        
         public void DisableDecalMeshRenderer()
         {
             _renderer.gameObject.SetActive(false);
         }
-
-        /// <summary>
-        ///     デカールメッシュレンダラーを有効にする。
-        /// </summary>
+        
         public void EnableDecalMeshRenderer()
         {
             _renderer.gameObject.SetActive(true);

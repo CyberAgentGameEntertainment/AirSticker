@@ -3,17 +3,17 @@ using UnityEngine;
 namespace CyDecal.Runtime.Scripts.Core
 {
     /// <summary>
-    ///     ラインを表すクラス。
+    ///     Line of convex polygons.
     /// </summary>
     public struct CyLine
     {
-        public Vector3 StartPosition { get; private set; } // ラインの始点の座標
-        public Vector3 EndPosition { get; private set; } // ラインの終点の座標
-        public Vector3 StartToEndVec { get; private set; } // 始点から終点に向かって伸びるベクトル
-        public Vector3 StartNormal { get; private set; } // 始点の法線
-        public Vector3 EndNormal { get; private set; } // 終点の法線
-        public BoneWeight StartWeight { get; private set; } // 始点のボーンウェイト
-        public BoneWeight EndWeight { get; private set; } // 終点のボーンウェイト
+        public Vector3 StartPosition { get; private set; }
+        public Vector3 EndPosition { get; private set; } 
+        public Vector3 StartToEndVec { get; private set; }
+        public Vector3 StartNormal { get; private set; } 
+        public Vector3 EndNormal { get; private set; }
+        public BoneWeight StartWeight { get; private set; } 
+        public BoneWeight EndWeight { get; private set; }
         public Vector3 StartLocalPosition { get; private set; }
         public Vector3 EndLocalPosition { get; private set; }
         public Vector3 StartLocalNormal { get; private set; }

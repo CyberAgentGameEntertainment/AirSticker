@@ -8,33 +8,29 @@ namespace CyDecal.Runtime.Scripts.Core
         void Update();
     }
     /// <summary>
-    ///     デカールプロジェクターのランチャー
+    ///     Launcher of decal projector.
     /// </summary>
     /// <remarks>
-    ///     デカールプロジェクターはランチャークラスを経由して起動します。
-    ///     起動リクエストは待ち行列にキューイングされて、適切なタイミングでデカールプロジェクターがローンチされます。
+    ///     The decal projector is activated via this class.
+    ///     The decal projector is queued in the queue and it is launched at the appropriate time.
     /// </remarks>
     public sealed class CyDecalProjectorLauncher : ICyDecalProjectorLauncher
     {
-        private LaunchRequest _currentRequest; // 現在実行中のリクエスト。
+        private LaunchRequest _currentRequest;
         private readonly Queue<LaunchRequest> _launchRequestQueues = new Queue<LaunchRequest>();
 
         /// <summary>
-        ///     起動リクエストを待ち行列にキューイング
+        ///     Queueing startup requests to the queue.
         /// </summary>
         public void Request(CyDecalProjector projector, Action onLaunch)
         {
             _launchRequestQueues.Enqueue(new LaunchRequest(projector, onLaunch));
         }
-
-        /// <summary>
-        ///     現在処理中のリクエストの処理が完了しているか判定。
-        /// </summary>
-        /// <returns></returns>
+        
         private bool IsCurrentRequestIsFinished()
         {
-            return _currentRequest == null // そもそもリクエストを発行していない
-                   || !_currentRequest.Projector // リクエストを投げたプロジェクターが死亡している。
+            return _currentRequest == null // The request is empty.
+                   || !_currentRequest.Projector // Projector that threw the request is dead.
                    || _currentRequest.Projector.NowState == CyDecalProjector.State.LaunchingCompleted; // プロジェクションが完了している。
         }
 
@@ -42,40 +38,30 @@ namespace CyDecal.Runtime.Scripts.Core
         {
             if (!IsCurrentRequestIsFinished())
             {
-                //　まだ処理中なので次のリクエストの処理は行わない。
+                // The current request is still running, so returned.
                 return;
             }
-
-            // 次のリクエストを処理する。
+            
             ProcessNextRequest();
         }
-
-        /// <summary>
-        ///     次のリクエストを処理する。
-        /// </summary>
+        
         private void ProcessNextRequest()
         {
             while (_launchRequestQueues.Count > 0)
             {
                 _currentRequest = _launchRequestQueues.Peek();
                 _launchRequestQueues.Dequeue();
-                if (!_currentRequest.Projector) continue; // このリクエストはすでに死んでいるので次。
+                if (!_currentRequest.Projector) continue; // This request was dead, so skipped.
                 _currentRequest.OnLaunch();
-                // ラウンチしたので抜ける。
                 break;
             }
         }
-
-        /// <summary>
-        ///     待ち状態のリクエスト数を取得
-        /// </summary>
-        /// <returns></returns>
+        
         public int GetWaitingRequestCount()
         {
             return _launchRequestQueues.Count;
         }
-
-        // ラウンチリクエスト
+        
         private class LaunchRequest
         {
             public LaunchRequest(CyDecalProjector projector, Action onLaunch)

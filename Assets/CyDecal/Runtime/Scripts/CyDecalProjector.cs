@@ -181,9 +181,7 @@ namespace CyDecal.Runtime.Scripts
             var projectorPosition = transform1.position;
             // basePosition is center of the decal box.
             var centerPositionOfDecalBox = projectorPosition + transform1.forward * (depth * 0.5f);
-
-            for (var meshNo = 0; meshNo < DecalMeshes.Count; meshNo++)
-                DecalMeshes[meshNo].PrepareToRunOnWorkerThread();
+            
             for (var polyNo = 0; polyNo < _convexPolygonInfos.Count; polyNo++)
                 _convexPolygonInfos[polyNo].ConvexPolygon.PrepareToRunOnWorkerThread();
 
@@ -325,7 +323,7 @@ namespace CyDecal.Runtime.Scripts
             }
 
             foreach (var cyDecalMesh in DecalMeshes)
-                cyDecalMesh.AddPolygonsToDecalMesh(
+                cyDecalMesh.AddTrianglePolygonsToDecalMesh(
                     convexPolygons,
                     originPosInDecalSpace,
                     _decalSpace.Ez,
