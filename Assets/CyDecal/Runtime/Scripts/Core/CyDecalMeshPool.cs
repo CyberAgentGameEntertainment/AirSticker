@@ -15,41 +15,31 @@ namespace CyDecal.Runtime.Scripts.Core
         void Dispose();
         void GarbageCollect();
     }
+
     /// <summary>
     ///     Decal mesh pool.
     /// </summary>
     public sealed class CyDecalMeshPool : ICyDecalMeshPool
     {
         private readonly Dictionary<int, CyDecalMesh> _decalMeshes = new Dictionary<int, CyDecalMesh>();
-        
+
         public int GetPoolSize()
         {
             return _decalMeshes.Count;
         }
-        
+
         void ICyDecalMeshPool.DisableDecalMeshRenderers()
         {
             foreach (var decalMesh in _decalMeshes) decalMesh.Value.DisableDecalMeshRenderer();
         }
-        
+
         void ICyDecalMeshPool.EnableDecalMeshRenderers()
         {
             foreach (var decalMesh in _decalMeshes) decalMesh.Value.EnableDecalMeshRenderer();
         }
 
         /// <summary>
-        ///     Calculate the hash value to be registered in the pool
-        /// </summary>
-        public static int CalculateHash(GameObject receiverObject, Renderer renderer, Material decalMaterial)
-        {
-            return receiverObject.GetInstanceID()
-                   + decalMaterial.name.GetHashCode()
-                   + renderer.GetInstanceID();
-        }
-
-        /// <summary>
         ///     Determines if a decal mesh of the specified hash value is registered in the pool.
-        /// 
         /// </summary>
         /// <param name="hash">
         ///     The hash value.
@@ -73,6 +63,7 @@ namespace CyDecal.Runtime.Scripts.Core
         {
             _decalMeshes.Add(hash, decalMesh);
         }
+
         /// <summary>
         ///     Get the decal mesh from pool.
         /// </summary>
@@ -87,11 +78,9 @@ namespace CyDecal.Runtime.Scripts.Core
 
         void ICyDecalMeshPool.Dispose()
         {
-            foreach (var item in _decalMeshes)
-            {
-                item.Value?.Dispose();
-            }
+            foreach (var item in _decalMeshes) item.Value?.Dispose();
         }
+
         /// <summary>
         ///     Garbage collect unreferenced decal mesh
         /// </summary>
@@ -104,6 +93,16 @@ namespace CyDecal.Runtime.Scripts.Core
                 item.Value.Dispose();
                 _decalMeshes.Remove(item.Key);
             }
+        }
+
+        /// <summary>
+        ///     Calculate the hash value to be registered in the pool
+        /// </summary>
+        public static int CalculateHash(GameObject receiverObject, Renderer renderer, Material decalMaterial)
+        {
+            return receiverObject.GetInstanceID()
+                   + decalMaterial.name.GetHashCode()
+                   + renderer.GetInstanceID();
         }
     }
 }

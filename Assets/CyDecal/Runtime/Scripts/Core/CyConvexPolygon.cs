@@ -11,13 +11,13 @@ namespace CyDecal.Runtime.Scripts.Core
     public sealed class CyConvexPolygon
     {
         public const int DefaultMaxVertex = 64;
-        private readonly BoneWeight[] _boneWeightBuffer; 
+        private readonly BoneWeight[] _boneWeightBuffer;
         private readonly bool _isSkinnedMeshRenderer;
         private readonly CyLine[] _lineBuffer;
-        private readonly Vector3[] _normalInModelSpaceBuffer;
-        private readonly Vector3[] _positionInModelSpaceBuffer;
         private readonly int _maxVertex;
+        private readonly Vector3[] _normalInModelSpaceBuffer;
         private readonly Vector3[] _normalInWorldSpaceBuffer;
+        private readonly Vector3[] _positionInModelSpaceBuffer;
         private readonly Vector3[] _positionInWorldSpaceBuffer;
         private readonly int _rendererNo;
         private readonly int _startOffsetInBuffer;
@@ -26,8 +26,8 @@ namespace CyDecal.Runtime.Scripts.Core
         private Matrix4x4 _localToWorldMatrix;
 
         /// <summary>
-        ///     Constructor.<br/>
-        ///     Buffers for the various arguments must be allocated for the required size.<br/>
+        ///     Constructor.<br />
+        ///     Buffers for the various arguments must be allocated for the required size.<br />
         /// </summary>
         /// <param name="positionInWorldSpaceBuffer">Buffer of vertex position in world space.</param>
         /// <param name="normalInWorldSpaceBuffer">Buffer of vertex normal in world space.</param>
@@ -37,15 +37,15 @@ namespace CyDecal.Runtime.Scripts.Core
         /// <param name="normalInModelSpaceBuffer">Buffer of vertex normal in model space.</param>
         /// <param name="receiverMeshRenderer">Receiver mesh renderer which the decal mesh will be attached.</param>
         /// <param name="startOffsetInBuffer">
-        ///     offset of start index in buffer.<br/>
+        ///     offset of start index in buffer.<br />
         ///     The value of this variable is the starting position where the vertex information of this polygon is stored.
         /// </param>
         /// <param name="initVertexCount">Initial count of vertices of convex polygon</param>
         /// <param name="rendererNo">Number of receiver mesh renderer.</param>
         /// <param name="maxVertex">
-        ///     Maximum number of vertices in a convex polygon.<br/>
-        ///     A convex polygon can be divided up to the value of this argument.<br/>
-        ///     If not specified, the value of DefaultMaxVertex is the maximum number of vertices.<br/>
+        ///     Maximum number of vertices in a convex polygon.<br />
+        ///     A convex polygon can be divided up to the value of this argument.<br />
+        ///     If not specified, the value of DefaultMaxVertex is the maximum number of vertices.<br />
         /// </param>
         public CyConvexPolygon(
             Vector3[] positionInWorldSpaceBuffer,
@@ -75,16 +75,16 @@ namespace CyDecal.Runtime.Scripts.Core
         }
 
         /// <summary>
-        ///     Copy Constructor.<br/>
-        ///     The contents of the various buffers held by the source convex polygon are copied only as needed, not all.<br/>
-        ///     Also, Buffers for the various arguments must be allocated for the required size.<br/>
+        ///     Copy Constructor.<br />
+        ///     The contents of the various buffers held by the source convex polygon are copied only as needed, not all.<br />
+        ///     Also, Buffers for the various arguments must be allocated for the required size.<br />
         /// </summary>
         /// <param name="srcConvexPolygon">Convex polygon of copy source.</param>
         /// <param name="startOffsetInBuffer">offset of start index in buffer.</param>
         /// <param name="maxVertex">
-        ///     max vertex of convex polygon.<br/>
-        ///     Specify the maximum number of vertices when you want to change the number of vertices that can be divided.<br/>
-        ///     If the maximum number of vertices is less than the value of maxVertex in srcConvexPolygon, it is ignored.<br/>
+        ///     max vertex of convex polygon.<br />
+        ///     Specify the maximum number of vertices when you want to change the number of vertices that can be divided.<br />
+        ///     If the maximum number of vertices is less than the value of maxVertex in srcConvexPolygon, it is ignored.<br />
         /// </param>
         /// <param name="positionInWorldSpaceBuffer">Buffer of vertex position in world space.</param>
         /// <param name="normalInWorldSpaceBuffer">Buffer of vertex normal in world space.</param>
@@ -128,6 +128,7 @@ namespace CyDecal.Runtime.Scripts.Core
 
             _faceNormal = srcConvexPolygon._faceNormal;
         }
+
         public Vector3 FaceNormal => _faceNormal;
         public int VertexCount { get; private set; }
 
@@ -135,7 +136,7 @@ namespace CyDecal.Runtime.Scripts.Core
         ///     The receiver mesh renderer which the decal mesh will be attached.
         /// </summary>
         public Renderer ReceiverMeshRenderer { get; }
-        
+
         private void CalculateNewVertexDataBySplitPlane(
             out Vector3 newVert0,
             out Vector3 newVert1,
@@ -268,13 +269,13 @@ namespace CyDecal.Runtime.Scripts.Core
         {
             return _positionInWorldSpaceBuffer[vertNo];
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SetVertexPositionInWorldSpace(int vertNo, Vector3 position)
         {
             _positionInWorldSpaceBuffer[vertNo] = position;
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void CopyVertexPositionInWorldSpace(int destVertNo, int srcVertNo)
         {
@@ -294,13 +295,13 @@ namespace CyDecal.Runtime.Scripts.Core
         {
             return _positionInModelSpaceBuffer[vertNo];
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SetVertexPositionInModelSpace(int vertNo, Vector3 position)
         {
             _positionInModelSpaceBuffer[vertNo] = position;
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void CopyVertexPositionInModelSpace(int destVertNo, int srcVertNo)
         {
@@ -320,13 +321,13 @@ namespace CyDecal.Runtime.Scripts.Core
         {
             return _normalInWorldSpaceBuffer[vertNo];
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SetVertexNormalInWorldSpace(int vertNo, Vector3 normal)
         {
             _normalInWorldSpaceBuffer[vertNo] = normal;
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void CopyVertexNormalInWorldSpace(int destVertNo, int srcVertNo)
         {
@@ -346,37 +347,37 @@ namespace CyDecal.Runtime.Scripts.Core
         {
             return _normalInModelSpaceBuffer[vertNo];
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SetVertexNormalInModelSpace(int vertNo, Vector3 normal)
         {
             _normalInModelSpaceBuffer[vertNo] = normal;
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void CopyVertexNormalInModelSpace(int destVertNo, int srcVertNo)
         {
             _normalInModelSpaceBuffer[destVertNo] = _normalInModelSpaceBuffer[srcVertNo];
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private CyLine GetLine(int startVertNo)
         {
             return _lineBuffer[startVertNo];
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private ref CyLine GetLineRef(int startVertNo)
         {
             return ref _lineBuffer[startVertNo];
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void CopyLine(int destStartVertNo, int srcStartVertNo)
         {
             _lineBuffer[destStartVertNo] = _lineBuffer[srcStartVertNo];
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static Vector4 Vector3ToVector4(Vector3 v)
         {
@@ -389,7 +390,8 @@ namespace CyDecal.Runtime.Scripts.Core
         /// <remarks>
         ///     If a convex polygon can be divided by a plane, the division process is performed to create a new convex polygon.
         ///     Also, vertices outside (on the negative side) of the plane are discarded in this case.
-        ///     For example, if a triangle is divided by a plane, it will be divided into a quadrangle and a triangle, but In this case,
+        ///     For example, if a triangle is divided by a plane, it will be divided into a quadrangle and a triangle, but In this
+        ///     case,
         ///     information about either of the polygons (polygons outside the plane) will be lost after the division.
         ///     Also, set allVertexIsOutside to true if all vertices that make up the convex polygon are outside the plane.
         /// </remarks>
@@ -398,7 +400,7 @@ namespace CyDecal.Runtime.Scripts.Core
         public void SplitAndRemoveByPlane(Vector4 clipPlane, out bool allVertexIsOutside)
         {
             allVertexIsOutside = false;
-            
+
             var numOutsideVertex = 0;
             var removeVertStartNo = -1;
             var removeVertEndNo = 0;
@@ -462,7 +464,7 @@ namespace CyDecal.Runtime.Scripts.Core
 
                     vertNo++;
                 }
-                
+
                 CalculateNewVertexDataBySplitPlane(
                     out var newVert0,
                     out var newVert1,
@@ -637,7 +639,7 @@ namespace CyDecal.Runtime.Scripts.Core
                     GetVertexBoneWeight(endVertNo1_Direct));
             }
         }
-        
+
         public bool IsIntersectRayToTriangle(out Vector3 hitPoint, Vector3 rayStartPos, Vector3 rayEndPos)
         {
             hitPoint = Vector3.zero;
@@ -740,7 +742,7 @@ namespace CyDecal.Runtime.Scripts.Core
         {
             _boneWeightBuffer[destVertNo] = _boneWeightBuffer[srcVertNo];
         }
-        
+
         private static void Multiply(ref Matrix4x4 mOut, Matrix4x4 m, float s)
         {
             mOut = m;
@@ -764,7 +766,7 @@ namespace CyDecal.Runtime.Scripts.Core
             mOut.m32 *= s;
             mOut.m33 *= s;
         }
-        
+
         private static void MultiplyAdd(ref Matrix4x4 mOut, Matrix4x4 m, float s)
         {
             mOut.m00 += m.m00 * s;
@@ -793,7 +795,7 @@ namespace CyDecal.Runtime.Scripts.Core
         /// </summary>
         /// <remarks>
         ///     Some unity APIs aren't working on the worker threads.
-        ///     Therefore, cache the necessary data in the worker thread. 
+        ///     Therefore, cache the necessary data in the worker thread.
         /// </remarks>
         public void PrepareToRunOnWorkerThread()
         {

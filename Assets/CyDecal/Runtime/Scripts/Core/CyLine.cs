@@ -8,16 +8,17 @@ namespace CyDecal.Runtime.Scripts.Core
     public struct CyLine
     {
         public Vector3 StartPosition { get; private set; }
-        public Vector3 EndPosition { get; private set; } 
+        public Vector3 EndPosition { get; private set; }
         public Vector3 StartToEndVec { get; private set; }
-        public Vector3 StartNormal { get; private set; } 
+        public Vector3 StartNormal { get; private set; }
         public Vector3 EndNormal { get; private set; }
-        public BoneWeight StartWeight { get; private set; } 
+        public BoneWeight StartWeight { get; private set; }
         public BoneWeight EndWeight { get; private set; }
         public Vector3 StartLocalPosition { get; private set; }
         public Vector3 EndLocalPosition { get; private set; }
         public Vector3 StartLocalNormal { get; private set; }
         public Vector3 EndLocalNormal { get; private set; }
+
         /// <summary>
         ///     初期化
         /// </summary>
@@ -28,8 +29,8 @@ namespace CyDecal.Runtime.Scripts.Core
         /// <param name="startWeight">始点のボーンウェイト</param>
         /// <param name="endWeight">終点のボーンウェイト</param>
         /// <param name="startLocalPosition">始点のローカル座標</param>
-        public void Initialize(Vector3 startPosition, Vector3 endPosition, Vector3 startNormal, Vector3 endNormal, 
-            BoneWeight startWeight, BoneWeight endWeight, Vector3 startLocalPosition, Vector3 endLocalPosition, 
+        public void Initialize(Vector3 startPosition, Vector3 endPosition, Vector3 startNormal, Vector3 endNormal,
+            BoneWeight startWeight, BoneWeight endWeight, Vector3 startLocalPosition, Vector3 endLocalPosition,
             Vector3 startLocalNormal, Vector3 endLocalNormal)
         {
             StartPosition = startPosition;
@@ -81,12 +82,12 @@ namespace CyDecal.Runtime.Scripts.Core
             EndPosition = newEndPosition;
             StartNormal = newStartNormal;
             EndNormal = newEndNormal;
-            
+
             StartLocalPosition = newStartLocalPosition;
             EndLocalPosition = newEndLocalPosition;
             StartLocalNormal = newStartLocalNormal;
             EndLocalNormal = newEndLocalNormal;
-            
+
             StartToEndVec = EndPosition - StartPosition;
         }
 

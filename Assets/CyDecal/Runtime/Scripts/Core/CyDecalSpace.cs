@@ -3,7 +3,7 @@ using UnityEngine;
 namespace CyDecal.Runtime.Scripts.Core
 {
     /// <summary>
-    /// Decal space.
+    ///     Decal space.
     /// </summary>
     internal sealed class CyDecalSpace
     {
@@ -13,18 +13,20 @@ namespace CyDecal.Runtime.Scripts.Core
             Ey = ey;
             Ez = ez;
         }
-        
+
         /// <summary>
-        /// Axis X of decal space in world space. 
+        ///     Axis X of decal space in world space.
         /// </summary>
         public Vector3 Ex { get; }
+
         /// <summary>
-        /// Axis Y of decal space in world space. 
+        ///     Axis Y of decal space in world space.
         /// </summary>
         public Vector3 Ey { get; }
+
         /// <summary>
-        /// Axis Z of decal space in world space. 
+        ///     Axis Z of decal space in world space.
         /// </summary>
-        public Vector3 Ez { get; } 
+        public Vector3 Ez { get; }
     }
 }

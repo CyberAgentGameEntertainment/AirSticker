@@ -1,8 +1,5 @@
 using System.Collections.Generic;
-using System.Diagnostics;
-using Unity.Collections;
 using UnityEngine;
-using Debug = System.Diagnostics.Debug;
 
 namespace CyDecal.Runtime.Scripts.Core
 {
@@ -15,8 +12,8 @@ namespace CyDecal.Runtime.Scripts.Core
         ///     Execute broad phase.
         /// </summary>
         /// <remarks>
-        ///     Remove polygons outside the circle encompassing the decal box.<br/>
-        ///     Also, remove polygons whose mesh orientation is opposite the decal box.<br/>
+        ///     Remove polygons outside the circle encompassing the decal box.<br />
+        ///     Also, remove polygons whose mesh orientation is opposite the decal box.<br />
         /// </remarks>
         public static List<ConvexPolygonInfo> Execute(
             Vector3 centerPosInDecalBox,
@@ -26,12 +23,12 @@ namespace CyDecal.Runtime.Scripts.Core
             float decalBoxDepth,
             List<ConvexPolygonInfo> convexPolygonInfos)
         {
-            var threshold = Mathf.Max(decalBoxWidth/2, decalBoxHeight/2, decalBoxDepth);
-            
+            var threshold = Mathf.Max(decalBoxWidth / 2, decalBoxHeight / 2, decalBoxDepth);
+
             threshold *= 1.414f;
             threshold *= threshold;
-            
-            int broadPhaseConvexPolygonCount = 0;
+
+            var broadPhaseConvexPolygonCount = 0;
             for (var i = 0; i < convexPolygonInfos.Count; i++)
             {
                 var convexPolygonInfo = convexPolygonInfos[i];
@@ -66,7 +63,7 @@ namespace CyDecal.Runtime.Scripts.Core
 
                 broadPhaseConvexPolygonCount++;
             }
-            
+
             var broadPhaseConvexPolygonInfos = new List<ConvexPolygonInfo>(broadPhaseConvexPolygonCount);
             var positionBuffer = new Vector3[CyConvexPolygon.DefaultMaxVertex * broadPhaseConvexPolygonCount];
             var normalBuffer = new Vector3[CyConvexPolygon.DefaultMaxVertex * broadPhaseConvexPolygonCount];
@@ -75,7 +72,7 @@ namespace CyDecal.Runtime.Scripts.Core
             var boneWeightBuffer = new BoneWeight[CyConvexPolygon.DefaultMaxVertex * broadPhaseConvexPolygonCount];
             var lineBuffer = new CyLine[CyConvexPolygon.DefaultMaxVertex * broadPhaseConvexPolygonCount];
             var startOffsetInBuffer = 0;
-             
+
             for (var i = 0; i < convexPolygonInfos.Count; i++)
             {
                 var convexPolygonInfo = convexPolygonInfos[i];
@@ -84,16 +81,17 @@ namespace CyDecal.Runtime.Scripts.Core
                     broadPhaseConvexPolygonInfos.Add(new ConvexPolygonInfo
                     {
                         ConvexPolygon = new CyConvexPolygon(convexPolygonInfo.ConvexPolygon, positionBuffer,
-                            normalBuffer, boneWeightBuffer, lineBuffer,localPositionBuffer, localNormalBuffer,
+                            normalBuffer, boneWeightBuffer, lineBuffer, localPositionBuffer, localNormalBuffer,
                             startOffsetInBuffer),
                         IsOutsideClipSpace = convexPolygonInfo.IsOutsideClipSpace
                     });
-                    
+
                     startOffsetInBuffer += CyConvexPolygon.DefaultMaxVertex;
                 }
 
                 convexPolygonInfo.IsOutsideClipSpace = false;
             }
+
             return broadPhaseConvexPolygonInfos;
         }
     }

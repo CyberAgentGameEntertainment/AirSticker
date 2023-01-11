@@ -11,7 +11,7 @@ namespace CyDecal.Runtime.Scripts.Core
     /// </summary>
     public sealed class CyDecalMesh : IDisposable
     {
-        private readonly Matrix4x4[] _bindPoses; 
+        private readonly Matrix4x4[] _bindPoses;
         private readonly Material _decalMaterial;
         private readonly Renderer _receiverMeshRenderer;
         private readonly GameObject _receiverObject;
@@ -48,10 +48,11 @@ namespace CyDecal.Runtime.Scripts.Core
             GC.SuppressFinalize(this);
             _disposed = true;
         }
+
         /// <summary>
-        ///     Post-processing with results of worker thread execution.<br/>
-        ///     1. Create the decal mesh.<br/>
-        ///     2. Create the decal mesh renderer.<br/>
+        ///     Post-processing with results of worker thread execution.<br />
+        ///     1. Create the decal mesh.<br />
+        ///     2. Create the decal mesh renderer.<br />
         /// </summary>
         public void ExecutePostProcessingAfterWorkerThread()
         {
@@ -95,6 +96,7 @@ namespace CyDecal.Runtime.Scripts.Core
                    || !_receiverMeshRenderer
                    || !_receiverObject;
         }
+
         /// <summary>
         ///     Clear the decal mesh.
         /// </summary>
@@ -107,12 +109,12 @@ namespace CyDecal.Runtime.Scripts.Core
             _decalMeshRenderer = null;
             _mesh = new Mesh();
         }
-        
+
         public void DisableDecalMeshRenderer()
         {
             _decalMeshRenderer?.DisableDecalMeshRenderer();
         }
-        
+
         public void EnableDecalMeshRenderer()
         {
             _decalMeshRenderer?.EnableDecalMeshRenderer();
@@ -169,7 +171,7 @@ namespace CyDecal.Runtime.Scripts.Core
                     var vertNo = convexPolygon.GetRealVertexNo(localVertNo);
                     var vertPos = convexPolygon.GetVertexPositionInWorldSpace(vertNo);
                     var normal = convexPolygon.GetVertexNormalInWorldSpace(vertNo);
-                    
+
                     var decalSpaceToVertPos = vertPos - decalSpaceOriginPosWS;
 
                     uv.x = Vector3.Dot(decalSpaceTangentWS, decalSpaceToVertPos) / decalSpaceWidth + 0.5f;
@@ -179,7 +181,7 @@ namespace CyDecal.Runtime.Scripts.Core
                     // Convert position and rotation to parent space.
                     vertPos = convexPolygon.GetVertexPositionInModelSpace(vertNo);
                     normal = convexPolygon.GetVertexNormalInModelSpace(vertNo);
-                    
+
                     // Add a slight offset in the opposite direction of the decal projection to avoid Z-fighting.
                     // TODO: This number can be adjusted later.
                     vertPos += normal * 0.005f;

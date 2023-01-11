@@ -32,7 +32,7 @@ namespace CyDecal.Runtime.Scripts.Core
         private NativeArray<Vector3> _workingVertexPositions =
             new NativeArray<Vector3>(MaxWorkingVertexCount, Allocator.Persistent);
 
-        private bool _disposed = false;
+        private bool _disposed;
         public static int MaxGeneratedPolygonPerFrame { get; set; } = 100000; //
 #if MEASUREMENT_METHOD_BuildFromSkinMeshRenderer
         public static float[] Time_BuildFromSkinMeshRenderer { get; set; } = new float[3];
@@ -199,11 +199,11 @@ namespace CyDecal.Runtime.Scripts.Core
                         localPositionBuffer[startOffsetOfBuffer] = _workingVertexPositions[v0_no];
                         localPositionBuffer[startOffsetOfBuffer + 1] = _workingVertexPositions[v1_no];
                         localPositionBuffer[startOffsetOfBuffer + 2] = _workingVertexPositions[v2_no];
-                        
+
                         localNormalBuffer[startOffsetOfBuffer] = _workingVertexNormals[v0_no];
                         localNormalBuffer[startOffsetOfBuffer + 1] = _workingVertexNormals[v1_no];
                         localNormalBuffer[startOffsetOfBuffer + 2] = _workingVertexNormals[v2_no];
-                        
+
                         boneWeightBuffer[startOffsetOfBuffer] = default;
                         boneWeightBuffer[startOffsetOfBuffer + 1] = default;
                         boneWeightBuffer[startOffsetOfBuffer + 2] = default;
@@ -337,16 +337,16 @@ namespace CyDecal.Runtime.Scripts.Core
                             boneWeightBuffer[startOffsetOfBuffer + 1] = default;
                             boneWeightBuffer[startOffsetOfBuffer + 2] = default;
                         }
-                        
+
                         localPositionBuffer[startOffsetOfBuffer] = _workingVertexPositions[v0No];
                         localPositionBuffer[startOffsetOfBuffer + 1] = _workingVertexPositions[v1No];
                         localPositionBuffer[startOffsetOfBuffer + 2] = _workingVertexPositions[v2No];
-                        
+
                         localNormalBuffer[startOffsetOfBuffer] = _workingVertexNormals[v0No];
                         localNormalBuffer[startOffsetOfBuffer + 1] = _workingVertexNormals[v1No];
                         localNormalBuffer[startOffsetOfBuffer + 2] = _workingVertexNormals[v2No];
-                        
-                        
+
+
                         newConvexPolygonInfos[newConvexPolygonNo] = new ConvexPolygonInfo
                         {
                             ConvexPolygon = new CyConvexPolygon(

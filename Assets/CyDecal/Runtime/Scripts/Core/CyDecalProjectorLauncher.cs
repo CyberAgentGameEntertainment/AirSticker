@@ -7,6 +7,7 @@ namespace CyDecal.Runtime.Scripts.Core
     {
         void Update();
     }
+
     /// <summary>
     ///     Launcher of decal projector.
     /// </summary>
@@ -16,8 +17,17 @@ namespace CyDecal.Runtime.Scripts.Core
     /// </remarks>
     public sealed class CyDecalProjectorLauncher : ICyDecalProjectorLauncher
     {
-        private LaunchRequest _currentRequest;
         private readonly Queue<LaunchRequest> _launchRequestQueues = new Queue<LaunchRequest>();
+        private LaunchRequest _currentRequest;
+
+        void ICyDecalProjectorLauncher.Update()
+        {
+            if (!IsCurrentRequestIsFinished())
+                // The current request is still running, so returned.
+                return;
+
+            ProcessNextRequest();
+        }
 
         /// <summary>
         ///     Queueing startup requests to the queue.
@@ -26,25 +36,15 @@ namespace CyDecal.Runtime.Scripts.Core
         {
             _launchRequestQueues.Enqueue(new LaunchRequest(projector, onLaunch));
         }
-        
+
         private bool IsCurrentRequestIsFinished()
         {
             return _currentRequest == null // The request is empty.
                    || !_currentRequest.Projector // Projector that threw the request is dead.
-                   || _currentRequest.Projector.NowState == CyDecalProjector.State.LaunchingCompleted; // プロジェクションが完了している。
+                   || _currentRequest.Projector.NowState ==
+                   CyDecalProjector.State.LaunchingCompleted; // プロジェクションが完了している。
         }
 
-        void ICyDecalProjectorLauncher.Update()
-        {
-            if (!IsCurrentRequestIsFinished())
-            {
-                // The current request is still running, so returned.
-                return;
-            }
-            
-            ProcessNextRequest();
-        }
-        
         private void ProcessNextRequest()
         {
             while (_launchRequestQueues.Count > 0)
@@ -56,12 +56,12 @@ namespace CyDecal.Runtime.Scripts.Core
                 break;
             }
         }
-        
+
         public int GetWaitingRequestCount()
         {
             return _launchRequestQueues.Count;
         }
-        
+
         private class LaunchRequest
         {
             public LaunchRequest(CyDecalProjector projector, Action onLaunch)

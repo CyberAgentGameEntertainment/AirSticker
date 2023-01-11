@@ -5,7 +5,7 @@ namespace CyDecal.Runtime.Scripts.Core
     internal sealed class CyDecalMeshRenderer
     {
         private readonly Renderer _renderer;
-        
+
         public CyDecalMeshRenderer(Renderer receiverRenderer, Material decalMaterial, Mesh mesh)
         {
             Owner = new GameObject("CyDecalRenderer");
@@ -34,12 +34,12 @@ namespace CyDecal.Runtime.Scripts.Core
         }
 
         private GameObject Owner { get; }
-        
+
         public void DisableDecalMeshRenderer()
         {
             _renderer.gameObject.SetActive(false);
         }
-        
+
         public void EnableDecalMeshRenderer()
         {
             _renderer.gameObject.SetActive(true);
