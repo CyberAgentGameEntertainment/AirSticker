@@ -221,7 +221,7 @@ namespace CyDecal.Runtime.Scripts.Core
             newBoneWeight1.boneIndex2 = l1.EndWeight.boneIndex2;
             newBoneWeight1.boneIndex3 = l1.EndWeight.boneIndex3;
 
-            // 重みを正規化
+            // Normalize bone weights.
             var total = newBoneWeight0.weight0 + newBoneWeight0.weight1 + newBoneWeight0.weight2 +
                         newBoneWeight0.weight3;
             if (total > 0.0f)
@@ -289,7 +289,6 @@ namespace CyDecal.Runtime.Scripts.Core
         ///     Real vertex no.
         ///     This value should be obtained using the GetRealVertexNo function.
         /// </param>
-        /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector3 GetVertexPositionInModelSpace(int vertNo)
         {
@@ -315,7 +314,6 @@ namespace CyDecal.Runtime.Scripts.Core
         ///     Real vertex no.
         ///     This value should be obtained using the GetRealVertexNo function.
         /// </param>
-        /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector3 GetVertexNormalInWorldSpace(int vertNo)
         {
@@ -341,7 +339,6 @@ namespace CyDecal.Runtime.Scripts.Core
         ///     Real vertex no.
         ///     This value should be obtained using the GetRealVertexNo function.
         /// </param>
-        /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector3 GetVertexNormalInModelSpace(int vertNo)
         {

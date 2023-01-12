@@ -42,7 +42,7 @@ namespace CyDecal.Runtime.Scripts.Core
             return _currentRequest == null // The request is empty.
                    || !_currentRequest.Projector // Projector that threw the request is dead.
                    || _currentRequest.Projector.NowState ==
-                   CyDecalProjector.State.LaunchingCompleted; // プロジェクションが完了している。
+                   CyDecalProjector.State.LaunchingCompleted; // Launching is completed.
         }
 
         private void ProcessNextRequest()

@@ -125,10 +125,9 @@ namespace CyDecal.Runtime.Scripts.Core
         /// </summary>
         public void AddTrianglePolygonsToDecalMesh(
             List<CyConvexPolygon> convexPolygons,
-            Vector3 decalSpaceOriginPosWS,
-            Vector3 decalSpaceNormalWS,
-            Vector3 decalSpaceTangentWS,
-            Vector3 decalSpaceBiNormalWS,
+            Vector3 decalSpaceOriginPosInWorldSpace,
+            Vector3 decalSpaceTangentInWorldSpace,
+            Vector3 decalSpaceBiNormalInWorldSpace,
             float decalSpaceWidth,
             float decalSpaceHeight
         )
@@ -170,17 +169,16 @@ namespace CyDecal.Runtime.Scripts.Core
                 {
                     var vertNo = convexPolygon.GetRealVertexNo(localVertNo);
                     var vertPos = convexPolygon.GetVertexPositionInWorldSpace(vertNo);
-                    var normal = convexPolygon.GetVertexNormalInWorldSpace(vertNo);
 
-                    var decalSpaceToVertPos = vertPos - decalSpaceOriginPosWS;
+                    var decalSpaceToVertPos = vertPos - decalSpaceOriginPosInWorldSpace;
 
-                    uv.x = Vector3.Dot(decalSpaceTangentWS, decalSpaceToVertPos) / decalSpaceWidth + 0.5f;
-                    uv.y = Vector3.Dot(decalSpaceBiNormalWS, decalSpaceToVertPos) / decalSpaceHeight +
+                    uv.x = Vector3.Dot(decalSpaceTangentInWorldSpace, decalSpaceToVertPos) / decalSpaceWidth + 0.5f;
+                    uv.y = Vector3.Dot(decalSpaceBiNormalInWorldSpace, decalSpaceToVertPos) / decalSpaceHeight +
                            0.5f;
                     _uvBuffer[addVertNo] = uv;
                     // Convert position and rotation to parent space.
                     vertPos = convexPolygon.GetVertexPositionInModelSpace(vertNo);
-                    normal = convexPolygon.GetVertexNormalInModelSpace(vertNo);
+                    var normal = convexPolygon.GetVertexNormalInModelSpace(vertNo);
 
                     // Add a slight offset in the opposite direction of the decal projection to avoid Z-fighting.
                     // TODO: This number can be adjusted later.

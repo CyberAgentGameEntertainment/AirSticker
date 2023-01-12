@@ -24,7 +24,6 @@ namespace CyDecal.Runtime.Scripts.Core
             List<ConvexPolygonInfo> convexPolygonInfos)
         {
             var threshold = Mathf.Max(decalBoxWidth / 2, decalBoxHeight / 2, decalBoxDepth);
-
             threshold *= 1.414f;
             threshold *= threshold;
 

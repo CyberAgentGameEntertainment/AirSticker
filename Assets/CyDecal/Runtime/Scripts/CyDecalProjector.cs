@@ -318,7 +318,6 @@ namespace CyDecal.Runtime.Scripts
                 cyDecalMesh.AddTrianglePolygonsToDecalMesh(
                     convexPolygons,
                     originPosInDecalSpace,
-                    _decalSpace.Ez,
                     _decalSpace.Ex,
                     _decalSpace.Ey,
                     width,
