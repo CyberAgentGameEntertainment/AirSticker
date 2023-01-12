@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using CyDecal.Runtime.Scripts;
 using CyDecal.Runtime.Scripts.Core;
 using UnityEngine;
-using UnityEngine.Rendering.Universal;
 using UnityEngine.UI;
 
 namespace Demo.Demo_00.Scripts
@@ -122,10 +121,10 @@ namespace Demo.Demo_00.Scripts
                         {
                             _currentProjectorObject = new GameObject("Decal Projector");
                             _projectorSize = new Vector3();
-                            _projectorSize.x = 0.05f;
-                            _projectorSize.y = 0.05f;
+                            _projectorSize.x = 0.08f;
+                            _projectorSize.y = 0.08f;
                             if (CurrentDecalMaterialIndex == 3) _projectorSize.x *= 4.496f;
-                            _projectorSize.z = 0.2f;
+                            _projectorSize.z = 0.15f;
 #if UNITY_2021_1_OR_NEWER
                             _urpDecalProjector = _currentProjectorObject.AddComponent<DecalProjector>();
                             _urpDecalProjector.size = _projectorSize;

@@ -1,4 +1,5 @@
 using System;
+using Unity.Collections;
 using UnityEngine;
 using UnityEngine.Assertions;
 
@@ -9,7 +10,7 @@ namespace CyDecal.Runtime.Scripts.Core
     /// </summary>
     public sealed class CyConvexPolygon
     {
-        private const int DefaultMaxVertex = 64;
+        public const int DefaultMaxVertex = 64;
         private readonly BoneWeight[] _boneWeightBuffer; // ボーンウェイトバッファ
         private readonly Vector3 _faceNormal; // 面法線
         private readonly CyLine[] _lineBuffer; // 凸多角形を構成するエッジ情報のバッファ
@@ -75,27 +76,34 @@ namespace CyDecal.Runtime.Scripts.Core
         ///     凸多角形の最大頂点数。分割可能頂点数を変更したい場合に最大頂点数を指定して下さい。
         ///     最大頂点数がsrcConvexPolygonのmaxVertexの値より小さい場合は無視されます。
         /// </param>
-        public CyConvexPolygon(CyConvexPolygon srcConvexPolygon, int maxVertex = DefaultMaxVertex)
+        public CyConvexPolygon(CyConvexPolygon srcConvexPolygon, 
+            Vector3[] positionBuffer,
+            Vector3[] normalBuffer,
+            BoneWeight[] boneWeightBuffer,
+            CyLine[] lineBuffer,
+            int startOffsetInBuffer,
+            int maxVertex = DefaultMaxVertex)
         {
             ReceiverMeshRenderer = srcConvexPolygon.ReceiverMeshRenderer;
             VertexCount = srcConvexPolygon.VertexCount;
 
             _maxVertex = Mathf.Max(maxVertex, srcConvexPolygon._maxVertex);
-            _positionBuffer = new Vector3[_maxVertex];
-            _normalBuffer = new Vector3[_maxVertex];
-            _boneWeightBuffer = new BoneWeight[_maxVertex];
-            _lineBuffer = new CyLine[_maxVertex];
-
+            
+            _positionBuffer = positionBuffer;
+            _normalBuffer = normalBuffer;
+            _boneWeightBuffer = boneWeightBuffer;
+            _lineBuffer = lineBuffer;
+            _startOffsetInBuffer = startOffsetInBuffer;
+            
             Array.Copy(srcConvexPolygon._positionBuffer, srcConvexPolygon._startOffsetInBuffer,
-                _positionBuffer, 0, srcConvexPolygon.VertexCount);
+                _positionBuffer, _startOffsetInBuffer, srcConvexPolygon.VertexCount);
             Array.Copy(srcConvexPolygon._normalBuffer, srcConvexPolygon._startOffsetInBuffer,
-                _normalBuffer, 0, srcConvexPolygon.VertexCount);
+                _normalBuffer, _startOffsetInBuffer, srcConvexPolygon.VertexCount);
             Array.Copy(srcConvexPolygon._boneWeightBuffer, srcConvexPolygon._startOffsetInBuffer,
-                _boneWeightBuffer, 0, srcConvexPolygon.VertexCount);
+                _boneWeightBuffer, _startOffsetInBuffer, srcConvexPolygon.VertexCount);
             Array.Copy(srcConvexPolygon._lineBuffer, srcConvexPolygon._startOffsetInBuffer,
-                _lineBuffer, 0, srcConvexPolygon.VertexCount);
-            _startOffsetInBuffer = 0;
-
+                _lineBuffer, _startOffsetInBuffer, srcConvexPolygon.VertexCount);
+            
             _faceNormal = srcConvexPolygon._faceNormal;
         }
 
