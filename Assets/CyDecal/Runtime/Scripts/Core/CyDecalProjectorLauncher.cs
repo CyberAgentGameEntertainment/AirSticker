@@ -22,7 +22,7 @@ namespace CyDecal.Runtime.Scripts.Core
 
         void ICyDecalProjectorLauncher.Update()
         {
-            if (!IsCurrentRequestIsFinished())
+            if (!IsCurrentRequestFinished())
                 // The current request is still running, so returned.
                 return;
 
@@ -37,7 +37,7 @@ namespace CyDecal.Runtime.Scripts.Core
             _launchRequestQueues.Enqueue(new LaunchRequest(projector, onLaunch));
         }
 
-        private bool IsCurrentRequestIsFinished()
+        private bool IsCurrentRequestFinished()
         {
             return _currentRequest == null // The request is empty.
                    || !_currentRequest.Projector // Projector that threw the request is dead.
