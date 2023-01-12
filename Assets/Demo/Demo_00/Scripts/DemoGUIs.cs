@@ -1,4 +1,3 @@
-using CyDecal.Runtime.Scripts;
 using CyDecal.Runtime.Scripts.Core;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -23,21 +22,16 @@ namespace Demo.Demo_00.Scripts
             SetupAgingTest();
         }
 
-        // Update is called once per frame
-        private void Update()
-        {
-        }
-
         public void OnClickChange()
         {
             var launcher = decalProjectorLauncherObject.GetComponent<Demo00>();
             launcher.SetNextReceiverObject();
-            
+
             if (_isPlayAnim)
                 launcher.PlayAnimationToReceiverObject();
             else
                 launcher.StopAnimationToReceiverObject();
-            
+
             if (_isPlayRot)
                 launcher.PlayRotateToCurrentReceiverObject();
             else
@@ -129,13 +123,11 @@ namespace Demo.Demo_00.Scripts
             var text = runningAgingTestTextObject.GetComponent<Text>();
             if (_isRunningAgingTest)
             {
-                // エージングテスト開始
                 launcher.StartAgingTest();
                 text.text = "Stop Aging Test";
             }
             else
             {
-                // エージングテスト終了
                 launcher.StopAgingTest();
                 text.text = "Run Aging Test";
             }

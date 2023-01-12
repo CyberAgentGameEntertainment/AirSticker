@@ -1,4 +1,4 @@
-#define TEST_START_PROJECTION_METHOD // 有効でStartProjectionメソッドをテストする。
+#define TEST_START_PROJECTION_METHOD // If this symbol is defined, Test the StartProjection method.
 
 using System.Collections.Generic;
 using CyDecal.Runtime.Scripts;
@@ -10,7 +10,6 @@ namespace Demo.Demo_00.Scripts
 {
     public class Demo00 : MonoBehaviour
     {
-        [SerializeField] private Material shotDecalMaterial;
         [SerializeField] private Material[] decalMaterials;
         [SerializeField] private GameObject[] receiverObjects;
         [SerializeField] private GameObject[] moveImageObjects;
@@ -85,17 +84,11 @@ namespace Demo.Demo_00.Scripts
             }
         }
 
-        /// <summary>
-        ///     エージングテスト中の更新処理。
-        /// </summary>
         private void UpdateAgingTest()
         {
             _agingTest.Update();
         }
 
-        /// <summary>
-        ///     通常モードのときの更新処理。
-        /// </summary>
         private void UpdateNormal()
         {
             if (Input.GetMouseButtonDown(0)) _isMouseLButtonPress = true;
@@ -118,7 +111,7 @@ namespace Demo.Demo_00.Scripts
 #if UNITY_2021_1_OR_NEWER
                         moveImageObjects[CurrentDecalMaterialIndex].SetActive(false);
 #endif
-                        // デカールプロジェクターを生成
+                        // Create the Decal Projector.
                         if (_currentProjectorObject == null)
                         {
                             _currentProjectorObject = new GameObject("Decal Projector");
@@ -158,7 +151,7 @@ namespace Demo.Demo_00.Scripts
                         true,
                         () =>
                         {
-                            // 投影完了とともにオブジェクトを削除する。
+                            // The projector is deleted when the launching process is finished.
                             Object.Destroy(projectorObj);
                         });
 #else
@@ -174,7 +167,7 @@ namespace Demo.Demo_00.Scripts
                     projector.Launch(
                         result =>
                         {
-                            // 投影完了とともにオブジェクトも削除する。
+                            // The projector is deleted when the launching process is finished.
                             Destroy(projectorObj);
                         });
 #endif
@@ -187,9 +180,6 @@ namespace Demo.Demo_00.Scripts
             }
         }
 
-        /// <summary>
-        ///     デカールメッシュをクリア
-        /// </summary>
         public void ClearDecalMesh()
         {
             foreach (var decalMeshes in _cyDecalMeshesList)
@@ -198,18 +188,12 @@ namespace Demo.Demo_00.Scripts
             _cyDecalMeshesList.Clear();
         }
 
-        /// <summary>
-        ///     全てのレシーバーオブジェクトが削除されているか判定。
-        /// </summary>
-        /// <returns></returns>
-        public bool IsDeleteAllReceiverObjects()
+
+        public bool HasReceiverObjectsDeleted()
         {
-            return !receiverObjects[0] && receiverObjects[1];
+            return !receiverObjects[0] && !receiverObjects[1];
         }
 
-        /// <summary>
-        ///     レシーバーオブジェクトを次のオブジェクトにする。
-        /// </summary>
         public void SetNextReceiverObject()
         {
             if (HasAnimatorInCurrentReceiverObject())
@@ -224,10 +208,6 @@ namespace Demo.Demo_00.Scripts
             if (receiverObjects[_currentReceiverObjectNo]) receiverObjects[_currentReceiverObjectNo].SetActive(true);
         }
 
-        /// <summary>
-        ///     現在のレシーバーオブジェクトがアニメーターを保持しているか調べる。
-        /// </summary>
-        /// <returns></returns>
         public bool HasAnimatorInCurrentReceiverObject()
         {
             if (receiverObjects[_currentReceiverObjectNo])
@@ -235,33 +215,21 @@ namespace Demo.Demo_00.Scripts
             return false;
         }
 
-        /// <summary>
-        ///     現在のレシーバーオブジェクトを破棄。
-        /// </summary>
         public void DeleteCurrentReceiverObject()
         {
             Destroy(receiverObjects[_currentReceiverObjectNo]);
         }
 
-        /// <summary>
-        ///     レシーバーオブジェクトのアニメーションを再生する。
-        /// </summary>
         public void PlayAnimationToReceiverObject()
         {
             var animator = receiverObjects[_currentReceiverObjectNo].GetComponent<Animator>();
             if (animator) animator.enabled = true;
         }
 
-        /// <summary>
-        ///     レシーバーオブジェクトのアニメーションを再生する。
-        /// </summary>
         public void StopAnimationToReceiverObject()
         {
             var animator = receiverObjects[_currentReceiverObjectNo].GetComponent<Animator>();
-            if (animator)
-            {
-                animator.enabled = false;
-            }
+            if (animator) animator.enabled = false;
         }
 
         public void PlayRotateToCurrentReceiverObject()
@@ -274,25 +242,16 @@ namespace Demo.Demo_00.Scripts
             receiverObjects[_currentReceiverObjectNo].GetComponent<Rotate>().enabled = false;
         }
 
-        /// <summary>
-        ///     エージングテストの開始
-        /// </summary>
         public void StartAgingTest()
         {
             _mode = Mode.AgingTest;
         }
 
-        /// <summary>
-        ///     エージングテストの停止
-        /// </summary>
         public void StopAgingTest()
         {
             _mode = Mode.Normal;
         }
 
-        /// <summary>
-        ///     デモのモード
-        /// </summary>
         private enum Mode
         {
             Normal,
