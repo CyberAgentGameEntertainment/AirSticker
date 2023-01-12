@@ -4,44 +4,41 @@
 
 # CyDecal(仮)
 
-## Section 1 Summary
-CyDecal is a decal process that complements the disadvantages of URP decals and operates very lightly.<br/>
-Also, URP decals can only be used with Unity2021 or later, while CyDecal supports operation from Unity2020.<br/>
-For technical documents for engineers, please refer to the following.<br/>
+## Section 1 概要
+CyDecalはURPのデカールのデメリットを補完するものとなっており、非常に軽量に動作するデカール処理です。<br/>
+また、URPデカールはUnity2021以降でしか使えませんが、CyDecalはUnity2020からの動作をサポートします。<br/>
+なお、エンジニア向けの技術ドキュメントは下記を参照してください。<br/>
 
-**Technical Documents** ([英語](README_DEVELOPERS.md))
+**技術ドキュメント** ([日本語](README_DEVELOPERS.md))
 
-## Section 2 Feature
-CyDecal implements decal processing using the typical mesh generation method used in many games.<br/>
+## Section 2 特徴
+CyDecalには多くのゲームで採用されている、典型的なメッシュ生成方式によるデカール処理が実装されています。<br/><br/>
+メッシュ生成デカールは、デカールを貼り付ける対象のモデルに添った形状のメッシュをランタイムで生成して、そこにテクスチャを貼り付けることでデカール表現を実現します。<br/><br/>
+一方Unityで実装されているデカール処理は、投影方式のDBufferデカールとスクリーンスペースデカールが実装されています。<br/><br/>
+メッシュ生成方式と投影方式のデカールは、双方メリット/デメリットを持っています。<br/>
+また、メッシュ生成方式と投影方式を併用すると、多くのデメリットを補うこともできます(詳細は2.1、2.2を参照)。<br/>
 
-Mesh-generated decals realize decal expression by generating a mesh at runtime with a shape that matches the model to which the decal is to be applied, and then applying a texture to it.<br/>
+### 2.1 URPデカールとCyDecalのメリットとデメリット
+URPデカールとCyDecalのメリット/デメリットは次のようになっています。
 
-On the other hand, the decal process implemented in Unity implements projected DBuffer decals and screen space decals.<br/>
-
-Both mesh generation and projection decals have advantages/disadvantages.<br/>
-The mesh generation and projection methods can also be used together to compensate for many of the disadvantages (see 2.1 and 2.2 for details).<br/>
-
-### 2.1 Advantages and Disadvantages of URP Decal and CyDecal
-The advantages/disadvantages of URP decals and CyDecal are as follows.
-
-- **URP Decal**
-  - **Advantages**
-    - Fast-applied decal.
-    - Z-fighting doesn't happen.
-  - **Demerit**
-    - Difficult to support full skin animation. ( Can be complemented with CyDecal. )
-    - Pixel shaders are overloaded.( Can be complemented with CyDecal. )
-    -  Custom shaders cannot be used as is.( Can be complemented with CyDecal. )
-- **CyDecal**
-  -  **Advantages**
-     - Lightweight processing.( However, decal mesh generation is laggy )
-     - Full skin animation is possible.
-     - Custom shaders can be used without modification.
+- **URPデカール**
+  - **メリット**
+    - デカールを貼る処理が高速
+    - Zファイティングが起きない
   - **デメリット**
-    - The process of applying decals takes time. ( Can be complemented with URP decals. )
-    - Z-fighting happen.
+    - 完全なスキンアニメーション対応が難しい ( CyDecalで補完できる )
+    - ピクセル負荷が高いため、デカールをズームアップすると大きな処理落ちが発生する ( CyDecalで補完できる )
+    - カスタムシェーダーはそのままでは使えない( CyDecalで補完できる )
+- **CyDecal**
+  -  **メリット**
+     - 処理が軽量( ただし、デカールメッシュ生成はラグがある )
+     - 完全なスキンアニメーションを行える
+     - カスタムシェーダーをそのまま使える
+  - **デメリット**
+    - デカールを貼る処理に時間がかかる ( URPデカールで補完できる )
+    - Zファイティングが起きる
 
-Thus, the two decals can be used together to complement many of the disadvantages.<br/>
+このように、二つのデカールを併用することで、多くのデメリットを補完できます。<br/>
 
 ### 2.2 URPデカールとCyDecalの併用
 前節で見たように、二つのデカールの処理を併用することで、多くのデメリットを補完できます。<br/><br/>
@@ -116,8 +113,6 @@ CyDecalProjectorコンポーネントには5つのパラメータを設定する
 <font color="grey">CyDecalProjectorの使用方法</font>
 </p>
 
-> **Note**<br/>
-> 現在、CyDecalProjectorは投影範囲の可視化に対応していないため、シーンビューで配置する場合はURPプロジェクターと併用すると、視覚的に分かりやすくなります。
 
 ### 3.3 ランタイムでのCyDecalProjectorの生成
 デカールのランタイムでの使用例として、FPSなどの弾痕を背景に貼り付ける処理があります。このような処理をCyDecalで行うためには、背景と銃弾との衝突判定を行い、衝突点の情報を元にCyDecalProjectorコンポーネントを生成して、デカールメッシュを構築することで実現できます。<br/><br/>
