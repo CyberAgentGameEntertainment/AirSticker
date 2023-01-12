@@ -8,7 +8,7 @@ namespace Tests
     {
         // A Test behaves as an ordinary method
         [Test]
-        public void TesetIntesectRayToTriangle()
+        public void TestIntersectRayToTriangle()
         {
             var vertices = new Vector3[3];
             vertices[0] = new Vector3(-0.5f, -0.5f, 0.0f);
@@ -18,6 +18,16 @@ namespace Tests
             normals[0] = new Vector3(0.0f, 0.0f, -1.0f);
             normals[1] = new Vector3(0.0f, 0.0f, -1.0f);
             normals[2] = new Vector3(0.0f, 0.0f, -1.0f);
+            
+            var verticesInModelSpace = new Vector3[3];
+            verticesInModelSpace[0] = new Vector3(-0.5f, -0.5f, 0.0f);
+            verticesInModelSpace[1] = new Vector3(0.0f, 0.5f, 0.0f);
+            verticesInModelSpace[2] = new Vector3(0.5f, -0.5f, 0.0f);
+            var normalsInModelSpace = new Vector3[3];
+            normalsInModelSpace[0] = new Vector3(0.0f, 0.0f, -1.0f);
+            normalsInModelSpace[1] = new Vector3(0.0f, 0.0f, -1.0f);
+            normalsInModelSpace[2] = new Vector3(0.0f, 0.0f, -1.0f);
+            
             var boneWeights = new BoneWeight[3];
             boneWeights[0] = new BoneWeight();
             boneWeights[1] = new BoneWeight();
@@ -39,9 +49,12 @@ namespace Tests
                 normals,
                 boneWeights,
                 lines,
+                verticesInModelSpace,
+                normalsInModelSpace,
                 null,
                 0,
                 3,
+                0,
                 3);
             Vector3 hitPoint;
             // 当たるかテスト

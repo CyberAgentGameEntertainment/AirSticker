@@ -16,6 +16,7 @@ namespace CyDecal.Runtime.Scripts.Core
         private readonly GameObject _receiverObject; // デカールメッシュを貼り付けるレシーバーオブジェクト
         private BoneWeight[] _boneWeightsBuffer;
         private CyDecalMeshRenderer _decalMeshRenderer;
+        private bool _disposed;
 
         private int[] _indexBuffer;
         private Mesh _mesh; // デカールテクスチャを貼り付けるためのデカールメッシュ
@@ -24,21 +25,49 @@ namespace CyDecal.Runtime.Scripts.Core
         private int _numVertex;
         private Vector3[] _positionBuffer;
         private Vector2[] _uvBuffer;
-        private bool _disposed = false;
-        private Matrix4x4 toReceiverMeshRendererSpace;
 
-        public void PrepareAddPolygonsToDecalMesh()
+        public CyDecalMesh(
+            GameObject receiverObject,
+            Material decalMaterial,
+            Renderer receiverMeshRenderer)
         {
-            toReceiverMeshRendererSpace = _receiverMeshRenderer.worldToLocalMatrix;
+            _mesh = new Mesh();
+            _receiverMeshRenderer = receiverMeshRenderer;
+            _decalMaterial = decalMaterial;
+            _receiverObject = receiverObject;
+
+            if (_receiverMeshRenderer is SkinnedMeshRenderer skinnedMeshRenderer)
+                _bindPoses = skinnedMeshRenderer.sharedMesh.bindposes;
         }
 
-        public void PostProcessAddPolygonsToDecalMesh()
+        public void Dispose()
         {
-            // デカールメッシュレンダラーを作成。
+            if (_disposed) return;
+            if (_mesh && _mesh != null) Object.Destroy(_mesh);
+            GC.SuppressFinalize(this);
+            _disposed = true;
+        }
+        /// <summary>
+        ///     Prepare to run on worker threads.
+        /// </summary>
+        /// <remarks>
+        ///     Some unity APIs aren't working on the worker threads.
+        ///     Therefore, cache the necessary data in the worker thread. 
+        /// </remarks>
+        public void PrepareToRunOnWorkerThread()
+        {
+        }
+        /// <summary>
+        ///     Post-processing with results of worker thread execution.<br/>
+        ///     1. Create the decal mesh.<br/>
+        ///     2. Create the decal mesh renderer.<br/>
+        /// </summary>
+        public void ExecutePostProcessingAfterWorkerThread()
+        {
             _decalMeshRenderer?.Destroy();
-            
+
             if (_numVertex <= 0) return;
-            
+
             _mesh.SetVertices(_positionBuffer);
             _mesh.SetIndices(_indexBuffer, MeshTopology.Triangles, 0);
             _mesh.SetNormals(_normalBuffer, 0, _numVertex);
@@ -57,19 +86,6 @@ namespace CyDecal.Runtime.Scripts.Core
                 _receiverMeshRenderer,
                 _decalMaterial,
                 _mesh);
-        }
-        public CyDecalMesh(
-            GameObject receiverObject,
-            Material decalMaterial,
-            Renderer receiverMeshRenderer)
-        {
-            _mesh = new Mesh();
-            _receiverMeshRenderer = receiverMeshRenderer;
-            _decalMaterial = decalMaterial;
-            _receiverObject = receiverObject;
-
-            if (_receiverMeshRenderer is SkinnedMeshRenderer skinnedMeshRenderer)
-                _bindPoses = skinnedMeshRenderer.sharedMesh.bindposes;
         }
 
         ~CyDecalMesh()
@@ -135,11 +151,11 @@ namespace CyDecal.Runtime.Scripts.Core
             Vector3 decalSpaceTangentWS,
             Vector3 decalSpaceBiNormalWS,
             float decalSpaceWidth,
-            float decalSpaceHeight 
+            float decalSpaceHeight
         )
         {
             if (!_receiverMeshRenderer) return;
-            
+
             var uv = new Vector2();
             // 増える頂点数とインデックス数を計算する
             var deltaVertex = 0;
@@ -171,10 +187,11 @@ namespace CyDecal.Runtime.Scripts.Core
                 if (convexPolygon.ReceiverMeshRenderer != _receiverMeshRenderer) continue;
 
                 var numVertex = convexPolygon.VertexCount;
-                for (var vertNo = 0; vertNo < numVertex; vertNo++)
+                for (var localVertNo = 0; localVertNo < numVertex; localVertNo++)
                 {
-                    var vertPos = convexPolygon.GetVertexPosition(vertNo);
-                    var normal = convexPolygon.GetVertexNormal(vertNo);
+                    var vertNo = convexPolygon.GetRealVertexNo(localVertNo);
+                    var vertPos = convexPolygon.GetVertexPositionInWorldSpace(vertNo);
+                    var normal = convexPolygon.GetVertexNormalInWorldSpace(vertNo);
 
                     // Zファイティング回避のために、デカールの投影方向の逆向きに少しオフセットを加える。
                     // TODO: この数値は後で調整できるようにする。
@@ -186,8 +203,8 @@ namespace CyDecal.Runtime.Scripts.Core
                            0.5f;
                     _uvBuffer[addVertNo] = uv;
                     // 座標と回転を親の空間に変換する。
-                    vertPos = toReceiverMeshRendererSpace.MultiplyPoint3x4(vertPos);
-                    normal = toReceiverMeshRendererSpace.MultiplyVector(normal);
+                    vertPos = convexPolygon.GetVertexPositionInModelSpace(vertNo);
+                    normal = convexPolygon.GetVertexNormalInModelSpace(vertNo);
 
                     vertPos += normal * 0.005f;
                     _positionBuffer[addVertNo] = vertPos;
@@ -207,14 +224,6 @@ namespace CyDecal.Runtime.Scripts.Core
 
                 indexBase += numVertex;
             }
-        }
-
-        public void Dispose()
-        {
-            if (_disposed) return;
-            if (_mesh && _mesh != null) Object.Destroy(_mesh);
-            GC.SuppressFinalize(this);
-            _disposed = true;
         }
     }
 }

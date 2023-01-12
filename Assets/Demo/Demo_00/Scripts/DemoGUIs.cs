@@ -30,12 +30,18 @@ namespace Demo.Demo_00.Scripts
 
         public void OnClickChange()
         {
-            // 止まった。
-            CyDecalSystem.ReceiverObjectTrianglePolygonsPool.Clear();
-            StopAnimation();
-            StopRotation();
             var launcher = decalProjectorLauncherObject.GetComponent<Demo00>();
             launcher.SetNextReceiverObject();
+            
+            if (_isPlayAnim)
+                launcher.PlayAnimationToReceiverObject();
+            else
+                launcher.StopAnimationToReceiverObject();
+            
+            if (_isPlayRot)
+                launcher.PlayRotateToCurrentReceiverObject();
+            else
+                launcher.StopRotateToCurrentReceiverObject();
         }
 
         public void OnClickPlayAnim()
