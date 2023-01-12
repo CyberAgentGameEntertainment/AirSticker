@@ -51,15 +51,14 @@ namespace CyDecal.Runtime.Scripts.Core
             for (var vertNo = 0; vertNo < VertexCount; vertNo++)
             {
                 var nextVertNo = (vertNo + 1) % VertexCount;
-                var line = new CyLine(
+                ref var line = ref GetLineRef(vertNo);
+                line.Initialize(
                     GetVertexPosition(vertNo),
                     GetVertexPosition(nextVertNo),
                     GetVertexNormal(vertNo),
-                    GetVertexNormal(nextVertNo));
-                line.SetStartEndBoneWeights(
+                    GetVertexNormal(nextVertNo),
                     GetVertexBoneWeight(vertNo),
                     GetVertexBoneWeight(nextVertNo));
-                SetLine(vertNo, line);
             }
 
             _faceNormal = Vector3.Cross(

@@ -16,33 +16,24 @@ namespace CyDecal.Runtime.Scripts.Core
         public BoneWeight EndWeight { get; private set; } // 終点のボーンウェイト
 
         /// <summary>
-        ///     コンストラクタ
+        ///     初期化
         /// </summary>
         /// <param name="startPosition">始点の座標</param>
         /// <param name="endPosition">終点の座標</param>
         /// <param name="startNormal">始点の法線</param>
         /// <param name="endNormal">終点の法線</param>
-        public CyLine(Vector3 startPosition, Vector3 endPosition, Vector3 startNormal, Vector3 endNormal)
+        /// <param name="startWeight">始点のボーンウェイト</param>
+        /// <param name="endWeight">終点のボーンウェイト</param>
+        public void Initialize(Vector3 startPosition, Vector3 endPosition, Vector3 startNormal, Vector3 endNormal, 
+            BoneWeight startWeight, BoneWeight endWeight)
         {
             StartPosition = startPosition;
             EndPosition = endPosition;
             StartNormal = startNormal;
             EndNormal = endNormal;
             StartToEndVec = EndPosition - StartPosition;
-            StartWeight = default;
-            EndWeight = default;
-        }
-
-        /// <summary>
-        ///     ラインの始点の座標を設定後、始点から終点に向かって伸びるベクトルを再計算します。
-        /// </summary>
-        /// <param name="newStartPosition">新しいラインの始点の座標</param>
-        /// <param name="newStartNormal">新しいラインの始点の法線</param>
-        public void SetStartAndCalcStartToEnd(Vector3 newStartPosition, Vector3 newStartNormal)
-        {
-            StartPosition = newStartPosition;
-            StartNormal = newStartNormal;
-            StartToEndVec = EndPosition - StartPosition;
+            StartWeight = startWeight;
+            EndWeight = endWeight;
         }
 
         /// <summary>
