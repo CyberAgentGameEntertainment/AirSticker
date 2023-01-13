@@ -9,7 +9,7 @@ CyDecal is a decal process that complements the disadvantages of URP decals and 
 Also, URP decals can only be used with Unity2021 or later, while CyDecal supports operation from Unity2020.<br/>
 For technical documents for engineers, please refer to the following.<br/>
 
-**Technical Documents** ([英語](README_DEVELOPERS.md))
+**Technical Documents** ([English](README_DEVELOPERS.md))
 
 ## Section 2 Feature
 CyDecal implements decal processing using the typical mesh generation method used in many games.<br/>
@@ -37,22 +37,23 @@ The advantages/disadvantages of URP decals and CyDecal are as follows.
      - Lightweight processing.( However, decal mesh generation is laggy )
      - Full skin animation is possible.
      - Custom shaders can be used without modification.
-  - **デメリット**
+  - **Demerit**
     - The process of applying decals takes time. ( Can be complemented with URP decals. )
     - Z-fighting happen.
 
 Thus, the two decals can be used together to complement many of the disadvantages.<br/>
 
-### 2.2 URPデカールとCyDecalの併用
-前節で見たように、二つのデカールの処理を併用することで、多くのデメリットを補完できます。<br/><br/>
-ここでは併用の仕方として、次のモデルケースを提示します。
+### 2.2 Combination of URP decal and CyDecal
+As we saw in the previous section, the two decal treatments can be used together to complement many of the disadvantages.<br/><br/>
 
-|手法|使用ケース|
+The following model case is presented here as a way of combining the two.
+
+|Method|Use Case|
 |---|---|
-|URPデカール| ・ オブジェクト座標系でデカールが移動する<br/> ・ CyDecalによるメッシュ生成が終わるまでの時間稼ぎ|
-|CyDecal|オブジェクト座標系でデカールが移動しない|
+|URP Decal| ・ Decal moves in the object space.<br/> ・ An alternative method until the mesh generation by CyDecal is finished.|
+|CyDecal|Decal don't moves in object space.|
 
-下記の動画はこのモデルケースで実装しているプレイデモになります。
+The following movie is a play demo implemented in this model case.
 
 <br/>
 <p align="center">
@@ -60,17 +61,18 @@ Thus, the two decals can be used together to complement many of the disadvantage
 <font color="grey">URPデカールとCyDecalの使い分け</font>
 </p>
 
-この動画ではレシーバーオブジェクト上でデカールが移動する場合と、メッシュ生成完了までの時間稼ぎの用途でURPデカールを使っています。<br/>
-レシーバーオブジェクト上での位置が確定して、メッシュ生成が終わると、以降はCyDecalによるデカールを表示しています。<br/>
+In this movie, URP decal is used when the decal moves on the receiver object and to buy time until mesh generation is complete.<br/>
+Once the position on the receiver object is determined and mesh generation is finished, the decal by CyDecal is displayed thereafter.<br/>
 
-メッシュ生成完了後からはCyDecalを使用することによって、モバイルゲームにおいて、致命的となるランタイムパフォーマンスの悪化という問題を大きく改善できます(詳細は2.3を参照)。<br/>
+Once mesh generation is complete, CyDecal can be used to greatly improve runtime performance, a critical issue for mobile games (see 2.3 for details).<br/>
 
-### 2.3 URPデカールとCyDecalの描画パフォーマンス
-メッシュ生成方式はメッシュ生成に時間がかかりますが、描画パフォーマンスは単なるメッシュ描画と同じです。<br/>
-一方、URPデカールはメッシュ生成を行う必要はありませんが、デカール表示のために複雑な描画処理が実行されます。<br/><br/>
-そのため、毎フレームの描画パフォーマンスではメッシュ生成方式の方が有利になります。<br/><br/>
-次の図はURPデカールとCyDecalの描画パフォーマンスの計測結果です。<br/>
-全てのケースで、CyDecalが優位な結果を出しており、最も顕著に差がでたケースでは19ミリ秒ものパフォーマンスの向上が確認されています。
+### 2.3 URP Decal and CyDecal rendering performance
+
+On the other hand, URP decals do not require mesh generation, but a complex drawing process is performed to display the decals.<br/><br/>
+Therefore, the mesh generation method is more advantageous in terms of frame-by-frame rendering performance.<br/><br/>
+
+The following figure shows the measured rendering performance of URP Decal and CyDecal.<br/>
+In all cases, CyDecal was superior, with the most significant difference being a performance improvement of 19 ms.
 <p align="center">
 <img width="80%" src="Documentation/fig-002.png" alt="パフォーマンス計測結果"><br>
 <font color="grey">パフォーマンス計測結果</font>
