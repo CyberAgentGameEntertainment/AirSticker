@@ -58,7 +58,7 @@ The following movie is a play demo implemented in this model case.
 <br/>
 <p align="center">
 <img width="80%" src="Documentation/fig-001.gif" alt="URPデカールとCyDecalの使い分け"><br>
-<font color="grey">URPデカールとCyDecalの使い分け</font>
+<font color="grey">Combination of URP decal and CyDecal</font>
 </p>
 
 In this movie, URP decal is used when the decal moves on the receiver object and to buy time until mesh generation is complete.<br/>
@@ -75,71 +75,71 @@ The following figure shows the measured rendering performance of URP Decal and C
 In all cases, CyDecal was superior, with the most significant difference being a performance improvement of 19 ms.
 <p align="center">
 <img width="80%" src="Documentation/fig-002.png" alt="パフォーマンス計測結果"><br>
-<font color="grey">パフォーマンス計測結果</font>
+<font color="grey">Performance Measurement Results</font>
 </p>
 
 
-## Section 3 使用方法
-CyDecalはAssets/CyDecalフォルダーを自身のプロジェクトに取り込むことで利用できます。<br/>
-その中でも次の２つのクラスが重要になってきます。
-1. CyDecalSystemクラス
-2. CyDecalProjectorクラス
+## Section 3 How to use
+CyDecal can be used by importing the Assets/CyDecal folder into your own project.<br/>
+The following two cmponents are the most important of these.
+1. CyDecalSystem
+2. CyDecalProjector 
 
-### 3.1 CyDecalSystemクラス
-CyDecalを利用するためには、必ず、このコンポーネントが貼られたゲームオブジェクトを一つ設置する必要があります。
+### 3.1 CyDecalSystem
+To use CyDecal, you must always install one game object with this component affixed.
 
 <p align="center">
 <img width="80%" src="Documentation/fig-013.png" alt="CyDecalSystem"><br>
 <font color="grey">CyDecalSystem</font>
 </p>
 
-### 3.2 CyDecalProjectorクラス
-デカールを投影するためのコンポーネントです。デカールプロジェクタとして設置するゲームオブジェクトにこのコンポーネントを追加してください。
+### 3.2 CyDecalProjector
+This component is used to project decals. Add this component to the game object to be installed as a decal projector.
 
 <p align="center">
 <img width="50%" src="Documentation/fig-004.png" alt="CyDecalProjectorのインスペクタ"><br>
-<font color="grey">CyDecalProjectorのインスペクタ</font>
+<font color="grey">CyDecalProjector inspector</font>
 </p>
 
-CyDecalProjectorコンポーネントには5つのパラメータを設定することができます。
-|パラメータ名|説明|
-|---|---|
-|Width|Projector バウンディングボックスの幅です。URPのデカールプロジェクタの仕様に準拠しています。<br/>詳細は[URPデカールのマニュアル](https://docs.unity3d.com/ja/Packages/com.unity.render-pipelines.universal@14.0/manual/renderer-feature-decal.html)を参照してください。 |
-|Height|Projector バウンディングボックスの高さです。URPのデカールプロジェクタの仕様に準拠しています。<br/>詳細は[URPデカールのマニュアル](https://docs.unity3d.com/ja/Packages/com.unity.render-pipelines.universal@14.0/manual/renderer-feature-decal.html)を参照してください。|
-|Depth|Projector バウンディングボックスの深度です。URPのデカールプロジェクタの仕様に準拠しています。<br/>詳細は[URPデカールのマニュアル](https://docs.unity3d.com/ja/Packages/com.unity.render-pipelines.universal@14.0/manual/renderer-feature-decal.html)を参照してください。|
-|Receiver Object| デカールテクスチャの貼り付け対象となるオブジェクト。<br/>CyDecalProjectorは設定されているレシーバーオブジェクトの子供(自身を含む)に貼られている全てのレンダラーを貼り付け対象とします。<br/><br/>そのため、レシーバーオブジェクトはMeshRendererやSkinMeshRendererなどのコンポーネントが貼られているオブジェクトを直接指定もできますし、レンダラーが貼られているオブジェクトを子供に含んでいるオブジェクトの指定でも構いません。<br/>処理するレンダラーの数が多いほど、デカールメッシュ生成の時間がかかるようになるため、貼り付ける範囲を限定できるときは、レンダラーが貼り付けられているオブジェクトの直接指定が推奨されます。<br/><br/>例えば、キャラエディットなどでキャラクターの顔にステッカーを貼り付けたい場合、キャラのルートオブジェクトを指定するよりも顔のレンダラーが貼られているオブジェクトを指定するとメッシュ生成の時間を短縮できます。|
-|Decal Material| デカールマテリアル。<br/>URPのデカールマテリアルとは意味あいが違うので注意してください。<br/>URPデカールではShader Graphs/Decalシェーダーが割り当てられたマテリアルしか使えません。<br/>しかし、CyDecalでは通常のマテリアルが使えます。<br/>つまり、ビルトインのLitシェーダー、Unlitシェーダー、そして、ユーザーカスタムの独自シェーダーも利用できます。|
-|Launch On Awake|このチェックボックスにチェックが入っていると、インスタンスの生成と同時にデカールの投影処理が開始されます。|
-|On Finished Launch|デカールの投影終了時に呼び出されるコールバックを指定できます。|
+Five parameters can be set for the CyDecalProjector component.
 
-次の動画はCyDecalProjectorをシーンに設置して使用する方法です。
+|Parameter name|Description|
+|---|---|
+|Width|Width of the Projector bounding box.This complies with URP's decal projector specifications.<br/>For more information, see [Manual for URP Decals](https://docs.unity3d.com/ja/Packages/com.unity.render-pipelines.universal@14.0/manual/renderer-feature-decal. html).|
+|Height|Height of the Projector bounding box.This complies with URP's decal projector specifications.<br/>For more information, see [Manual for URP Decals](https://docs.unity3d.com/ja/Packages/com.unity.render-pipelines.universal@14.0/manual/renderer-feature-decal. html).|
+|Depth|Depth of the Projector bounding box.This complies with URP's decal projector specifications.<br/>For more information, see [Manual for URP Decals](https://docs.unity3d.com/ja/Packages/com.unity.render-pipelines.universal@14.0/manual/renderer-feature-decal. html).|
+|Receiver Object| デThe object to which the decal texture will be applied.<br/>CyDecalProjector targets all renderers pasted to children of the configured receiver object (including itself).<br/><br/>Therefore, the receiver object can be specified directly as an object to which a component such as MeshRenderer or SkinMeshRenderer is affixed, or it can be an object that contains an object to which a renderer is affixed as a child.<br/>The more renderers you process, the longer it will take to generate the decal mesh.Therefore, if the object to which the decal texture is to be applied can be restricted, it is more advantageous to specify that object directly as the receiver object.<br/><br/>For example, if you want to put a sticker on a character's face in a character edit, you can save mesh generation time by specifying the object to which the face renderer is attached rather than specifying the character's root object.|
+|Decal Material| URP decals can only use materials with Shader Graphs/Decal shaders assigned, while CyDecal can use regular materials.<br/>This means that built-in Lit shaders, Unlit shaders, and user-custom, proprietary shaders are also available.|
+|Launch On Awake|If this checkbox is checked, the decal projection process is started at the same time the instance is created.|
+|On Finished Launch|You can specify a callback to be called at the end of the decal projection.|
+
+The following video shows how to use CyDecalProjector in a scene.
 <p align="center">
 <img width="80%" src="Documentation/fig-012.gif" alt="CyDecalProjectorの使用方法"><br>
-<font color="grey">CyDecalProjectorの使用方法</font>
+<font color="grey">How to use CyDeaclProjector</font>
 </p>
 
-> **Note**<br/>
-> 現在、CyDecalProjectorは投影範囲の可視化に対応していないため、シーンビューで配置する場合はURPプロジェクターと併用すると、視覚的に分かりやすくなります。
 
-### 3.3 ランタイムでのCyDecalProjectorの生成
-デカールのランタイムでの使用例として、FPSなどの弾痕を背景に貼り付ける処理があります。このような処理をCyDecalで行うためには、背景と銃弾との衝突判定を行い、衝突点の情報を元にCyDecalProjectorコンポーネントを生成して、デカールメッシュを構築することで実現できます。<br/><br/>
-CyDecalProjectorコンポーネントはCyDecalProjector.CreateAndLaunch()メソッドを呼び出すことで生成できます。</br>
-CreateAndLaunch()メソッドのlaunchAwake引数にtrueを指定すると、コンポーネントの生成と同時にデカールメッシュの構築処理が開始されます。<br/><br/>
-デカールメッシュの構築処理は時間のかかる処理になっているため、数フレームにわたって処理が実行されます。そのため、デカールメッシュの構築処理の終了を監視したい場合は、CyDecalProjectorのNowStateプロパティを監視するか、メッシュ生成処理の終了時に呼び出しされる、onFinishedLaunchコールバックを利用する必要があります。<br/><br/>
-次のコードは、CyDecalProjector.CreateAndLaunch()メソッドを利用して弾痕を背景に貼り付けるための疑似コードです。この疑似コードでは、CreateAndLaunch()メソッドの引数を使って終了を監視するコールバックを設定しています。<br/>
+### 3.3 How to generate CyDecalProjector in-game
+An example of an in-game use of decals is the process of applying bullet holes to a background, such as in a FPS. <br/>
+Such a process can be accomplished by determining the collision between the background and the bullet, generating a CyDecalProjector component based on the collision point information, and constructing a decal mesh.<br/><br/>
+CyDecalProjector components can be created by calling the CyDecalProjector.CreateAndLaunch() method.</br>
+If true is specified for the launchAwake argument of the CreateAndLaunch() method, the decal mesh construction process is started at the same time the component is created.<br/><br/>
+The decal mesh construction process runs over several frames.Therefore, if you want to monitor the end of the decal mesh construction process, you must monitor the NowState property of CyDecalProjector or use the onFinishedLaunch callback, which is called when the mesh generation process is finished.<br/><br/>
+The following code is a pseudo code to paste bullet holes on the background using the CyDecalProjector.CreateAndLaunch() method. This code sets up a callback that monitors for termination using the arguments of the CreateAndLaunch() method.<br/>
 ```C#
-// hitPosition    弾丸と背景の衝突点
-// hitNormal      衝突した面の法線
-// receiverObject デカールを貼り付けるレシーバーオブジェクト
-// decalMaterial  デカールマテリアル
+// hitPosition    Bullet and background collision point.
+// hitNormal      Normal of the collided surface.
+// receiverObject Receiver object to which decal is applied.
+// decalMaterial  Material with decal texture set
 void LaunchProjector( 
   Vector3 hitPosition, Vector3 hitNormal, 
   GameObject receiverObject, Material decalMaterial )
 {
     var projectorObject = new GameObject("Decal Projector");
-    // 法線方向に押し戻した位置にプロジェクターを設置。
+    // Install the projector at the position pushed back in the normal direction.
     projectorObject.transform.position = hitPosition + hitNormal;
-    // プロジェクターの向きは法線の逆向き
+    // Projector is oriented in the opposite direction of the normal.
     projectorObject.transform.rotation = Quaternion.LookRotation( hitNormal * -1.0f );
 
     CyDecalProjector.CreateAndLaunch(
