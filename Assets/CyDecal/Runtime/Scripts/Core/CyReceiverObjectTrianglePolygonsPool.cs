@@ -5,87 +5,65 @@ using UnityEngine;
 namespace CyDecal.Runtime.Scripts.Core
 {
     /// <summary>
-    ///     凸多角形情報
+    ///     The information of convex polygon.
     /// </summary>
     public class ConvexPolygonInfo
     {
-        public CyConvexPolygon ConvexPolygon { get; set; } // 凸多角形
-        public bool IsOutsideClipSpace { get; set; } // クリップ平面の外側？
+        public CyConvexPolygon ConvexPolygon { get; set; }
+        /// <summary>
+        ///     This flag indicates whether the convex polygon is outside the clip space defined by the decal box.
+        /// </summary>
+        public bool IsOutsideClipSpace { get; set; } 
     }
 
     internal interface ICyReceiverObjectTrianglePolygonsPool
     {
-        IReadOnlyDictionary<GameObject, List<ConvexPolygonInfo>> ConvexPolygonsPool
-        {
-            get;
-        }
+        IReadOnlyDictionary<GameObject, List<ConvexPolygonInfo>> ConvexPolygonsPool { get; }
+
         bool Contains(GameObject receiverObject);
         void GarbageCollect();
     }
+
     /// <summary>
-    ///     ターゲットオブジェクトの三角形ポリゴンブール
+    ///     Triangle polygon pool of receiver object.<br />
+    ///     Triangle polygons are registered in the pool with the receiver object as the key.<br />
     /// </summary>
     public sealed class CyReceiverObjectTrianglePolygonsPool : ICyReceiverObjectTrianglePolygonsPool
     {
-        Dictionary<GameObject, List<ConvexPolygonInfo>> _convexPolygonsPool = new Dictionary<GameObject, List<ConvexPolygonInfo>>();
+        private readonly Dictionary<GameObject, List<ConvexPolygonInfo>> _trianglePolygonsPool =
+            new Dictionary<GameObject, List<ConvexPolygonInfo>>();
 
-        IReadOnlyDictionary <GameObject, List<ConvexPolygonInfo>> ICyReceiverObjectTrianglePolygonsPool.ConvexPolygonsPool
-        {
-            get => _convexPolygonsPool;
-        } 
-
-        /// <summary>
-        ///     プールをクリア
-        /// </summary>
-        public void Clear()
-        {
-            _convexPolygonsPool.Clear();
-        }
-        
-        /// <summary>
-        ///     デカールを貼り付けるレシーバーオブジェクトの情報から凸多角形ポリゴンを登録する。
-        /// </summary>
-        /// <param name="receiverObject">デカールが貼り付けられるレシーバーオブジェクト</param>
-        /// <param name="meshFilters">レシーバーオブジェクトのメッシュフィルター</param>
-        /// <param name="meshRenderer">レシーバーオブジェクトのメッシュレンダラー</param>
-        /// <param name="skinnedMeshRenderers">レシーバーオブジェクトのスキンメッシュレンダラー</param>
-        public void RegisterConvexPolygons(GameObject receiverObject, List<ConvexPolygonInfo> convexPolygonInfos)
-        {
-            if (receiverObject
-                && !((ICyReceiverObjectTrianglePolygonsPool)this).Contains(receiverObject))
-                // 処理再開時にレシーバーオブジェクトが破棄されている可能性があるのでオブジェクトが生きているかチェックを入れる。
-                _convexPolygonsPool.Add(receiverObject, convexPolygonInfos);
-        }
+        IReadOnlyDictionary<GameObject, List<ConvexPolygonInfo>> ICyReceiverObjectTrianglePolygonsPool.
+            ConvexPolygonsPool => _trianglePolygonsPool;
 
         /// <summary>
-        ///     指定したレシーバーオブジェクトの凸ポリゴン情報が登録済みか判定する。
+        ///     Check to the triangle polygons of the receiver object is already registered.
         /// </summary>
-        /// <param name="receiverObject">レシーバーオブジェクト</param>
-        /// <returns></returns>
+        /// <returns>If receiver object is already registered, return true.</returns>
         public bool Contains(GameObject receiverObject)
         {
-            return _convexPolygonsPool.ContainsKey(receiverObject);
+            return _trianglePolygonsPool.ContainsKey(receiverObject);
         }
 
         /// <summary>
-        ///     プールをガベージコレクト
+        ///     If the receiver object that is registered is dead, it is removed from pool.  
         /// </summary>
-        /// <remarks>
-        ///     キーとなっているレシーバーオブジェクトが削除されていたら、プールから除去する。
-        /// </remarks>
         void ICyReceiverObjectTrianglePolygonsPool.GarbageCollect()
         {
-            var deleteList = _convexPolygonsPool.Where(item => item.Key == null).ToList();
-            foreach (var item in deleteList) _convexPolygonsPool.Remove(item.Key);
+            var deleteList = _trianglePolygonsPool.Where(item => item.Key == null).ToList();
+            foreach (var item in deleteList) _trianglePolygonsPool.Remove(item.Key);
         }
-
-        /// <summary>
-        ///     プールのサイズを取得。
-        /// </summary>
-        /// <returns></returns>
+        
+        public void RegisterTrianglePolygons(GameObject receiverObject, List<ConvexPolygonInfo> trianglePolygonInfos)
+        {
+            if (receiverObject
+                && !this.Contains(receiverObject)) 
+                _trianglePolygonsPool.Add(receiverObject, trianglePolygonInfos);
+        }
+        
         public int GetPoolSize()
         {
-            return _convexPolygonsPool.Count;
+            return _trianglePolygonsPool.Count;
         }
     }
 }

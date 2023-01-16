@@ -1,44 +1,39 @@
 using System.Collections.Generic;
-using System.Diagnostics;
-using Unity.Collections;
 using UnityEngine;
-using Debug = System.Diagnostics.Debug;
 
 namespace CyDecal.Runtime.Scripts.Core
 {
     /// <summary>
-    ///     大まかな当たり判定を行い、デカール対象となるメッシュを大幅に枝切りする。
+    ///     This class run broad phase convex polygons detection.
     /// </summary>
-    /// <remarks>
-    ///     デカールボックスの座標からデカールボックスの全範囲を内包する円の外に含まれているメッシュを枝切りします。<br />
-    ///     また、メッシュの向きがデカールボックスと逆向きになっているメッシュも枝切りします。<br />
-    ///     枝切りはUnityのジョブシステムを利用して並列に実行されます。
-    /// </remarks>
     internal static class CyBroadPhaseConvexPolygonsDetection
     {
         /// <summary>
-        ///     ブロードフェーズを実行。
+        ///     Execute broad phase.
         /// </summary>
+        /// <remarks>
+        ///     Remove polygons outside the circle encompassing the decal box.<br />
+        ///     Also, remove polygons whose mesh orientation is opposite the decal box.<br />
+        /// </remarks>
         public static List<ConvexPolygonInfo> Execute(
             Vector3 centerPosInDecalBox,
             Vector3 decalSpaceNormalWs,
-            float width,
-            float height,
-            float projectionDepth,
+            float decalBoxWidth,
+            float decalBoxHeight,
+            float decalBoxDepth,
             List<ConvexPolygonInfo> convexPolygonInfos)
         {
-            var threshold = Mathf.Max(width/2, height/2, projectionDepth);
-            // ボックスの対角線の長さにする。
+            var threshold = Mathf.Max(decalBoxWidth / 2, decalBoxHeight / 2, decalBoxDepth);
             threshold *= 1.414f;
             threshold *= threshold;
-            
-            int broadPhaseConvexPolygonCount = 0;
+
+            var broadPhaseConvexPolygonCount = 0;
             for (var i = 0; i < convexPolygonInfos.Count; i++)
             {
                 var convexPolygonInfo = convexPolygonInfos[i];
                 if (Vector3.Dot(decalSpaceNormalWs, convexPolygonInfo.ConvexPolygon.FaceNormal) < 0)
                 {
-                    // 枝切りの印をつける。
+                    // Set the flag of outside the clip space.
                     convexPolygonInfo.IsOutsideClipSpace = true;
                     continue;
                 }
@@ -58,7 +53,7 @@ namespace CyDecal.Runtime.Scripts.Core
                         v2 -= centerPosInDecalBox;
                         if (v2.sqrMagnitude > threshold)
                         {
-                            // 枝切りの印をつける。
+                            // Set the flag of outside the clip space.
                             convexPolygonInfo.IsOutsideClipSpace = true;
                             continue;
                         }
@@ -67,7 +62,7 @@ namespace CyDecal.Runtime.Scripts.Core
 
                 broadPhaseConvexPolygonCount++;
             }
-            
+
             var broadPhaseConvexPolygonInfos = new List<ConvexPolygonInfo>(broadPhaseConvexPolygonCount);
             var positionBuffer = new Vector3[CyConvexPolygon.DefaultMaxVertex * broadPhaseConvexPolygonCount];
             var normalBuffer = new Vector3[CyConvexPolygon.DefaultMaxVertex * broadPhaseConvexPolygonCount];
@@ -76,7 +71,7 @@ namespace CyDecal.Runtime.Scripts.Core
             var boneWeightBuffer = new BoneWeight[CyConvexPolygon.DefaultMaxVertex * broadPhaseConvexPolygonCount];
             var lineBuffer = new CyLine[CyConvexPolygon.DefaultMaxVertex * broadPhaseConvexPolygonCount];
             var startOffsetInBuffer = 0;
-             
+
             for (var i = 0; i < convexPolygonInfos.Count; i++)
             {
                 var convexPolygonInfo = convexPolygonInfos[i];
@@ -85,16 +80,17 @@ namespace CyDecal.Runtime.Scripts.Core
                     broadPhaseConvexPolygonInfos.Add(new ConvexPolygonInfo
                     {
                         ConvexPolygon = new CyConvexPolygon(convexPolygonInfo.ConvexPolygon, positionBuffer,
-                            normalBuffer, boneWeightBuffer, lineBuffer,localPositionBuffer, localNormalBuffer,
+                            normalBuffer, boneWeightBuffer, lineBuffer, localPositionBuffer, localNormalBuffer,
                             startOffsetInBuffer),
                         IsOutsideClipSpace = convexPolygonInfo.IsOutsideClipSpace
                     });
-                    
+
                     startOffsetInBuffer += CyConvexPolygon.DefaultMaxVertex;
                 }
 
                 convexPolygonInfo.IsOutsideClipSpace = false;
             }
+
             return broadPhaseConvexPolygonInfos;
         }
     }

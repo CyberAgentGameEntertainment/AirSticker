@@ -6,40 +6,47 @@ using UnityEngine.Assertions;
 namespace CyDecal.Runtime.Scripts.Core
 {
     /// <summary>
-    ///     凸多角形ポリゴン
+    ///     Convex polygons with more vertices possible.
     /// </summary>
     public sealed class CyConvexPolygon
     {
         public const int DefaultMaxVertex = 64;
-        private readonly BoneWeight[] _boneWeightBuffer; // ボーンウェイトバッファ
+        private readonly BoneWeight[] _boneWeightBuffer;
         private readonly bool _isSkinnedMeshRenderer;
-        private readonly CyLine[] _lineBuffer; // 凸多角形を構成するエッジ情報のバッファ
+        private readonly CyLine[] _lineBuffer;
+        private readonly int _maxVertex;
         private readonly Vector3[] _normalInModelSpaceBuffer;
+        private readonly Vector3[] _normalInWorldSpaceBuffer;
         private readonly Vector3[] _positionInModelSpaceBuffer;
-        private readonly int _maxVertex; //  凸多角形の最大頂点
-        private readonly Vector3[] _normalInWorldSpaceBuffer; // 頂点法線バッファ
-        private readonly Vector3[] _positionInWorldSpaceBuffer; // 頂点座標バッファ
+        private readonly Vector3[] _positionInWorldSpaceBuffer;
         private readonly int _rendererNo;
         private readonly int _startOffsetInBuffer;
         private bool _existsRootBone;
-        private Vector3 _faceNormal; // 面法線
-
+        private Vector3 _faceNormal;
         private Matrix4x4 _localToWorldMatrix;
 
         /// <summary>
-        ///     コンストラクタ
+        ///     Constructor.<br />
+        ///     Buffers for the various arguments must be allocated for the required size.<br />
         /// </summary>
-        /// <param name="positionInWorldSpaceBuffer">ワールド空間の頂点座標のバッファ</param>
-        /// <param name="normalInWorldSpaceBuffer">ワールド空間の頂点法線のバッファ</param>
-        /// <param name="boneWeightBuffer">頂点のボーンウェイトバッファ</param>
-        /// <param name="lineBuffer">多角形の辺を表すラインのバッファ</param>
-        /// <param name="positionInModelSpaceBuffer">モデル空間の頂点座標のバッファ</param>
-        /// <param name="normalInModelSpaceBuffer">モデル空間の頂点法線のバッファ</param>
-        /// <param name="receiverMeshRenderer">デカールメッシュを貼り付けメッシュのレンダラ</param>
-        /// <param name="startOffsetInBuffer">各種バッファ内での開始オフセット。この変数の値がこの多角形ポリゴンの頂点情報が格納されている開始位置です。</param>
-        /// <param name="initVertexCount">凸多角形の初期の頂点数</param>
-        /// <param name="rendererNo">レンダラーの番号</param>
-        /// <param name="maxVertex">凸多角形の最大頂点数。この引数の値まで凸多角形を分割できます。指定されていない場合はDefaultMaxVertexの値が最大頂点数になります。</param>
+        /// <param name="positionInWorldSpaceBuffer">Buffer of vertex position in world space.</param>
+        /// <param name="normalInWorldSpaceBuffer">Buffer of vertex normal in world space.</param>
+        /// <param name="boneWeightBuffer">Buffer of vertex bone weights.</param>
+        /// <param name="lineBuffer">Buffer of lines of convex polygons.</param>
+        /// <param name="positionInModelSpaceBuffer">Buffer of vertex position in model space.</param>
+        /// <param name="normalInModelSpaceBuffer">Buffer of vertex normal in model space.</param>
+        /// <param name="receiverMeshRenderer">Receiver mesh renderer which the decal mesh will be attached.</param>
+        /// <param name="startOffsetInBuffer">
+        ///     offset of start index in buffer.<br />
+        ///     The value of this variable is the starting position where the vertex information of this polygon is stored.
+        /// </param>
+        /// <param name="initVertexCount">Initial count of vertices of convex polygon</param>
+        /// <param name="rendererNo">Number of receiver mesh renderer.</param>
+        /// <param name="maxVertex">
+        ///     Maximum number of vertices in a convex polygon.<br />
+        ///     A convex polygon can be divided up to the value of this argument.<br />
+        ///     If not specified, the value of DefaultMaxVertex is the maximum number of vertices.<br />
+        /// </param>
         public CyConvexPolygon(
             Vector3[] positionInWorldSpaceBuffer,
             Vector3[] normalInWorldSpaceBuffer,
@@ -68,21 +75,26 @@ namespace CyDecal.Runtime.Scripts.Core
         }
 
         /// <summary>
-        ///     コピーコンストラクタ
+        ///     Copy Constructor.<br />
+        ///     The contents of the various buffers held by the source convex polygon are copied only as needed, not all.<br />
+        ///     Also, Buffers for the various arguments must be allocated for the required size.<br />
         /// </summary>
-        /// <param name="srcConvexPolygon">コピー元となる凸多角形</param>
+        /// <param name="srcConvexPolygon">Convex polygon of copy source.</param>
+        /// <param name="startOffsetInBuffer">offset of start index in buffer.</param>
         /// <param name="maxVertex">
-        ///     凸多角形の最大頂点数。分割可能頂点数を変更したい場合に最大頂点数を指定して下さい。
-        ///     最大頂点数がsrcConvexPolygonのmaxVertexの値より小さい場合は無視されます。
+        ///     max vertex of convex polygon.<br />
+        ///     Specify the maximum number of vertices when you want to change the number of vertices that can be divided.<br />
+        ///     If the maximum number of vertices is less than the value of maxVertex in srcConvexPolygon, it is ignored.<br />
         /// </param>
-        public CyConvexPolygon(CyConvexPolygon srcConvexPolygon,
-            Vector3[] positionInWorldSpaceBuffer,
-            Vector3[] normalInWorldSpaceBuffer,
-            BoneWeight[] boneWeightBuffer,
-            CyLine[] lineBuffer,
-            Vector3[] positionInModelSpaceBuffer,
-            Vector3[] normalInModelSpaceBuffer,
-            int startOffsetInBuffer,
+        /// <param name="positionInWorldSpaceBuffer">Buffer of vertex position in world space.</param>
+        /// <param name="normalInWorldSpaceBuffer">Buffer of vertex normal in world space.</param>
+        /// <param name="boneWeightBuffer">Buffer of vertex bone weights.</param>
+        /// <param name="lineBuffer">Buffer of lines of convex polygons.</param>
+        /// <param name="positionInModelSpaceBuffer">Buffer of vertex position in model space.</param>
+        /// <param name="normalInModelSpaceBuffer">Buffer of vertex normal in model space.</param>
+        public CyConvexPolygon(CyConvexPolygon srcConvexPolygon, Vector3[] positionInWorldSpaceBuffer,
+            Vector3[] normalInWorldSpaceBuffer, BoneWeight[] boneWeightBuffer, CyLine[] lineBuffer,
+            Vector3[] positionInModelSpaceBuffer, Vector3[] normalInModelSpaceBuffer, int startOffsetInBuffer,
             int maxVertex = DefaultMaxVertex)
         {
             ReceiverMeshRenderer = srcConvexPolygon.ReceiverMeshRenderer;
@@ -117,33 +129,14 @@ namespace CyDecal.Runtime.Scripts.Core
             _faceNormal = srcConvexPolygon._faceNormal;
         }
 
-        /// <summary>
-        ///     面法線プロパティ
-        /// </summary>
         public Vector3 FaceNormal => _faceNormal;
-
-        /// <summary>
-        ///     頂点数プロパティ
-        /// </summary>
         public int VertexCount { get; private set; }
 
         /// <summary>
-        ///     デカールを貼り付けられるレシーバーメッシュのレンダラー。
+        ///     The receiver mesh renderer which the decal mesh will be attached.
         /// </summary>
         public Renderer ReceiverMeshRenderer { get; }
 
-        /// <summary>
-        ///     分割平面によって生成された新しい二つの頂点のデータを計算する。
-        /// </summary>
-        /// <param name="newVert0">頂点座標１の格納先</param>
-        /// <param name="newVert1">頂点座標２の格納先</param>
-        /// <param name="newNormal0">頂点法線１の格納先</param>
-        /// <param name="newNormal1">頂点法線２の格納先</param>
-        /// <param name="newBoneWeight0">ボーンウェイト１の格納先</param>
-        /// <param name="newBoneWeight1">ボーンウェイト２の格納先</param>
-        /// <param name="l0">分割されるライン０</param>
-        /// <param name="l1">分割されるライン１</param>
-        /// <param name="clipPlane">分割平面</param>
         private void CalculateNewVertexDataBySplitPlane(
             out Vector3 newVert0,
             out Vector3 newVert1,
@@ -228,7 +221,7 @@ namespace CyDecal.Runtime.Scripts.Core
             newBoneWeight1.boneIndex2 = l1.EndWeight.boneIndex2;
             newBoneWeight1.boneIndex3 = l1.EndWeight.boneIndex3;
 
-            // 重みを正規化
+            // Normalize bone weights.
             var total = newBoneWeight0.weight0 + newBoneWeight0.weight1 + newBoneWeight0.weight2 +
                         newBoneWeight0.weight3;
             if (total > 0.0f)
@@ -277,33 +270,12 @@ namespace CyDecal.Runtime.Scripts.Core
             return _positionInWorldSpaceBuffer[vertNo];
         }
 
-        /// <summary>
-        ///     Set the vertex position in world space to the buffer.
-        /// </summary>
-        /// <param name="vertNo">
-        ///     Real vertex no.
-        ///     This value should be obtained using the GetRealVertexNo function.
-        /// </param>
-        /// <param name="position">vertex position</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SetVertexPositionInWorldSpace(int vertNo, Vector3 position)
         {
             _positionInWorldSpaceBuffer[vertNo] = position;
         }
 
-        /// <summary>
-        ///     Copy the vertex position in world space.
-        /// </summary>
-        /// <param name="destVertNo">
-        ///     the vertex no of destination.
-        ///     real vertex no.
-        ///     This value should be obtained using the GetRealVertexNo function.
-        /// </param>
-        /// <param name="srcVertNo">
-        ///     the vertex no of source.
-        ///     real vertex no.
-        ///     This value should be obtained using the GetRealVertexNo function.
-        /// </param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void CopyVertexPositionInWorldSpace(int destVertNo, int srcVertNo)
         {
@@ -317,40 +289,18 @@ namespace CyDecal.Runtime.Scripts.Core
         ///     Real vertex no.
         ///     This value should be obtained using the GetRealVertexNo function.
         /// </param>
-        /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector3 GetVertexPositionInModelSpace(int vertNo)
         {
             return _positionInModelSpaceBuffer[vertNo];
         }
 
-        /// <summary>
-        ///     Set the vertex position in the model space.
-        /// </summary>
-        /// <param name="vertNo">
-        ///     Real vertex no.
-        ///     This value should be obtained using the GetRealVertexNo function.
-        /// </param>
-        /// <param name="position">The vertex position.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SetVertexPositionInModelSpace(int vertNo, Vector3 position)
         {
             _positionInModelSpaceBuffer[vertNo] = position;
         }
 
-        /// <summary>
-        ///     Copy the vertex position in the model space.
-        /// </summary>
-        /// <param name="destVertNo">
-        ///     the vertex no of destination.
-        ///     real vertex no.
-        ///     This value should be obtained using the GetRealVertexNo function.
-        /// </param>
-        /// <param name="srcVertNo">
-        ///     the vertex no of source.
-        ///     real vertex no.
-        ///     This value should be obtained using the GetRealVertexNo function.
-        /// </param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void CopyVertexPositionInModelSpace(int destVertNo, int srcVertNo)
         {
@@ -364,40 +314,18 @@ namespace CyDecal.Runtime.Scripts.Core
         ///     Real vertex no.
         ///     This value should be obtained using the GetRealVertexNo function.
         /// </param>
-        /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector3 GetVertexNormalInWorldSpace(int vertNo)
         {
             return _normalInWorldSpaceBuffer[vertNo];
         }
 
-        /// <summary>
-        ///     Set the vertex normal in the world space.
-        /// </summary>
-        /// <param name="vertNo">
-        ///     Real vertex no.
-        ///     This value should be obtained using the GetRealVertexNo function.
-        /// </param>
-        /// <param name="normal"> The vertex normal in world space. </param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SetVertexNormalInWorldSpace(int vertNo, Vector3 normal)
         {
             _normalInWorldSpaceBuffer[vertNo] = normal;
         }
 
-        /// <summary>
-        ///     Copy the vertex normal in world space.
-        /// </summary>
-        /// <param name="destVertNo">
-        ///     the vertex no of destination.
-        ///     real vertex no.
-        ///     This value should be obtained using the GetRealVertexNo function.
-        /// </param>
-        /// <param name="srcVertNo">
-        ///     the vertex no of source.
-        ///     real vertex no.
-        ///     This value should be obtained using the GetRealVertexNo function.
-        /// </param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void CopyVertexNormalInWorldSpace(int destVertNo, int srcVertNo)
         {
@@ -411,98 +339,42 @@ namespace CyDecal.Runtime.Scripts.Core
         ///     Real vertex no.
         ///     This value should be obtained using the GetRealVertexNo function.
         /// </param>
-        /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector3 GetVertexNormalInModelSpace(int vertNo)
         {
             return _normalInModelSpaceBuffer[vertNo];
         }
 
-        /// <summary>
-        ///     Set the vertex normal in model space.
-        /// </summary>
-        /// <param name="vertNo">
-        ///     Real vertex no.
-        ///     This value should be obtained using the GetRealVertexNo function.
-        /// </param>
-        /// <param name="normal"></param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SetVertexNormalInModelSpace(int vertNo, Vector3 normal)
         {
             _normalInModelSpaceBuffer[vertNo] = normal;
         }
 
-        /// <summary>
-        ///     Copy the vertex normal in model space.
-        /// </summary>
-        /// <param name="destVertNo">
-        ///     the vertex no of destination.
-        ///     real vertex no.
-        ///     This value should be obtained using the GetRealVertexNo function.
-        /// </param>
-        /// <param name="srcVertNo">
-        ///     the vertex no of source.
-        ///     real vertex no.
-        ///     This value should be obtained using the GetRealVertexNo function.
-        /// </param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void CopyVertexNormalInModelSpace(int destVertNo, int srcVertNo)
         {
             _normalInModelSpaceBuffer[destVertNo] = _normalInModelSpaceBuffer[srcVertNo];
         }
 
-        /// <summary>
-        ///     Get the line of the convex polygon.
-        /// </summary>
-        /// <param name="startVertNo">
-        ///     The start vertex no of the line.
-        ///     This value should be obtained using the GetRealVertexNo function.
-        /// </param>
-        /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private CyLine GetLine(int startVertNo)
         {
             return _lineBuffer[startVertNo];
         }
 
-        /// <summary>
-        ///     Get the reference of the line in the convex polygon.
-        /// </summary>
-        /// <param name="startVertNo">
-        ///     The start vertex no of the line.
-        ///     This value should be obtained using the GetRealVertexNo function.
-        /// </param>
-        /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private ref CyLine GetLineRef(int startVertNo)
         {
             return ref _lineBuffer[startVertNo];
         }
 
-        /// <summary>
-        ///     Copy the line of the convex polygon.
-        /// </summary>
-        /// <param name="destStartVertNo">
-        ///     the vertex no of destination.
-        ///     It is start no of the line.
-        ///     This value should be obtained using the GetRealVertexNo function.
-        /// </param>
-        /// <param name="srcStartVertNo">
-        ///     the vertex no of source.
-        ///     real vertex no.
-        ///     This value should be obtained using the GetRealVertexNo function.
-        /// </param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void CopyLine(int destStartVertNo, int srcStartVertNo)
         {
             _lineBuffer[destStartVertNo] = _lineBuffer[srcStartVertNo];
         }
 
-        /// <summary>
-        ///     Vector3からVector4(w＝1)に変換します。
-        /// </summary>
-        /// <param name="v"></param>
-        /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static Vector4 Vector3ToVector4(Vector3 v)
         {
@@ -510,21 +382,22 @@ namespace CyDecal.Runtime.Scripts.Core
         }
 
         /// <summary>
-        ///     凸多角形を平面で分割/削除する。
+        ///     Split and remove to convex polygon by plane.
         /// </summary>
         /// <remarks>
-        ///     平面により凸多角形を分割できる場合に分割処理を行い、新しい凸多角形を作成します。
-        ///     また、この際に平面の外側(負の側)にある頂点は破棄されます。
-        ///     例えば、三角形を平面で分割する場合、四角形と三角形に分割されますが、
-        ///     この時、分割後のどちらかの多角形（平面の外側の多角形）の情報は失われます。
-        ///     また、凸多角形を構成する全ての頂点が平面の外側にあった場合はallVertexIsOutsideにtrueを設定します。
+        ///     If a convex polygon can be divided by a plane, the division process is performed to create a new convex polygon.
+        ///     Also, vertices outside (on the negative side) of the plane are discarded in this case.
+        ///     For example, if a triangle is divided by a plane, it will be divided into a quadrangle and a triangle, but In this
+        ///     case,
+        ///     information about either of the polygons (polygons outside the plane) will be lost after the division.
+        ///     Also, set allVertexIsOutside to true if all vertices that make up the convex polygon are outside the plane.
         /// </remarks>
-        /// <param name="clipPlane">分割平面</param>
-        /// <param name="allVertexIsOutside">凸多角形の全ての頂点が平面の外の場合にtrueが設定されます。</param>
+        /// <param name="clipPlane"></param>
+        /// <param name="allVertexIsOutside">If all vertices of the convex polygon are outside the plane, True is set.</param>
         public void SplitAndRemoveByPlane(Vector4 clipPlane, out bool allVertexIsOutside)
         {
             allVertexIsOutside = false;
-            // クリップ平面の外側にある頂点を調べる。
+
             var numOutsideVertex = 0;
             var removeVertStartNo = -1;
             var removeVertEndNo = 0;
@@ -535,7 +408,7 @@ namespace CyDecal.Runtime.Scripts.Core
                 var t = Vector4.Dot(clipPlane, Vector3ToVector4(GetVertexPositionInWorldSpace(GetRealVertexNo(no))));
                 if (t < 0)
                 {
-                    // 外側
+                    // outside.
                     if (removeVertStartNo == -1) removeVertStartNo = no;
 
                     removeVertEndNo = no;
@@ -543,7 +416,7 @@ namespace CyDecal.Runtime.Scripts.Core
                 }
                 else
                 {
-                    // 内側
+                    // inside
                     if (remainVertStartNo == -1) remainVertStartNo = no;
 
                     remainVertEndNo = no;
@@ -552,27 +425,28 @@ namespace CyDecal.Runtime.Scripts.Core
 
             if (numOutsideVertex == VertexCount)
             {
-                // 全ての頂点がクリップ平面の外側にいるので分割は行えない。
+                // Since all vertices are outside the clip plane, no division can be performed.
                 allVertexIsOutside = true;
                 return;
             }
 
             if (numOutsideVertex == 0)
-                // 全ての頂点が内側なので分割は行えない。
+                // Since all vertices are inside the clip plane, no division can be performed.
                 return;
 
-            // ここから多角形分割。
-            // 多角形の辺と平面が交差する箇所に新しい頂点が二つ増える。
-            // また、平面の外側の頂点は除外するので、多角形の頂点の増減値は 2 - numOutsideVertex となる。 
+            // Split processing from here.
+            // Two new vertices are added at the intersection of the polygon's edges and planes.
+            // Also, since vertices outside the plane are excluded, the increase/decrease value of the polygon's vertices is 2 - numOutsideVertex. 
             var deltaVerticesSize = 2 - numOutsideVertex;
 
             if (removeVertStartNo == 0)
             {
-                // 0番目の頂点が除外される
-                // 平面と交差する二つのラインの情報をバックアップ。
+                // Remove the 0th vertex.
+                // Two line 
+                // Back up information on two lines that intersect with a plane.
                 var l0 = GetLine(GetRealVertexNo(remainVertStartNo - 1));
                 var l1 = GetLine(GetRealVertexNo(remainVertEndNo));
-                // 残る頂点を前方に詰める。
+                // Pack the remaining vertex forward.
                 var vertNo = 0;
                 for (var i = remainVertStartNo; i < remainVertEndNo + 1; i++)
                 {
@@ -588,8 +462,6 @@ namespace CyDecal.Runtime.Scripts.Core
                     vertNo++;
                 }
 
-
-                // 頂点を二つ追加する。
                 CalculateNewVertexDataBySplitPlane(
                     out var newVert0,
                     out var newVert1,
@@ -606,7 +478,7 @@ namespace CyDecal.Runtime.Scripts.Core
                     clipPlane
                 );
 
-                // 頂点を二つ追加する。
+                // Added two vertex.
                 var newVertNo0_local = vertNo;
                 var newVertNo1_local = vertNo + 1;
 
@@ -627,7 +499,7 @@ namespace CyDecal.Runtime.Scripts.Core
                 SetVertexBoneWeight(newVertNo0, newBoneWeight0);
                 SetVertexBoneWeight(newVertNo1, newBoneWeight1);
 
-                // ライン情報の構築。
+                // Build the lines.
                 VertexCount += deltaVerticesSize;
                 ref var line_0 = ref GetLineRef(GetRealVertexNo(newVertNo0_local - 1));
                 ref var line_1 = ref GetLineRef(newVertNo0);
@@ -662,12 +534,12 @@ namespace CyDecal.Runtime.Scripts.Core
             }
             else
             {
-                // それ以外
-                // 平面と交差する二つのラインの情報をバックアップ。
+                // Remove non 0th vertex.
+                // Back up information on two lines that intersect with a plane.
                 var l0 = GetLine(GetRealVertexNo(removeVertStartNo - 1));
                 var l1 = GetLine(GetRealVertexNo(removeVertEndNo));
                 if (deltaVerticesSize > 0)
-                    // 頂点が増える。
+                    // The vertex increases.
                     for (var i = VertexCount - 1; i > removeVertEndNo; i--)
                     {
                         var destVertNo = GetRealVertexNo(i + deltaVerticesSize);
@@ -680,7 +552,7 @@ namespace CyDecal.Runtime.Scripts.Core
                         CopyLine(destVertNo, srcVertNo);
                     }
                 else
-                    // 頂点が減る or 同じ
+                    // The vertex decrease or stays the same.
                     for (var i = removeVertEndNo + 1; i < VertexCount; i++)
                     {
                         var destVertNo = GetRealVertexNo(i + deltaVerticesSize);
@@ -694,7 +566,7 @@ namespace CyDecal.Runtime.Scripts.Core
                         CopyLine(destVertNo, srcVertNo);
                     }
 
-                // 頂点を二つ追加する。
+                // Add two vertex.
                 CalculateNewVertexDataBySplitPlane(
                     out var newVert0,
                     out var newVert1,
@@ -729,7 +601,7 @@ namespace CyDecal.Runtime.Scripts.Core
                 SetVertexBoneWeight(newVertNo0, newBoneWeight0);
                 SetVertexBoneWeight(newVertNo1, newBoneWeight1);
 
-                // ライン情報の構築。
+                // Build the lines.
                 VertexCount += deltaVerticesSize;
                 ref var line_0 = ref GetLineRef(GetRealVertexNo(newVertNo0_local - 1));
                 ref var line_1 = ref GetLineRef(newVertNo0);
@@ -765,16 +637,6 @@ namespace CyDecal.Runtime.Scripts.Core
             }
         }
 
-        /// <summary>
-        ///     レイと三角形の衝突判定。
-        /// </summary>
-        /// <remarks>
-        ///     凸多角形が三角形意外の時はfalseを返します。
-        /// </remarks>
-        /// <param name="hitPoint">衝突している場合は衝突点の座標が記憶されます。</param>
-        /// <param name="rayStartPos">レイの始点の座標</param>
-        /// <param name="rayEndPos">レイの終点の座標</param>
-        /// <returns>衝突している場合はtrueを返します。</returns>
         public bool IsIntersectRayToTriangle(out Vector3 hitPoint, Vector3 rayStartPos, Vector3 rayEndPos)
         {
             hitPoint = Vector3.zero;
@@ -786,7 +648,7 @@ namespace CyDecal.Runtime.Scripts.Core
             var v1Pos = GetVertexPositionInWorldSpace(vertNo1);
             var v2Pos = GetVertexPositionInWorldSpace(vertNo2);
 
-            // 平面とレイの交差を調べる。
+            // Check to intersect plane to ray.
             var v0ToRayStart = rayStartPos - v0Pos;
             var v0ToRayEnd = rayEndPos - v0Pos;
             var v0ToRayStartNorm = v0ToRayStart.normalized;
@@ -795,12 +657,12 @@ namespace CyDecal.Runtime.Scripts.Core
                     * Vector3.Dot(v0ToRayEndNorm, FaceNormal);
             if (t < 0.0f)
             {
-                // 交差している。
-                // 次は交点を計算。
+                // Hit.
+                // Next Calculate hit point.
                 var t0 = Mathf.Abs(Vector3.Dot(v0ToRayStart, FaceNormal));
                 var t1 = Mathf.Abs(Vector3.Dot(v0ToRayEnd, FaceNormal));
                 var intersectPoint = Vector3.Lerp(rayStartPos, rayEndPos, t0 / (t0 + t1));
-                // 続いて、交点が三角形の中かどうかを調べる。
+                // Check to hit point is inside the triangle.
                 var v0ToIntersectPos = intersectPoint - v0Pos;
                 var v1ToIntersectPos = intersectPoint - v1Pos;
                 var v2ToIntersectPos = intersectPoint - v2Pos;
@@ -824,7 +686,7 @@ namespace CyDecal.Runtime.Scripts.Core
                 if (Vector3.Dot(a0, a1) > 0.0f
                     && Vector3.Dot(a0, a2) > 0.0f)
                 {
-                    // 三角形の中だったので、交差していることが確定。
+                    // Since the hit point is inside, intersected is determined
                     hitPoint = intersectPoint;
                     return true;
                 }
@@ -878,16 +740,6 @@ namespace CyDecal.Runtime.Scripts.Core
             _boneWeightBuffer[destVertNo] = _boneWeightBuffer[srcVertNo];
         }
 
-        /// <summary>
-        ///     行列をスカラー倍する
-        /// </summary>
-        /// <remarks>
-        ///     下記の計算が行われます。<br />
-        ///     mOut = m * s;
-        /// </remarks>
-        /// <param name="mOut">計算結果の格納先</param>
-        /// <param name="m">行列</param>
-        /// <param name="s">スカラー倍</param>
         private static void Multiply(ref Matrix4x4 mOut, Matrix4x4 m, float s)
         {
             mOut = m;
@@ -912,16 +764,6 @@ namespace CyDecal.Runtime.Scripts.Core
             mOut.m33 *= s;
         }
 
-        /// <summary>
-        ///     行列をスカラー倍して加算する。
-        /// </summary>
-        /// <remarks>
-        ///     下記の計算が行われます。<br />
-        ///     mOut *= m * s;
-        /// </remarks>
-        /// <param name="mOut">計算結果の格納先</param>
-        /// <param name="m">行列</param>
-        /// <param name="s">スカラー倍</param>
         private static void MultiplyAdd(ref Matrix4x4 mOut, Matrix4x4 m, float s)
         {
             mOut.m00 += m.m00 * s;
@@ -950,7 +792,7 @@ namespace CyDecal.Runtime.Scripts.Core
         /// </summary>
         /// <remarks>
         ///     Some unity APIs aren't working on the worker threads.
-        ///     Therefore, cache the necessary data in the worker thread. 
+        ///     Therefore, cache the necessary data in the worker thread.
         /// </remarks>
         public void PrepareToRunOnWorkerThread()
         {

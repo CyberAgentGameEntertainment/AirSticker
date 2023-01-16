@@ -13,7 +13,7 @@ using UnityEngine;
 namespace CyDecal.Runtime.Scripts.Core
 {
     /// <summary>
-    ///     三角ポリゴン情報のファクトリ
+    ///     Create Triangle polygons info from the mesh renderer or skinned mesh renderer. 
     /// </summary>
     public class CyTrianglePolygonsFactory : IDisposable
     {
@@ -32,7 +32,7 @@ namespace CyDecal.Runtime.Scripts.Core
         private NativeArray<Vector3> _workingVertexPositions =
             new NativeArray<Vector3>(MaxWorkingVertexCount, Allocator.Persistent);
 
-        private bool _disposed = false;
+        private bool _disposed;
         public static int MaxGeneratedPolygonPerFrame { get; set; } = 100000; //
 #if MEASUREMENT_METHOD_BuildFromSkinMeshRenderer
         public static float[] Time_BuildFromSkinMeshRenderer { get; set; } = new float[3];
@@ -47,32 +47,20 @@ namespace CyDecal.Runtime.Scripts.Core
             _disposed = true;
             GC.SuppressFinalize(this);
         }
-
-        /// <summary>
-        ///     デカールを貼り付けられるレシーバーオブジェクトの情報から凸ポリゴン情報を登録する。
-        /// </summary>
-        /// <param name="meshFilters">レシーバーオブジェクトのメッシュフィルター</param>
-        /// <param name="meshRenderers">レシーバーオブジェクトのメッシュレンダラー</param>
-        /// <param name="skinnedMeshRenderers">レシーバーオブジェクトのスキンメッシュレンダラー</param>
-        /// <param name="convexPolygonInfos">凸ポリゴン情報の格納先</param>
+        
         internal IEnumerator BuildFromReceiverObject(
             MeshFilter[] meshFilters,
             MeshRenderer[] meshRenderers,
             SkinnedMeshRenderer[] skinnedMeshRenderers,
-            List<ConvexPolygonInfo> convexPolygonInfos)
+            List<ConvexPolygonInfo> trianglePolygonInfos)
         {
-            CalculateCapacityConvexPolygonInfos(meshFilters, skinnedMeshRenderers, convexPolygonInfos);
-            yield return BuildFromMeshFilter(meshFilters, meshRenderers, convexPolygonInfos);
-            yield return BuildFromSkinMeshRenderer(skinnedMeshRenderers, convexPolygonInfos);
+            CalculateCapacityConvexPolygonInfos(meshFilters, skinnedMeshRenderers, trianglePolygonInfos);
+            yield return BuildFromMeshFilter(meshFilters, meshRenderers, trianglePolygonInfos);
+            yield return BuildFromSkinMeshRenderer(skinnedMeshRenderers, trianglePolygonInfos);
 
             yield return null;
         }
-
-        /// <summary>
-        ///     SkinModelRendererコンポーネントからポリゴン数を取得する。
-        /// </summary>
-        /// <param name="skinnedMeshRenderers">スキンモデルレンダラー</param>
-        /// <returns>ポリゴン数</returns>
+        
         private static int GetNumPolygonsFromSkinModelRenderers(SkinnedMeshRenderer[] skinnedMeshRenderers)
         {
             var numPolygon = 0;
@@ -86,12 +74,7 @@ namespace CyDecal.Runtime.Scripts.Core
 
             return numPolygon;
         }
-
-        /// <summary>
-        ///     メッシュフィルターからポリゴン数を取得する。
-        /// </summary>
-        /// <param name="meshFilters"></param>
-        /// <returns>ポリゴン数</returns>
+        
         private static int GetNumPolygonsFromMeshFilters(MeshFilter[] meshFilters)
         {
             var numPolygon = 0;
@@ -105,18 +88,7 @@ namespace CyDecal.Runtime.Scripts.Core
 
             return numPolygon;
         }
-
-        /// <summary>
-        ///     凸ポリゴン情報のリストのキャパシティを計算する
-        /// </summary>
-        /// <remarks>
-        ///     キャパシティを設定すると、その分のメモリ確保が一気に行われるため、
-        ///     Addの際の配列拡張によるメモリ確保を防ぐことができるので、事前に計算する。
-        /// </remarks>
-        /// <param name="skinnedMeshRenderers"></param>
-        /// <param name="convexPolygonInfos"></param>
-        /// <param name="meshFilters"></param>
-        /// <exception cref="NotImplementedException"></exception>
+        
         private static void CalculateCapacityConvexPolygonInfos(MeshFilter[] meshFilters,
             SkinnedMeshRenderer[] skinnedMeshRenderers, List<ConvexPolygonInfo> convexPolygonInfos)
         {
@@ -125,13 +97,7 @@ namespace CyDecal.Runtime.Scripts.Core
             capacity += GetNumPolygonsFromSkinModelRenderers(skinnedMeshRenderers);
             if (capacity > 0) convexPolygonInfos.Capacity = capacity;
         }
-
-        /// <summary>
-        ///     MeshFilterから凸ポリゴン情報を登録する。
-        /// </summary>
-        /// <param name="meshFilters">レシーバーオブジェクトのメッシュフィルター</param>
-        /// <param name="meshRenderers">レシーバーオブジェクトのメッシュレンダラー</param>
-        /// <param name="convexPolygonInfos">凸ポリゴン情報の格納先</param>
+        
         private IEnumerator BuildFromMeshFilter(MeshFilter[] meshFilters, MeshRenderer[] meshRenderers,
             List<ConvexPolygonInfo> convexPolygonInfos)
         {
@@ -172,7 +138,7 @@ namespace CyDecal.Runtime.Scripts.Core
             foreach (var meshFilter in meshFilters)
             {
                 if (!meshFilter || meshFilter.sharedMesh == null)
-                    // meshFilterが削除されているので打ち切る
+                    // Mesh filter is deleted, so process is terminated.
                     yield break;
                 var mesh = meshFilter.sharedMesh;
                 using var meshDataArray = Mesh.AcquireReadOnlyMeshData(mesh);
@@ -187,10 +153,10 @@ namespace CyDecal.Runtime.Scripts.Core
                     for (var i = 0; i < numPoly; i++)
                     {
                         if ((newConvexPolygonNo + 1) % MaxGeneratedPolygonPerFrame == 0)
-                            // 1フレームに処理するポリゴンは最大で100まで
+                            // Maximum number of polygons processed per frame is MaxGeneratedPolygonPerFrame.
                             yield return null;
                         if (!meshFilter || meshFilter.sharedMesh == null)
-                            // meshFilterが削除されているので打ち切る
+                            // Mesh filter is deleted, so process is terminated.
                             yield break;
                         var v0_no = _workingTriangles[i * 3];
                         var v1_no = _workingTriangles[i * 3 + 1];
@@ -199,11 +165,11 @@ namespace CyDecal.Runtime.Scripts.Core
                         localPositionBuffer[startOffsetOfBuffer] = _workingVertexPositions[v0_no];
                         localPositionBuffer[startOffsetOfBuffer + 1] = _workingVertexPositions[v1_no];
                         localPositionBuffer[startOffsetOfBuffer + 2] = _workingVertexPositions[v2_no];
-                        
+
                         localNormalBuffer[startOffsetOfBuffer] = _workingVertexNormals[v0_no];
                         localNormalBuffer[startOffsetOfBuffer + 1] = _workingVertexNormals[v1_no];
                         localNormalBuffer[startOffsetOfBuffer + 2] = _workingVertexNormals[v2_no];
-                        
+
                         boneWeightBuffer[startOffsetOfBuffer] = default;
                         boneWeightBuffer[startOffsetOfBuffer + 1] = default;
                         boneWeightBuffer[startOffsetOfBuffer + 2] = default;
@@ -232,14 +198,9 @@ namespace CyDecal.Runtime.Scripts.Core
 
             convexPolygonInfos.AddRange(newConvexPolygonInfos);
         }
-
-        /// <summary>
-        ///     SkinModelRendererから凸ポリゴン情報を登録する
-        /// </summary>
-        /// <param name="skinnedMeshRenderers">レシーバーオブジェクトのスキンメッシュレンダラー</param>
-        /// <param name="convexPolygonInfos">凸ポリゴン情報の格納先</param>
+        
         private IEnumerator BuildFromSkinMeshRenderer(SkinnedMeshRenderer[] skinnedMeshRenderers,
-            List<ConvexPolygonInfo> convexPolygonInfos)
+            List<ConvexPolygonInfo> trianglePolygonInfos)
         {
 #if MEASUREMENT_METHOD_BuildFromSkinMeshRenderer
             var sw = new Stopwatch();
@@ -250,9 +211,6 @@ namespace CyDecal.Runtime.Scripts.Core
 
             var newConvexPolygonInfos = new ConvexPolygonInfo[numBuildConvexPolygon];
             var boneWeights = new BoneWeight[3];
-            var localToWorldMatrices = new Matrix4x4[3];
-            var boneMatricesPallet = CalculateMatricesPallet(skinnedMeshRenderers);
-            var skinnedMeshRendererNo = 0;
             var newConvexPolygonNo = 0;
 
             // Calculate size of some buffers and store the count of the polygons.
@@ -262,7 +220,7 @@ namespace CyDecal.Runtime.Scripts.Core
             {
                 var skinnedMeshRenderer = skinnedMeshRenderers[rendererNo];
                 if (!skinnedMeshRenderer || skinnedMeshRenderer.sharedMesh == null)
-                    // スキンモデルレンダラーが無効になっているので打ち切る。
+                    // The skinned mesh renderer is deleted, so skip.
                     continue;
                 var mesh = skinnedMeshRenderer.sharedMesh;
                 var subMeshCount = mesh.subMeshCount;
@@ -294,9 +252,8 @@ namespace CyDecal.Runtime.Scripts.Core
             {
                 var skinnedMeshRenderer = skinnedMeshRenderers[rendererNo];
                 if (!skinnedMeshRenderer || skinnedMeshRenderer.sharedMesh == null)
-                    // スキンモデルレンダラーが無効になっているので打ち切る。
+                    // The skinned mesh renderer is deleted, so process is terminated.
                     yield break;
-                var localToWorldMatrix = skinnedMeshRenderer.localToWorldMatrix;
                 var mesh = skinnedMeshRenderer.sharedMesh;
 
                 using var meshDataArray = Mesh.AcquireReadOnlyMeshData(mesh);
@@ -312,16 +269,16 @@ namespace CyDecal.Runtime.Scripts.Core
                     for (var i = 0; i < numPoly; i++)
                     {
                         if ((newConvexPolygonNo + 1) % MaxGeneratedPolygonPerFrame == 0)
-                            // 1フレームに処理するポリゴンは最大でMaxGeneratedPolygonPerFrameまで
+                            // Maximum number of polygons processed per frame is MaxGeneratedPolygonPerFrame.
                             yield return null;
                         if (!skinnedMeshRenderer || skinnedMeshRenderer.sharedMesh == null)
-                            // スキンモデルレンダラーが無効になっているので打ち切る。
+                            // The skinned mesh renderer is deleted, so process is terminated.
                             yield break;
                         var v0No = _workingTriangles[i * 3];
                         var v1No = _workingTriangles[i * 3 + 1];
                         var v2No = _workingTriangles[i * 3 + 2];
 
-                        // ワールド行列を計算。
+                        // Calculate world matrix.
                         if (skinnedMeshRenderer.rootBone != null)
                         {
                             boneWeights[0] = _workingBoneWeights[v0No];
@@ -337,16 +294,16 @@ namespace CyDecal.Runtime.Scripts.Core
                             boneWeightBuffer[startOffsetOfBuffer + 1] = default;
                             boneWeightBuffer[startOffsetOfBuffer + 2] = default;
                         }
-                        
+
                         localPositionBuffer[startOffsetOfBuffer] = _workingVertexPositions[v0No];
                         localPositionBuffer[startOffsetOfBuffer + 1] = _workingVertexPositions[v1No];
                         localPositionBuffer[startOffsetOfBuffer + 2] = _workingVertexPositions[v2No];
-                        
+
                         localNormalBuffer[startOffsetOfBuffer] = _workingVertexNormals[v0No];
                         localNormalBuffer[startOffsetOfBuffer + 1] = _workingVertexNormals[v1No];
                         localNormalBuffer[startOffsetOfBuffer + 2] = _workingVertexNormals[v2No];
-                        
-                        
+
+
                         newConvexPolygonInfos[newConvexPolygonNo] = new ConvexPolygonInfo
                         {
                             ConvexPolygon = new CyConvexPolygon(
@@ -366,47 +323,13 @@ namespace CyDecal.Runtime.Scripts.Core
                         startOffsetOfBuffer += VertexCountOfTrianglePolygon;
                     }
                 }
-
-                skinnedMeshRendererNo++;
             }
 
-            convexPolygonInfos.AddRange(newConvexPolygonInfos);
+            trianglePolygonInfos.AddRange(newConvexPolygonInfos);
 #if MEASUREMENT_METHOD_BuildFromSkinMeshRenderer
             sw.Stop();
             Time_BuildFromSkinMeshRenderer[1] = sw.ElapsedMilliseconds;
 #endif
-        }
-
-
-        /// <summary>
-        ///     スキニングのための行列パレットを計算
-        /// </summary>
-        /// <param name="skinnedMeshRenderers">レシーバーオブジェクトのスキンメッシュレンダラー</param>
-        /// <returns>計算された行列パレット</returns>
-        private static Matrix4x4[][] CalculateMatricesPallet(SkinnedMeshRenderer[] skinnedMeshRenderers)
-        {
-            var boneMatricesPallet = new Matrix4x4[skinnedMeshRenderers.Length][];
-            var skindMeshRendererNo = 0;
-            foreach (var skinnedMeshRenderer in skinnedMeshRenderers)
-            {
-                if (!skinnedMeshRenderer) continue;
-                if (skinnedMeshRenderer.rootBone != null)
-                {
-                    var mesh = skinnedMeshRenderer.sharedMesh;
-                    var numBone = skinnedMeshRenderer.bones.Length;
-
-                    var boneMatrices = new Matrix4x4[numBone];
-                    for (var boneNo = 0; boneNo < numBone; boneNo++)
-                        boneMatrices[boneNo] = skinnedMeshRenderer.bones[boneNo].localToWorldMatrix
-                                               * mesh.bindposes[boneNo];
-
-                    boneMatricesPallet[skindMeshRendererNo] = boneMatrices;
-                }
-
-                skindMeshRendererNo++;
-            }
-
-            return boneMatricesPallet;
         }
     }
 }

@@ -15,75 +15,62 @@ namespace CyDecal.Runtime.Scripts.Core
         void Dispose();
         void GarbageCollect();
     }
+
     /// <summary>
-    ///     デカールメッシュのプール
+    ///     Decal mesh pool.
     /// </summary>
     public sealed class CyDecalMeshPool : ICyDecalMeshPool
     {
         private readonly Dictionary<int, CyDecalMesh> _decalMeshes = new Dictionary<int, CyDecalMesh>();
 
-        /// <summary>
-        ///     プールのサイズを取得。
-        /// </summary>
-        /// <returns></returns>
         public int GetPoolSize()
         {
             return _decalMeshes.Count;
         }
 
-        /// <summary>
-        ///     デカールメッシュのレンダラーを無効にする。
-        /// </summary>
         void ICyDecalMeshPool.DisableDecalMeshRenderers()
         {
             foreach (var decalMesh in _decalMeshes) decalMesh.Value.DisableDecalMeshRenderer();
         }
 
-        /// <summary>
-        ///     デカールメッシュのレンダラーを有効にする。
-        /// </summary>
         void ICyDecalMeshPool.EnableDecalMeshRenderers()
         {
             foreach (var decalMesh in _decalMeshes) decalMesh.Value.EnableDecalMeshRenderer();
         }
 
         /// <summary>
-        ///     プールに登録されるハッシュ値を計算
+        ///     Determines if a decal mesh of the specified hash value is registered in the pool.
         /// </summary>
-        /// <param name="receiverObject">デカールを貼り付けるターゲットオブジェクト</param>
-        /// <param name="renderer">レンダラー</param>
-        /// <param name="decalMaterial">デカールマテリアル</param>
-        /// <returns>ハッシュ値</returns>
-        public static int CalculateHash(GameObject receiverObject, Renderer renderer, Material decalMaterial)
-        {
-            return receiverObject.GetInstanceID()
-                   + decalMaterial.name.GetHashCode()
-                   + renderer.GetInstanceID();
-        }
-
-        /// <summary>
-        ///     指定したハッシュ値にデカールメッシュがプールに記録されているか判定。
-        /// </summary>
-        /// <param name="hash"> ここに渡すハッシュ値はCalculateHashを利用して計算してください。 </param>
-        /// <returns>プールに含まれている場合はtrueを返します。</returns>
+        /// <param name="hash">
+        ///     The hash value.
+        ///     It should be calculated by the CalculateHash method.
+        /// </param>
+        /// <returns>Returns true if the pool contains it.</returns>
         bool ICyDecalMeshPool.Contains(int hash)
         {
             return _decalMeshes.ContainsKey(hash);
         }
 
         /// <summary>
-        ///     デカールメッシュを登録。
+        ///     Register the decal mesh.
         /// </summary>
-        /// <param name="hash">ハッシュ値</param>
-        /// <param name="decalMesh">デカールメッシュ</param>
+        /// <param name="hash">
+        ///     The hash value.
+        ///     It should be calculated by the CalculateHash method.
+        /// </param>
+        /// <param name="decalMesh">Decal mesh to be registered.</param>
         void ICyDecalMeshPool.RegisterDecalMesh(int hash, CyDecalMesh decalMesh)
         {
             _decalMeshes.Add(hash, decalMesh);
         }
 
         /// <summary>
-        ///     デカールメッシュを取得
+        ///     Get the decal mesh from pool.
         /// </summary>
+        /// <param name="hash">
+        ///     The hash value.
+        ///     It should be calculated by the CalculateHash method.
+        /// </param>
         CyDecalMesh ICyDecalMeshPool.GetDecalMesh(int hash)
         {
             return _decalMeshes[hash];
@@ -91,23 +78,31 @@ namespace CyDecal.Runtime.Scripts.Core
 
         void ICyDecalMeshPool.Dispose()
         {
-            foreach (var item in _decalMeshes)
-            {
-                item.Value?.Dispose();
-            }
+            foreach (var item in _decalMeshes) item.Value?.Dispose();
         }
+
         /// <summary>
-        ///     プールをガベージコレクト。
+        ///     Garbage collect unreferenced decal mesh
         /// </summary>
         void ICyDecalMeshPool.GarbageCollect()
         {
-            // 削除可能リストを作成。
+            // Create deletable list.
             var removeList = _decalMeshes.Where(item => item.Value.CanRemoveFromPool()).ToList();
             foreach (var item in removeList)
             {
                 item.Value.Dispose();
                 _decalMeshes.Remove(item.Key);
             }
+        }
+
+        /// <summary>
+        ///     Calculate the hash value to be registered in the pool
+        /// </summary>
+        public static int CalculateHash(GameObject receiverObject, Renderer renderer, Material decalMaterial)
+        {
+            return receiverObject.GetInstanceID()
+                   + decalMaterial.name.GetHashCode()
+                   + renderer.GetInstanceID();
         }
     }
 }

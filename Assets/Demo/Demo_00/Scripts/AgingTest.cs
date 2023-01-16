@@ -50,14 +50,14 @@ namespace Demo.Demo_00.Scripts
         {
             if (CyDecalSystem.DecalProjectorLauncher.GetWaitingRequestCount() > 50)
             {
-                // デカール貼り付けのリクエストが50を超えている。
+                // The request for projection decal is over 50, so return.
                 CyTrianglePolygonsFactory.MaxGeneratedPolygonPerFrame = 100;
                 return;
             }
 
             if (_launchCount < 40)
             {
-                // 座標をランダムに決定。
+                // Randomly determined position.
                 var pos = new Vector2();
                 pos.x = Screen.width * 0.5f;
                 pos.y = Screen.height * 0.5f;
@@ -75,19 +75,17 @@ namespace Demo.Demo_00.Scripts
             }
             else
             {
-                //　次の行動を抽選
+                //　Lottery for next action.
                 var t = Random.Range(0, 99);
                 if (t < 20)
                 {
-                    // 現在のレシーバーオブジェクトをデリート。
                     _demo00.DeleteCurrentReceiverObject();
-                    // 次
                     _demo00.SetNextReceiverObject();
-                    if (_demo00.IsDeleteAllReceiverObjects())
-                        // シーンをリセット。
+                    if (_demo00.HasReceiverObjectsDeleted())
+                        // Reset scene.
                         SceneManager.LoadScene("Demo_00");
                 }
-                else if( t < 40)
+                else if (t < 40)
                 {
                     SceneManager.LoadScene("Demo_00");
                 }
@@ -102,8 +100,8 @@ namespace Demo.Demo_00.Scripts
 
         private enum State
         {
-            Idle, // 待機
-            ExecuteAction // アクションを実行。
+            Idle,
+            ExecuteAction
         }
     }
 }

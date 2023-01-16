@@ -57,7 +57,7 @@ namespace Tests
                 0,
                 3);
             Vector3 hitPoint;
-            // 当たるかテスト
+            // Hit test.
             var isIntersect = convexPolygon.IsIntersectRayToTriangle(out hitPoint, rayStart, rayEnd);
             Assert.AreEqual(isIntersect, true);
 
@@ -68,7 +68,7 @@ namespace Tests
             rayEnd.x = 1.0f;
             rayEnd.y = 0.0f;
             rayEnd.z = -2.0f;
-            // 外れるかテスト。
+            // Miss test.
             isIntersect = convexPolygon.IsIntersectRayToTriangle(out hitPoint, rayStart, rayEnd);
             Assert.AreEqual(isIntersect, false);
         }

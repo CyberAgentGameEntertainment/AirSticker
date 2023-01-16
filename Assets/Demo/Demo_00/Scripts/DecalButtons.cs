@@ -14,11 +14,6 @@ namespace Demo.Demo_00.Scripts
             _decalProjector = decalProjectorLauncher.GetComponent<Demo00>();
         }
 
-        // Update is called once per frame
-        private void Update()
-        {
-        }
-
         public void OnSelectImage(int imageNo)
         {
             _decalProjector.CurrentDecalMaterialIndex = imageNo;
