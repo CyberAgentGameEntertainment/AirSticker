@@ -23,11 +23,9 @@ CyDecalはデカールテクスチャを貼り付けるデカールメッシュ�
 1. デカールメッシュプールから編集するデカールメッシュを取得
 2. デカールテクスチャを貼り付けるレシーバーオブジェクトのレンダラーから三角形ポリゴンスープを取得
 3. デカールテクスチャを貼り付ける三角形ポリゴンの早期枝切り(ブロードフェーズ)
-4. デカールボックスと三角形ポリゴンとの衝突判定
-   1. 衝突していなければ終了
-5. デカールボックスの情報から分割平面を定義
-6. 5で定義した分割平面で衝突する三角形ポリゴンを分割して、多角形ポリゴンにしていく
-7. 6で作られた多角形ポリゴン情報を元に、デカールメッシュを生成
+4. デカールボックスの情報から分割平面を定義
+5. 4で定義した分割平面で衝突する三角形ポリゴンを分割して、多角形ポリゴンにしていく
+6. 5で作られた多角形ポリゴン情報を元に、デカールメッシュを生成
 
 また、4～7のポリゴン分割ついては「ゲームプログラミングのための3D数学」の「9.2デカールの貼り付け」を参考にしているため、アルゴリズムの概要と関連ソースコードの記述のみにとどめます。ポリゴン分割の詳細については参考文献を参照して下さい。
 
@@ -40,13 +38,13 @@ CyRenderDecalFeatureが保持しているデカールメッシュプールから
 そのため、次のようなデカールの場合は一つのデカールメッシュとして扱われています。
 
 <p align="center">
-<img width="60%" src="Documentation/fig-008.png" alt="一つのデカールメッシュ"><br>
+<img width="60%" src="Documentation/fig-008-ja.png" alt="一つのデカールメッシュ"><br>
 <font color="grey">一つのデカールメッシュ</font>
 </p>
 また、次のようなケースであれば、レシーバーオブジェクト、レンダラーは同じですが、デカールマテリアルが異なるため、二つのデカールメッシュとして扱われています。
 
 <p align="center">
-<img width="60%" src="Documentation/fig-009.png" alt="二つのデカールメッシュ"><br>
+<img width="60%" src="Documentation/fig-009-ja.png" alt="二つのデカールメッシュ"><br>
 <font color="grey">二つのデカールメッシュ</font>
 </p>
 
@@ -55,43 +53,30 @@ CyRenderDecalFeatureが保持しているデカールメッシュプールから
 
 [**プールからデカールメッシュを取得しているコード**]
 ```C#
-/// <summary>
-///     デカールメッシュのリストを取得
-/// </summary>
-/// <remarks>
-///     デカールメッシュは貼り付けるターゲットオブジェクトとデカールマテリアルが同じ場合に共有されます。
-///     また、全く新規のターゲットオブジェクトとマテリアルであれば、
-///     新規のデカールメッシュを作成します。
-/// </remarks>
-/// <param name="decalMeshes">デカールメッシュの格納先</param>
-/// <param name="projectorObject">デカールプロジェクター</param>
-/// <param name="receiverObject">デカールを貼り付けるターゲットオブジェクト</param>
-/// <param name="decalMaterial">デカールマテリアル</param>
-/// <returns></returns>
-public void GetDecalMeshes(
-    List<CyDecalMesh> decalMeshes,
-    GameObject projectorObject,
-    GameObject receiverObject,
-    Material decalMaterial)
+// レシーバー オブジェクトのレンダラーのみを収集したいのだが、
+// デカールメッシュのレンダラーがレシーバーオブジェクトにぶら下がっている。
+// そのため、一時的にデカールメッシュのレンダラーを無効にします。
+Instance._decalMeshPool.DisableDecalMeshRenderers();
+var renderers = receiverObject.GetComponentsInChildren<Renderer>();
+foreach (var renderer in renderers)
 {
-    var renderers = receiverObject.GetComponentsInChildren<Renderer>();
-    foreach (var renderer in renderers)
+    if (!renderer) return;
+    var pool = Instance._decalMeshPool;
+    var hash = CyDecalMeshPool.CalculateHash(receiverObject, renderer, decalMaterial);
+    if (pool.Contains(hash))
     {
-        var hash = receiverObject.GetInstanceID()
-                           + decalMaterial.name.GetHashCode()
-                           + renderer.GetInstanceID();
-        if (_decalMeshes.ContainsKey(hash))
-        {
-            decalMeshes.Add(_decalMeshes[hash]);
-        }
-        else
-        {
-            var newMesh = new CyDecalMesh(projectorObject, decalMaterial, renderer);
-            decalMeshes.Add(newMesh);
-            _decalMeshes.Add(hash, newMesh);
-        }
+        results.Add(pool.GetDecalMesh(hash));
+    }
+    else
+    {
+        var newMesh = new CyDecalMesh(receiverObject, decalMaterial, renderer);
+        results.Add(newMesh);
+        pool.RegisterDecalMesh(hash, newMesh);
     }
 }
+
+// 無効にしたデカールメッシュレンダラーを元に戻す。
+Instance._decalMeshPool.EnableDecalMeshRenderers();
 ```
 
 **関連ソースコード**<br/>
@@ -101,62 +86,62 @@ public void GetDecalMeshes(
 ### 3.2 デカールを貼り付けるレシーバーオブジェクトの三角形ポリゴンスープを取得
 CyRenderDecalFeatureが保持している三角形ポリゴンスープのプールからレシーバオブジェクトの三角形ポリゴンスープを取得します。<br/>
 このプールはレシーバーオブジェクトをキーとして、三角形ポリゴンスープが登録されており、すでに登録済みの場合は、使いまわしされます。また、新規のレシーバーオブジェクトであれば、レンダラーの情報から三角形ポリゴンスープが作成されます。<br/><br/>
-ポリゴンスープが保持している頂点はワールド空間に変換されている必要があるため、メッシュの全頂点を空間変換するための行列演算が行われます。そのため、この処理は(特にスキンメッシュのモデル)非常に時間のかかるものとなっています。この処理によるスパイクを隠ぺいするために、ポリゴンスープの作成は数フレームにわたって分割して処理が実行されます。<br/><br/>
-この処理が実行されるため、初めてデカールテクスチャを貼り付けるレシーバーオブジェクトが登録されるときのみ、デカール貼り付け完了までに遅延が発生します。ただし、レシーバーオブジェクトがワールド空間上移動した場合は再作成を行う必要があるため、再度遅延が発生します。<br/><br/>
-次の図はポリゴンスーププールを可視化したものです。
-
-<p align="center">
-<img width="60%" src="Documentation/fig-010.png" alt="ポリゴンスーププール"><br>
-<font color="grey">ポリゴンスーププール</font>
-</p>
 
 [**メッシュフィルターから三角形ポリゴン情報を収集しているコード**]
 ```C#
-/// <summary>
-///     MeshFilterから凸ポリゴン情報を登録する。
-/// </summary>
-/// <param name="meshFilters">レシーバーオブジェクトのメッシュフィルター</param>
-/// <param name="meshRenderers">レシーバーオブジェクトのメッシュレンダラー</param>
-/// <param name="convexPolygonInfos">凸ポリゴン情報の格納先</param>
-private static IEnumerator BuildFromMeshFilter(MeshFilter[] meshFilters, MeshRenderer[] meshRenderers,
+private IEnumerator BuildFromMeshFilter(MeshFilter[] meshFilters, MeshRenderer[] meshRenderers,
     List<ConvexPolygonInfo> convexPolygonInfos)
 {
         ・
         ・
-    　 省略
-        ・
         ・
     foreach (var meshFilter in meshFilters)
     {
-        var localToWorldMatrix = meshFilter.transform.localToWorldMatrix;
-        // メッシュのポリゴン情報を取得
+        if (!meshFilter || meshFilter.sharedMesh == null)
+            // メッシュフィルターが削除されているので中断。
+            yield break;
         var mesh = meshFilter.sharedMesh;
-        var numPoly = mesh.triangles.Length / 3;
-        var meshTriangles = mesh.triangles;
-        var meshVertices = mesh.vertices;
-        var meshNormals = mesh.normals;
-        for (var i = 0; i < numPoly; i++)
+        using var meshDataArray = Mesh.AcquireReadOnlyMeshData(mesh);
+        var meshData = meshDataArray[0];
+        meshData.GetVertices(_workingVertexPositions);
+        meshData.GetNormals(_workingVertexNormals);
+        var subMeshCount = meshData.subMeshCount;
+        for (var meshNo = 0; meshNo < subMeshCount; meshNo++)
         {
-            if ((newConvexPolygonNo + 1) % MaxGeneratedPolygonPerFrame == 0)
-                // 1フレームに処理するポリゴンは最大でMaxGeneratedPolygonPerFrameまで
-                yield return null;
-
-                // メッシュのポリゴン情報をワールド空間に変換していく。
-                    ・
-                    ・
-                   省略
-                    ・
-                    ・
-            // 凸ポリゴン情報を追加する。
-            newConvexPolygonInfos[newConvexPolygonNo] = new ConvexPolygonInfo
+            meshData.GetIndices(_workingTriangles, meshNo);
+            var numPoly = polygonCounts[indexOfPolygonCounts++];
+            for (var i = 0; i < numPoly; i++)
             {
-                ConvexPolygon = new CyConvexPolygon(
-                    vertices,
-                    normals,
-                    boneWeights,
-                    meshRenderers[rendererNo])
-            };
-            newConvexPolygonNo++;
+                if ((newConvexPolygonNo + 1) % MaxGeneratedPolygonPerFrame == 0)
+                    // １フレームに処理できるポリゴン数はMaxGeneratedPolygonPerFrameに設定されている数まで。
+                    yield return null;
+                if (!meshFilter || meshFilter.sharedMesh == null)
+                    // メッシュフィルターが削除されているので中断。
+                    yield break;
+                // 三角形データを収集する。
+
+                     ・
+                     ・
+                     ・
+                // 収集したデータから新しいポリゴン情報を作成する。
+                newConvexPolygonInfos[newConvexPolygonNo] = new ConvexPolygonInfo
+                {
+                    ConvexPolygon = new CyConvexPolygon(
+                        positionBuffer,
+                        normalBuffer,
+                        boneWeightBuffer,
+                        lineBuffer,
+                        localPositionBuffer,
+                        localNormalBuffer,
+                        meshRenderers[rendererNo],
+                        startOffsetOfBuffer,
+                        VertexCountOfTrianglePolygon,
+                        rendererNo,
+                        VertexCountOfTrianglePolygon)
+                };
+                newConvexPolygonNo++;
+                startOffsetOfBuffer += VertexCountOfTrianglePolygon;
+            }
         }
 
         rendererNo++;
@@ -211,44 +196,7 @@ foreach (var convexPolygonInfo in convexPolygonInfos)
     }
 }
 ```
-
-### 3.4 デカールボックスと三角形ポリゴンとの衝突判定
-このステップでは、デカールボックスの起点からボックスが向いている方向に向かってレイを飛ばして、衝突点を検出します<br/>
-ここで衝突しない場合は以下の処理はスキップされて、デカールは貼り付けられません。<br/>
-
-[**衝突判定しているコード**]
-```C#
-/// <summary>
-///     デカールボックスの中心を通るレイとレシーバーオブジェクトの三角形オブジェクトの衝突判定を行う。
-/// </summary>
-/// <param name="hitPoint">衝突点の格納先</param>
-/// <returns>trueが帰ってきたら衝突している</returns>
-private bool IntersectRayToTrianglePolygons(out Vector3 hitPoint)
-{
-    hitPoint = Vector3.zero;
-    // レイの作成
-    var trans = transform;
-    var rayStartPos = trans.position;
-    var rayEndPos = rayStartPos + trans.forward * depth;
-    // 枝切りされたポリゴン情報に対して衝突検出を行う。
-    foreach (var triPolyInfo in _broadPhaseConvexPolygonInfos)
-        if (triPolyInfo.ConvexPolygon.IsIntersectRayToTriangle(out hitPoint, rayStartPos, rayEndPos))
-        {
-            _basePointToNearClipDistance = Vector3.Distance(rayStartPos, hitPoint);
-            _basePointToFarClipDistance = depth - _basePointToNearClipDistance;
-            return true;
-        }
-
-    return false;
-}
-```
-
-**関連ソースコード**<br/>
-[Assets/CyDecal/Runtime/Scripts/CyDecalProjector.cs](Assets/CyDecal/Runtime/Scripts/CyDecalProjector.cs)<br/>
-[Assets/CyDecal/Runtime/Scripts/Core/CyConvexPolygon.cs](Assets/CyDecal/Runtime/Scripts/Core/CyConvexPolygon.cs)
-
-
-### 3.5 デカールボックスの情報から分割平面を定義
+### 3.4 デカールボックスの情報から分割平面を定義
 続いて、衝突点の情報とデカールボックスの幅、高さなどの情報を元に、デカールボックスを構築する6平面の情報を構築します。分割平面の定義の詳細は「ゲームプログラミングのための3D数学」の「9.2.1 デカールメッシュの構築」を参照してください。
 
 [**分割平面を定義しているコード**]
@@ -285,10 +233,10 @@ private void BuildClipPlanes(Vector3 basePoint)
 **関連ソースコード**<br/>
 [Assets/CyDecal/Runtime/Scripts/CyDecalProjector.cs](Assets/CyDecal/Runtime/Scripts/CyDecalProjector.cs)
 
-### 3.6 5で定義した分割平面で衝突する三角形ポリゴンを分割して、多角形ポリゴンにしていく
+### 3.5 4で定義した分割平面で衝突する三角形ポリゴンを分割して、多角形ポリゴンにしていく
 ここでは、三角形ポリゴンの各辺と６枚の分割平面との交差を判定を行って分割していき、凸多角形ポリゴンにしていきます。三角形ポリゴンの分割の詳細は「ゲームプログラミングのための3D数学」の「9.2.2 ポリゴンのクリッピング」を参照してください。
 <p align="center">
-<img width="80%" src="Documentation/fig-007.png" alt="凸多角形ポリゴンを三角形ポリゴンとして扱う"><br>
+<img width="80%" src="Documentation/fig-007-ja.png" alt="凸多角形ポリゴンを三角形ポリゴンとして扱う"><br>
 <font color="grey">凸多角形ポリゴンを三角形ポリゴンとして扱う</font>
 </p>
 
@@ -298,7 +246,7 @@ private void BuildClipPlanes(Vector3 basePoint)
 ### 3.7 6で作られた多角形ポリゴン情報を元に、デカールメッシュを生成
 三角形ポリゴンの分割で得られた、凸多角形ポリゴンの頂点情報を元に、三角形ポリゴンを生成していき、最終的なデカールメッシュを生成します。凸多角形ポリゴンはトライアングルファンの三角形の集合と扱うことができるため、この特性を利用して、デカールメッシュに新たな三角形を追加していきます。凸多角形ポリゴンから三角形ポリゴンの構築の詳細は「ゲームプログラミングのための3D数学」の「9.2.2 ポリゴンのクリッピング」を参照してください。
 <p align="center">
-<img width="80%" src="Documentation/fig-006.png" alt="凸多角形ポリゴンを三角形ポリゴンとして扱う"><br>
+<img width="80%" src="Documentation/fig-006-ja.png" alt="凸多角形ポリゴンを三角形ポリゴンとして扱う"><br>
 <font color="grey">凸多角形ポリゴンを三角形ポリゴンとして扱う</font>
 </p>
 

@@ -4,12 +4,13 @@
 
 # CyDecal(仮)
 
+**ドキュメント** ([English](README.md), [日本語](README_JA.md)) <br/>
+**技術ドキュメント** ([English](README_DEVELOPERS.md), [日本語](README_DEVELOPERS_JA.md)) <br/>
+
 ## Section 1 概要
 CyDecalはURPのデカールのデメリットを補完するものとなっており、非常に軽量に動作するデカール処理です。<br/>
 また、URPデカールはUnity2021以降でしか使えませんが、CyDecalはUnity2020からの動作をサポートします。<br/>
-なお、エンジニア向けの技術ドキュメントは下記を参照してください。<br/>
 
-**技術ドキュメント** ([日本語](README_DEVELOPERS.md))
 
 ## Section 2 特徴
 CyDecalには多くのゲームで採用されている、典型的なメッシュ生成方式によるデカール処理が実装されています。<br/><br/>
@@ -35,7 +36,7 @@ URPデカールとCyDecalのメリット/デメリットは次のようになっ
      - 完全なスキンアニメーションを行える
      - カスタムシェーダーをそのまま使える
   - **デメリット**
-    - デカールを貼る処理に時間がかかる ( URPデカールで補完できる )
+    - デカールを貼る処理に数フレームかかる ( URPデカールで補完できる )
     - Zファイティングが起きる
 
 このように、二つのデカールを併用することで、多くのデメリットを補完できます。<br/>
@@ -53,17 +54,17 @@ URPデカールとCyDecalのメリット/デメリットは次のようになっ
 
 <br/>
 <p align="center">
-<img width="80%" src="Documentation/fig-001.gif" alt="URPデカールとCyDecalの使い分け"><br>
+<img width="80%" src="Documentation/fig-001-ja.gif" alt="URPデカールとCyDecalの使い分け"><br>
 <font color="grey">URPデカールとCyDecalの使い分け</font>
 </p>
 
 この動画ではレシーバーオブジェクト上でデカールが移動する場合と、メッシュ生成完了までの時間稼ぎの用途でURPデカールを使っています。<br/>
 レシーバーオブジェクト上での位置が確定して、メッシュ生成が終わると、以降はCyDecalによるデカールを表示しています。<br/>
 
-メッシュ生成完了後からはCyDecalを使用することによって、モバイルゲームにおいて、致命的となるランタイムパフォーマンスの悪化という問題を大きく改善できます(詳細は2.3を参照)。<br/>
+メッシュ生成完了後からはCyDecalを使用することによって、ランタイムパフォーマンスを大きく改善できます(詳細は2.3を参照)。<br/>
 
 ### 2.3 URPデカールとCyDecalの描画パフォーマンス
-メッシュ生成方式はメッシュ生成に時間がかかりますが、描画パフォーマンスは単なるメッシュ描画と同じです。<br/>
+メッシュ生成方式はメッシュ生成に数フレームかかりますが、描画パフォーマンスは単なるメッシュ描画と同じです。<br/>
 一方、URPデカールはメッシュ生成を行う必要はありませんが、デカール表示のために複雑な描画処理が実行されます。<br/><br/>
 そのため、毎フレームの描画パフォーマンスではメッシュ生成方式の方が有利になります。<br/><br/>
 次の図はURPデカールとCyDecalの描画パフォーマンスの計測結果です。<br/>
@@ -109,7 +110,7 @@ CyDecalProjectorコンポーネントには5つのパラメータを設定する
 
 次の動画はCyDecalProjectorをシーンに設置して使用する方法です。
 <p align="center">
-<img width="80%" src="Documentation/fig-012.gif" alt="CyDecalProjectorの使用方法"><br>
+<img width="80%" src="Documentation/fig-012-ja.gif" alt="CyDecalProjectorの使用方法"><br>
 <font color="grey">CyDecalProjectorの使用方法</font>
 </p>
 
