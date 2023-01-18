@@ -155,7 +155,7 @@ private IEnumerator BuildFromMeshFilter(MeshFilter[] meshFilters, MeshRenderer[]
 [Assets/CyDecal/Runtime/Scripts/Core/CyConvexPolygon.cs](Assets/CyDecal/Runtime/Scripts/Core/CyConvexPolygon.cs)
 
 ### 3.3 Early branch cut (broad phase) of triangular polygons to which decal textures are applied
-In this step, the calculation of the distance between the coordinates of the starting point of the decal box and the vertex of each polygon performs a broad phase for early branching of the triangular polygons to be processed after this step.<br/>
+In this step, the calculation of the distance between the coordinates of the starting point of the decal box and the vertex of each polygon performs a broad phase for early branching of the triangular polygons.<br/>
 The early branch cutting by inexpensive computation with the broad phase can lower the computational complexity of the later steps, which can be expected to significantly speed up the process.
 
 Also, a decal box is a box that represents a space for attaching decals.<br/>
