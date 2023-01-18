@@ -3,13 +3,12 @@
 </p>
 
 # CyDecal(仮)
+**Documents** ([English](README.md), [日本語](README_JA.md)) <br/>
+**Technical Documents** ([English](README_DEVELOPERS.md), [日本語](README_DEVELOPERS_JA.md)) <br/>
 
 ## Section 1 Summary
 CyDecal is a decal process that complements the disadvantages of URP decals and operates very lightly.<br/>
 Also, URP decals can only be used with Unity2021 or later, while CyDecal supports operation from Unity2020.<br/>
-For technical documents for engineers, please refer to the following.<br/>
-
-**Technical Documents** ([English](README_DEVELOPERS.md))
 
 ## Section 2 Feature
 CyDecal implements decal processing using the typical mesh generation method used in many games.<br/>
@@ -57,7 +56,7 @@ The following movie is a play demo implemented in this model case.
 
 <br/>
 <p align="center">
-<img width="80%" src="Documentation/fig-001.gif" alt="URPデカールとCyDecalの使い分け"><br>
+<img width="80%" src="Documentation/fig-001.gif" alt="Combination of URP decal and CyDecal"><br>
 <font color="grey">Combination of URP decal and CyDecal</font>
 </p>
 
@@ -74,7 +73,7 @@ Therefore, the mesh generation method is more advantageous in terms of frame-by-
 The following figure shows the measured rendering performance of URP Decal and CyDecal.<br/>
 In all cases, CyDecal was superior, with the most significant difference being a performance improvement of 19 ms.
 <p align="center">
-<img width="80%" src="Documentation/fig-002.png" alt="パフォーマンス計測結果"><br>
+<img width="80%" src="Documentation/fig-002.png" alt="Performance Measurement Results"><br>
 <font color="grey">Performance Measurement Results</font>
 </p>
 
@@ -97,7 +96,7 @@ To use CyDecal, you must always install one game object with this component affi
 This component is used to project decals. Add this component to the game object to be installed as a decal projector.
 
 <p align="center">
-<img width="50%" src="Documentation/fig-004.png" alt="CyDecalProjectorのインスペクタ"><br>
+<img width="50%" src="Documentation/fig-004.png" alt="CyDecalProjector inspector"><br>
 <font color="grey">CyDecalProjector inspector</font>
 </p>
 
@@ -115,7 +114,7 @@ Five parameters can be set for the CyDecalProjector component.
 
 The following video shows how to use CyDecalProjector in a scene.
 <p align="center">
-<img width="80%" src="Documentation/fig-012.gif" alt="CyDecalProjectorの使用方法"><br>
+<img width="80%" src="Documentation/fig-012.gif" alt="How to use CyDeaclProjector"><br>
 <font color="grey">How to use CyDeaclProjector</font>
 </p>
 
