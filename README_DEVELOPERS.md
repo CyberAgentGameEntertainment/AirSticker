@@ -4,10 +4,6 @@
 ## Section 1 Summary
 This document is intended for engineers and describes in detail the algorithms used inside CyDecal.<br/>
 
-Also see below for documentation on how to use CyDecal for end users.<br/>
-
-**Document for end-user** ([English](README.md))
-
 
 ## Section 2 Algorithm Overview
 CyDecal dynamically generates a decal mesh to which the decal texture is applied to create a decal representation.<br/>
@@ -88,11 +84,6 @@ Instance._decalMeshPool.EnableDecalMeshRenderers();
 Gets the triangle polygons of the receiver object from the pool of triangle polygons pool held by CyDecalSystem.<br/>
 This pool is keyed to the receiver object, and the triangle polygons is registered and used if it has already been registered. If it is a new receiver object, the triangular polygon soup is created from the renderer's information.<br/><br/>
 
-
-<p align="center">
-<img width="60%" src="Documentation/fig-010.png" alt="ポリゴンスーププール"><br>
-<font color="grey">ポリゴンスーププール</font>
-</p>
 
 [**Code that collects triangular polygon information from mesh filters**]
 ```C#
