@@ -49,7 +49,7 @@ Number of decal meshes = number of draw calls. Therefore, one guideline for opti
 
 [**Code that retrieves the decal mesh from the pool**]
 ```C#
-// We want to collect only the renderer of receiver\ objects,
+// We want to collect only the renderer of receiver objects,
 // But the renderer of decal mesh hanging from receiver object.
 // Therefore, temporarily disable to the renderer of decal mesh.
 Instance._decalMeshPool.DisableDecalMeshRenderers();

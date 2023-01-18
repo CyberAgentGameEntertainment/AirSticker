@@ -3,6 +3,10 @@
 </p>
 
 # CyDecal(仮)
+[![license](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE.md)
+[![license](https://img.shields.io/badge/PR-welcome-green.svg)](hogehoge)
+[![license](https://img.shields.io/badge/Unity-2020.3-green.svg)](#Requirements)
+
 **Documents** ([English](README.md), [日本語](README_JA.md)) <br/>
 **Technical Documents** ([English](README_DEVELOPERS.md), [日本語](README_DEVELOPERS_JA.md)) <br/>
 
