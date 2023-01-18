@@ -123,7 +123,7 @@ CyDecalProjectorコンポーネントには5つのパラメータを設定する
 デカールのランタイムでの使用例として、FPSなどの弾痕を背景に貼り付ける処理があります。このような処理をCyDecalで行うためには、背景と銃弾との衝突判定を行い、衝突点の情報を元にCyDecalProjectorコンポーネントを生成して、デカールメッシュを構築することで実現できます。<br/><br/>
 CyDecalProjectorコンポーネントはCyDecalProjector.CreateAndLaunch()メソッドを呼び出すことで生成できます。</br>
 CreateAndLaunch()メソッドのlaunchAwake引数にtrueを指定すると、コンポーネントの生成と同時にデカールメッシュの構築処理が開始されます。<br/><br/>
-デカールメッシュの構築処理は時間のかかる処理になっているため、数フレームにわたって処理が実行されます。そのため、デカールメッシュの構築処理の終了を監視したい場合は、CyDecalProjectorのNowStateプロパティを監視するか、メッシュ生成処理の終了時に呼び出しされる、onFinishedLaunchコールバックを利用する必要があります。<br/><br/>
+デカールメッシュの構築は非同期で行われます。そのため、デカールメッシュの構築処理の終了を監視したい場合は、CyDecalProjectorのNowStateプロパティを監視するか、メッシュ生成処理の終了時に呼び出しされる、onFinishedLaunchコールバックを利用する必要があります。<br/><br/>
 次のコードは、CyDecalProjector.CreateAndLaunch()メソッドを利用して弾痕を背景に貼り付けるための疑似コードです。この疑似コードでは、CreateAndLaunch()メソッドの引数を使って終了を監視するコールバックを設定しています。<br/>
 ```C#
 // hitPosition    弾丸と背景の衝突点
