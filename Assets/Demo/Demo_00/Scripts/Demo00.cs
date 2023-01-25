@@ -4,6 +4,9 @@ using System.Collections.Generic;
 using CyDecal.Runtime.Scripts;
 using CyDecal.Runtime.Scripts.Core;
 using UnityEngine;
+#if UNITY_2021_1_OR_NEWER
+using UnityEngine.Rendering.Universal;
+#endif
 using UnityEngine.UI;
 
 namespace Demo.Demo_00.Scripts

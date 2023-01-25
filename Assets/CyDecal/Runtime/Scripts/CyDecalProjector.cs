@@ -69,14 +69,16 @@ namespace CyDecal.Runtime.Scripts
         private void OnDrawGizmosSelected()
         {
             var cache = Gizmos.matrix;
-            Gizmos.matrix = Matrix4x4.TRS(transform.position, transform.rotation, Vector3.one);
+            Vector3 originPos = transform.position + transform.forward * depth * 0.5f;
+            Gizmos.matrix = Matrix4x4.TRS(originPos, transform.rotation, Vector3.one);
             // Draw the decal box.
             Gizmos.DrawWireCube(Vector3.zero, new Vector3(width, height, depth));
             Gizmos.matrix = cache;
             Gizmos.color = Color.white;
             // Draw the arrow of the projection's direction.
+            var arrowLength = depth * 2.0f;
             var arrowStart = transform.position;
-            var arrowEnd = transform.position + transform.forward * depth;
+            var arrowEnd = transform.position + transform.forward * arrowLength;
             Gizmos.DrawLine(arrowStart, arrowEnd);
             Vector3 arrowTangent;
             if (Mathf.Abs(transform.forward.y) > 0.999f)
@@ -85,10 +87,10 @@ namespace CyDecal.Runtime.Scripts
                 arrowTangent = Vector3.Cross(transform.forward, Vector3.up);
             var rotAxis = Vector3.Cross(transform.forward, arrowTangent);
             var rotQuat = Quaternion.AngleAxis(45.0f, rotAxis.normalized);
-            var arrowLeft = rotQuat * transform.forward * depth * -0.2f;
+            var arrowLeft = rotQuat * transform.forward * arrowLength * -0.2f;
             Gizmos.DrawLine(arrowEnd, arrowEnd + arrowLeft);
             rotQuat = Quaternion.AngleAxis(-45.0f, rotAxis.normalized);
-            var arrowRight = rotQuat * transform.forward * depth * -0.2f;
+            var arrowRight = rotQuat * transform.forward * arrowLength * -0.2f;
             Gizmos.DrawLine(arrowEnd, arrowEnd + arrowRight);
             Gizmos.matrix = cache;
         }
