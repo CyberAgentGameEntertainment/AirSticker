@@ -89,7 +89,7 @@ The following two cmponents are the most important of these.
 2. CyDecalProjector 
 
 ### 3.1 CyDecalSystem
-To use CyDecal, you must always install one game object with this component attach.
+To use CyDecal, you must have one game object attached to this component in your scene.
 
 <p align="center">
 <img width="80%" src="Documentation/fig-013.png" alt="CyDecalSystem"><br>
