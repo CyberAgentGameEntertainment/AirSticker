@@ -202,7 +202,7 @@ foreach (var convexPolygonInfo in convexPolygonInfos)
 
 
 ### 3.4 Defines the clipping plane using the information in the decal box
-The six planes that make up the decal box are used to construct the planes for the clipping polygons. See "9.2.1 Construction of Decal Mesh" in "Mathematics for 3D Game Programming & Computer Graphics, 3rd Edition" for more information on defining a clipping plane.
+Then, based on information such as the center coordinates, width, and height of the decal box, define the six planes on which the decal box will be constructed. See "9.2.1 Construction of Decal Mesh" in "Mathematics for 3D Game Programming & Computer Graphics, 3rd Edition" for more information on defining a clipping plane.
 
 [**Code defining the clipping plane**]
 ```C#
