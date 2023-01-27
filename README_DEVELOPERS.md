@@ -1,12 +1,12 @@
 
-# CyDecal Technical Documentation
+# Air Sticker Technical Documentation
 
 ## Section 1 Summary
-This document is intended for engineers and describes in detail the algorithms used inside CyDecal.<br/>
+This document is intended for engineers and describes in detail the algorithms used inside Air Sticker.<br/>
 
 
 ## Section 2 Algorithm Overview
-CyDecal dynamically generates a decal mesh to which the decal texture is applied to create a decal representation.<br/>
+Air Sticker dynamically generates a decal mesh to which the decal texture is applied to create a decal representation.<br/>
 When a sticker is applied to a character as a decal, as shown in the following figure, a decal mesh is dynamically generated so that the sticker will nicely adhere to the model.<br/>
 
 <p align="center">
@@ -28,7 +28,7 @@ Also, since polygon division in step-4 to 6 is based on "9.2 Decal Application" 
 ## Section 3 Algorithm Details
 Section 3 will go into more detail on the various steps.
 ### 3.1 Get the decal mesh to be edited from the decal mesh pool
-Get the decal mesh to be edited from the decal mesh pool held by CyDecalSystem.<br/>
+Get the decal mesh to be edited from the decal mesh pool held by AirDecalSystem.<br/>
 The decal mesh is registered in the pool using the hash values of the receiver object, renderer, and material as keys, and if these values are identical, the registration is reused. If this hash value is not registered in the pool, a new decal mesh is created.
 <br/>
 Therefore, the following decals are treated as a single decal mesh.
@@ -58,14 +58,14 @@ foreach (var renderer in renderers)
 {
     if (!renderer) return;
     var pool = Instance._decalMeshPool;
-    var hash = CyDecalMeshPool.CalculateHash(receiverObject, renderer, decalMaterial);
+    var hash = AirStickerMeshPool.CalculateHash(receiverObject, renderer, decalMaterial);
     if (pool.Contains(hash))
     {
         results.Add(pool.GetDecalMesh(hash));
     }
     else
     {
-        var newMesh = new CyDecalMesh(receiverObject, decalMaterial, renderer);
+        var newMesh = new AirStickerMesh(receiverObject, decalMaterial, renderer);
         results.Add(newMesh);
         pool.RegisterDecalMesh(hash, newMesh);
     }
@@ -76,11 +76,11 @@ Instance._decalMeshPool.EnableDecalMeshRenderers();
 ```
 
 **Related Source Code**<br/>
-[Assets/CyDecal/Runtime/Scripts/Core/CyDecalMeshPool.cs](Assets/CyDecal/Runtime/Scripts/Core/CyDecalMeshPool.cs)<br/>
-[Assets/CyDecal/Runtime/Scripts/Core/CyDecalMesh.cs](Assets/CyDecal/Runtime/Scripts/Core/CyDecalMesh.cs)
+[Assets/AirSticker/Runtime/Scripts/Core/AirStickerMeshPool.cs](Assets/AirSticker/Runtime/Scripts/Core/AirStickerMeshPool.cs)<br/>
+[Assets/AirSticker/Runtime/Scripts/Core/AirStickerMesh.cs](Assets/AirSticker/Runtime/Scripts/Core/AirStickerMesh.cs)
 
 ### 3.2 Get the triangle polygons in model space of the receiver object to which the decal will be applied
-Gets the triangle polygons of the receiver object from the triangle polygons pool held by CyDecalSystem.<br/>
+Gets the triangle polygons of the receiver object from the triangle polygons pool held by AirStickerSystem.<br/>
 This pool is keyed to the receiver object, and the triangle polygons are registered and used if it has already been registered. If it is a new receiver object, the triangle polygons are created from the renderer's information.<br/><br/>
 
 
@@ -148,10 +148,10 @@ private IEnumerator BuildFromMeshFilter(MeshFilter[] meshFilters, MeshRenderer[]
 }
 ```
 **Related Source Code**<br/>
-[Assets/CyDecal/Runtime/Scripts/Core/CyReceiverObjectTrianglePolygonsPool.cs](Assets/CyDecal/Runtime/Scripts/Core/CyReceiverObjectTrianglePolygonsPool.cs)<br/>
-[Assets/CyDecal/Runtime/Scripts/Core/CyTrianglePolygonsFactory.cs](Assets/CyDecal/Runtime/Scripts/Core/CyTrianglePolygonsFactory.cs)
+[Assets/AirSticker/Runtime/Scripts/Core/ReceiverObjectTrianglePolygonsPool.cs](Assets/AirSticker/Runtime/Scripts/Core/ReceiverObjectTrianglePolygonsPool.cs)<br/>
+[Assets/AirSticker/Runtime/Scripts/Core/TrianglePolygonsFactory.cs](Assets/AirSticker/Runtime/Scripts/Core/TrianglePolygonsFactory.cs)
 <br/>
-[Assets/CyDecal/Runtime/Scripts/Core/CyConvexPolygon.cs](Assets/CyDecal/Runtime/Scripts/Core/CyConvexPolygon.cs)
+[Assets/AirSticker/Runtime/Scripts/Core/ConvexPolygon.cs](Assets/AirSticker/Runtime/Scripts/Core/ConvexPolygon.cs)
 
 ### 3.3 Conduct an early branch cut (broad phase) on triangle polygons before applying decal textures
 In this step, the distance between the starting coordinates of the decal box and the vertex of each polygon is used to remove the triangle polygons.<br/>
@@ -236,7 +236,7 @@ private void BuildClipPlanes(Vector3 basePoint)
 }
 ```
 **Related Source Code**<br/>
-[Assets/CyDecal/Runtime/Scripts/CyDecalProjector.cs](Assets/CyDecal/Runtime/Scripts/CyDecalProjector.cs)
+[Assets/AirSticker/Runtime/Scripts/AirStickerProjector.cs](Assets/AirSticker/Runtime/Scripts/AirStickerProjector.cs)
 
 
 ### 3.5 Split the triangle polygon intersecting the clipping plane defined in Step-4
@@ -247,7 +247,7 @@ Here, the triangular polygon is divided by finding the intersection of each side
 </p>
 
 **Related Source Code**<br/>
-[Assets/CyDecal/Runtime/Scripts/CyDecalProjector.cs](Assets/CyDecal/Runtime/Scripts/CyDecalProjector.cs)
+[Assets/AirSticker/Runtime/Scripts/AirStickerProjector.cs](Assets/AirSticker/Runtime/Scripts/AirStickerProjector.cs)
 
 ### 3.6 Decal mesh is generated based on the polygonal polygon information created in step-5.
 Triangle polygons are generated based on the vertex information of the convex polygon obtained by dividing the triangle polygons, and the final decal mesh is generated. Since convex polygons can be treated as a set of triangle-fan triangles, this property is used to add new triangles to the decal mesh. See "9.2.2 Polygon Clipping" in "Mathematics for 3D Game Programming & Computer Graphics, 3rd Edition" for details on constructing triangle polygons from convex polygons.
@@ -257,5 +257,5 @@ Triangle polygons are generated based on the vertex information of the convex po
 </p>
 
 **Related Source Code**<br/>
-[Assets/CyDecal/Runtime/Scripts/Core/CyDecalMesh.cs](Assets/CyDecal/Runtime/Scripts/Core/CyDecalMesh.cs)
+[Assets/AirSticker/Runtime/Scripts/Core/AirStickerMesh.cs](Assets/AirSticker/Runtime/Scripts/Core/AirStickerMesh.cs)
 
