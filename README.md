@@ -22,7 +22,7 @@ Mesh-generated decals realize decal expression by generating a mesh at runtime w
 On the other hand, the decal process implemented in Unity implements projected DBuffer decals and screen space decals.<br/>
 
 Both mesh generation and projection decals have advantages/disadvantages.<br/>
-The mesh generation and projection methods can also be used together to compensate for many the limitations of URP decals. (see section 2.1 and 2.2 for details).<br/>
+The mesh generation and projection methods can also be used together to compensate for many disadvantages. (see section 2.1 and 2.2 for details).<br/>
 
 ### 2.1 Advantages and Disadvantages of URP Decal and CyDecal
 The advantages/disadvantages of URP decals and CyDecal are as follows.
