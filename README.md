@@ -11,8 +11,8 @@
 **Technical Documents** ([English](README_DEVELOPERS.md), [日本語](README_DEVELOPERS_JA.md)) <br/>
 
 ## Section 1 Summary
-CyDecal is a decal process that complements the disadvantages of URP decals and operates very lightly.<br/>
-Also, URP decals can only be used with Unity2021 or later, while CyDecal supports operation from Unity2020.<br/>
+CyDecal is a decal system that addresses the limitations of URP decals and has a low impact on performance.<br/>
+Also, URP decals can only be used with Unity2021 or higher, while CyDecal supports operation with Unity2020 or higher.<br/>
 
 ## Section 2 Feature
 CyDecal implements decal processing using the typical mesh generation method used in many games.<br/>
@@ -22,7 +22,7 @@ Mesh-generated decals realize decal expression by generating a mesh at runtime w
 On the other hand, the decal process implemented in Unity implements projected DBuffer decals and screen space decals.<br/>
 
 Both mesh generation and projection decals have advantages/disadvantages.<br/>
-The mesh generation and projection methods can also be used together to compensate for many of the disadvantages (see 2.1 and 2.2 for details).<br/>
+The mesh generation and projection methods can also be used together to compensate for many the limitations of URP decals. (see section 2.1 and 2.2 for details).<br/>
 
 ### 2.1 Advantages and Disadvantages of URP Decal and CyDecal
 The advantages/disadvantages of URP decals and CyDecal are as follows.
@@ -47,7 +47,7 @@ The advantages/disadvantages of URP decals and CyDecal are as follows.
 Thus, the two decals can be used together to complement many of the disadvantages.<br/>
 
 ### 2.2 Combination of URP decal and CyDecal
-As we saw in the previous section, the two decal treatments can be used together to complement many of the disadvantages.<br/><br/>
+As we saw in the previous section, the two decal treatments can be used together to complement the limitations of URP decals.<br/><br/>
 
 The following model case is presented here as a way of combining the two.
 
@@ -56,7 +56,7 @@ The following model case is presented here as a way of combining the two.
 |URP Decal| ・ Decal moves in the object space.<br/> ・ An alternative method until the mesh generation by CyDecal is finished.|
 |CyDecal|Decal don't moves in object space.|
 
-The following movie is a play demo implemented in this model case.
+The following movie demonstrates the implementation of this model case.
 
 <br/>
 <p align="center">
@@ -67,7 +67,7 @@ The following movie is a play demo implemented in this model case.
 In this movie, URP decal is used when the decal moves on the receiver object and to buy time until mesh generation is complete.<br/>
 Once the position on the receiver object is determined and mesh generation is finished, the decal by CyDecal is displayed thereafter.<br/>
 
-Once mesh generation is complete, CyDecal can be used to greatly improve runtime performance, a critical issue for mobile games (see 2.3 for details).<br/>
+Once mesh generation is complete, CyDecal can be used to greatly improve runtime performance, a critical issue for mobile games (see Section 2.3 for details).<br/>
 
 ### 2.3 URP Decal and CyDecal rendering performance
 
@@ -89,7 +89,7 @@ The following two cmponents are the most important of these.
 2. CyDecalProjector 
 
 ### 3.1 CyDecalSystem
-To use CyDecal, you must always install one game object with this component affixed.
+To use CyDecal, you must always install one game object with this component attach.
 
 <p align="center">
 <img width="80%" src="Documentation/fig-013.png" alt="CyDecalSystem"><br>
@@ -111,7 +111,7 @@ Five parameters can be set for the CyDecalProjector component.
 |Width|Width of the Projector bounding box.This complies with URP's decal projector specifications.<br/>For more information, see [Manual for URP Decals](https://docs.unity3d.com/ja/Packages/com.unity.render-pipelines.universal@14.0/manual/renderer-feature-decal. html).|
 |Height|Height of the Projector bounding box.This complies with URP's decal projector specifications.<br/>For more information, see [Manual for URP Decals](https://docs.unity3d.com/ja/Packages/com.unity.render-pipelines.universal@14.0/manual/renderer-feature-decal. html).|
 |Depth|Depth of the Projector bounding box.This complies with URP's decal projector specifications.<br/>For more information, see [Manual for URP Decals](https://docs.unity3d.com/ja/Packages/com.unity.render-pipelines.universal@14.0/manual/renderer-feature-decal. html).|
-|Receiver Object| デThe object to which the decal texture will be applied.<br/>CyDecalProjector targets all renderers pasted to children of the configured receiver object (including itself).<br/><br/>Therefore, the receiver object can be specified directly as an object to which a component such as MeshRenderer or SkinMeshRenderer is affixed, or it can be an object that contains an object to which a renderer is affixed as a child.<br/>The more renderers you process, the longer it will take to generate the decal mesh.Therefore, if the object to which the decal texture is to be applied can be restricted, it is more advantageous to specify that object directly as the receiver object.<br/><br/>For example, if you want to put a sticker on a character's face in a character edit, you can save mesh generation time by specifying the object to which the face renderer is attached rather than specifying the character's root object.|
+|Receiver Object| The object to which the decal texture will be applied.<br/>CyDecalProjector targets all renderers pasted to children of the configured receiver object (including itself).<br/><br/>Therefore, the receiver object can be specified directly as an object to which a component such as MeshRenderer or SkinMeshRenderer is attached, or it can be an object that contains an object to which a renderer is attached as a child.<br/>The more renderers you process, the longer it will take to generate the decal mesh.Therefore, if the object to which the decal texture is to be applied can be restricted, it is more advantageous to specify that object directly as the receiver object.<br/><br/>For example, if you want to put a sticker on a character's face in a character edit, you can save mesh generation time by specifying the object to which the face renderer is attached rather than specifying the character's root object.|
 |Decal Material| URP decals can only use materials with Shader Graphs/Decal shaders assigned, while CyDecal can use regular materials.<br/>This means that built-in Lit shaders, Unlit shaders, and user-custom, proprietary shaders are also available.|
 |Launch On Awake|If this checkbox is checked, the decal projection process is started at the same time the instance is created.|
 |On Finished Launch|You can specify a callback to be called at the end of the decal projection.|
@@ -128,7 +128,7 @@ An example of an in-game use of decals is the process of applying bullet holes t
 Such a process can be accomplished by determining the collision between the background and the bullet, generating a CyDecalProjector component based on the collision point information, and constructing a decal mesh.<br/><br/>
 CyDecalProjector components can be created by calling the CyDecalProjector.CreateAndLaunch() method.</br>
 If true is specified for the launchAwake argument of the CreateAndLaunch() method, the decal mesh construction process is started at the same time the component is created.<br/><br/>
-The decal mesh construction process runs over several frames.Therefore, if you want to monitor the end of the decal mesh construction process, you must monitor the NowState property of CyDecalProjector or use the onFinishedLaunch callback, which is called when the mesh generation process is finished.<br/><br/>
+The decal mesh construction process takes several frames.Therefore, if you want to monitor the end of the decal mesh construction process, you must monitor the NowState property of CyDecalProjector or use the onFinishedLaunch callback, which is called when the mesh generation process is finished.<br/><br/>
 The following code is a pseudo code to paste bullet holes on the background using the CyDecalProjector.CreateAndLaunch() method. This code sets up a callback that monitors for termination using the arguments of the CreateAndLaunch() method.<br/>
 ```C#
 // hitPosition    Bullet and background collision point.

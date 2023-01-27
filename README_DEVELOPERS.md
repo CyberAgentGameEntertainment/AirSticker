@@ -15,21 +15,21 @@ When a sticker is applied to a character as a decal, as shown in the following f
 </p>
 
 
-The steps of the algorithm for creating a decal mesh are as follows
-1. Get decal mesh to be edited from decal mesh pool.
+The steps of the algorithm for creating a decal mesh are as follows.
+1. Get the decal mesh to be edited from the decal mesh pool.
 2. Get the triangle polygons in model space of the receiver object to which the decal will be applied.
-3. Early branch cut (broad phase) of triangular polygons to which decal textures are applied.
-4. Defines the division plane from the information in the decal box.
-5. Triangular polygons colliding in the division plane defined in 4 are divided into polygonal polygons.
-6. Decal mesh is generated based on the polygonal polygon information created in 5.
+3. Conduct an early branch cut (broad phase) on triangle polygons before applying decal textures.
+4. Defines the clipping plane using the information in the decal box.
+5. Split the triangle polygon intersecting the clipping plane defined in Step-4.
+6. Decal mesh is generated based on the polygonal polygon information created in step-5.
 
-Also, since polygon division in 4-6 is based on "9.2 Decal Application" in "Mathematics for 3D Game Programming &and Computer Graphics, 3rd Edition" only the outline of the algorithm and the related source code are described. For details of polygon division, please refer to the references.
+Also, since polygon division in step-4 to 6 is based on "9.2 Decal Application" in "Mathematics for 3D Game Programming & Computer Graphics, 3rd Edition" only the outline of the algorithm and the related source code are described. For details of polygon division, please refer to the references.
 
 ## Section 3 Algorithm Details
 Section 3 will go into more detail on the various steps.
 ### 3.1 Get the decal mesh to be edited from the decal mesh pool
 Get the decal mesh to be edited from the decal mesh pool held by CyDecalSystem.<br/>
-The decal mesh is registered in the pool using the hash values of the receiver object, renderer, and material as keys, and if these values are identical, they are used interchangeably. If this hash value is not registered in the pool, a new decal mesh is created.
+The decal mesh is registered in the pool using the hash values of the receiver object, renderer, and material as keys, and if these values are identical, the registration is reused. If this hash value is not registered in the pool, a new decal mesh is created.
 <br/>
 Therefore, the following decals are treated as a single decal mesh.
 
@@ -45,7 +45,7 @@ In the following case, the receiver object and renderer are the same, but the de
 </p>
 
 
-Number of decal meshes = number of draw calls. Therefore, one guideline for optimization is to reduce the number of decal mesh types.
+Number of decal meshes is equal to number of draw calls. Therefore, one guideline for optimization is to reduce the number of decal mesh types.
 
 [**Code that retrieves the decal mesh from the pool**]
 ```C#
@@ -80,12 +80,12 @@ Instance._decalMeshPool.EnableDecalMeshRenderers();
 [Assets/CyDecal/Runtime/Scripts/Core/CyDecalMeshPool.cs](Assets/CyDecal/Runtime/Scripts/Core/CyDecalMeshPool.cs)<br/>
 [Assets/CyDecal/Runtime/Scripts/Core/CyDecalMesh.cs](Assets/CyDecal/Runtime/Scripts/Core/CyDecalMesh.cs)
 
-### 3.2 Get the triangle polygons in model space of the receiver object to which the decal will be applied.
-Gets the triangle polygons of the receiver object from the pool of triangle polygons pool held by CyDecalSystem.<br/>
-This pool is keyed to the receiver object, and the triangle polygons is registered and used if it has already been registered. If it is a new receiver object, the triangular polygon soup is created from the renderer's information.<br/><br/>
+### 3.2 Get the triangle polygons in model space of the receiver object to which the decal will be applied
+Gets the triangle polygons of the receiver object from the triangle polygons pool held by CyDecalSystem.<br/>
+This pool is keyed to the receiver object, and the triangle polygons are registered and used if it has already been registered. If it is a new receiver object, the triangle polygons are created from the renderer's information.<br/><br/>
 
 
-[**Code that collects triangular polygon information from mesh filters**]
+[**Code that collects triangle polygon information from mesh filters**]
 ```C#
 private IEnumerator BuildFromMeshFilter(MeshFilter[] meshFilters, MeshRenderer[] meshRenderers,
     List<ConvexPolygonInfo> convexPolygonInfos)
@@ -154,9 +154,9 @@ private IEnumerator BuildFromMeshFilter(MeshFilter[] meshFilters, MeshRenderer[]
 <br/>
 [Assets/CyDecal/Runtime/Scripts/Core/CyConvexPolygon.cs](Assets/CyDecal/Runtime/Scripts/Core/CyConvexPolygon.cs)
 
-### 3.3 Early branch cut (broad phase) of triangular polygons to which decal textures are applied
-In this step, the calculation of the distance between the coordinates of the starting point of the decal box and the vertex of each polygon performs a broad phase for early branching of the triangular polygons.<br/>
-The early branch cutting by inexpensive computation with the broad phase can lower the computational complexity of the later steps, which can be expected to significantly speed up the process.
+### 3.3 Conduct an early branch cut (broad phase) on triangle polygons before applying decal textures
+In this step, the distance between the starting coordinates of the decal box and the vertex of each polygon is used to remove the triangle polygons.<br/>
+This inexpensive computational branch cutting lowers the computational complexity of the subsequent steps, resulting in a significant speedup.<br/>
 
 Also, a decal box is a box that represents a space for attaching decals.<br/>
 <p align="center">
@@ -202,10 +202,10 @@ foreach (var convexPolygonInfo in convexPolygonInfos)
 ```
 
 
-### 3.4 Defines the division plane from the information in the decal box
-Then, based on the information of the collision point and the width and height of the decal box, the information of the 6 planes that construct the decal box is constructed. See "9.2.1 Construction of Decal Mesh" in "Mathematics for 3D Game Programming &and Computer Graphics, 3rd Edition" for more information on defining a division plane.
+### 3.4 Defines the clipping plane using the information in the decal box
+The six planes that make up the decal box are used to construct the planes for the clipping polygons. See "9.2.1 Construction of Decal Mesh" in "Mathematics for 3D Game Programming & Computer Graphics, 3rd Edition" for more information on defining a clipping plane.
 
-[**Code defining the division plane**]
+[**Code defining the clipping plane**]
 ```C#
 private void BuildClipPlanes(Vector3 basePoint)
 {
@@ -223,7 +223,7 @@ private void BuildClipPlanes(Vector3 basePoint)
     };
         ・
         ・
-       省略
+        ・
         ・
         ・
     // Build back plane.
@@ -239,8 +239,9 @@ private void BuildClipPlanes(Vector3 basePoint)
 **Related Source Code**<br/>
 [Assets/CyDecal/Runtime/Scripts/CyDecalProjector.cs](Assets/CyDecal/Runtime/Scripts/CyDecalProjector.cs)
 
-### 3.6 Triangular polygons colliding in the division plane defined in 4 are divided into polygonal polygons
-Here, the intersection of each side of the triangle polygon with the six division planes is determined and divided into convex polygons. See "9.2.2 Polygon Clipping" in "Mathematics for 3D Game Programming &and Computer Graphics, 3rd Edition" for more information on triangular polygon segmentation.
+
+### 3.5 Split the triangle polygon intersecting the clipping plane defined in Step-4
+Here, the triangular polygon is divided by finding the intersection of each side of the triangle polygons and the six clipping planes. See "9.2.2 Polygon Clipping" in "Mathematics for 3D Game Programming & Computer Graphics, 3rd Edition" for more information on triangular polygon segmentation.
 <p align="center">
 <img width="80%" src="Documentation/fig-007.png" alt="Treat convex polygons as triangular polygons"><br>
 <font color="grey"Treat convex polygons as triangular polygons</font>
@@ -249,11 +250,11 @@ Here, the intersection of each side of the triangle polygon with the six divisio
 **Related Source Code**<br/>
 [Assets/CyDecal/Runtime/Scripts/CyDecalProjector.cs](Assets/CyDecal/Runtime/Scripts/CyDecalProjector.cs)
 
-### 3.7 Generate decal mesh based on polygonal polygon information created in 5.
-Triangle polygons are generated based on the vertex information of the convex polygon obtained by dividing the triangle polygons, and the final decal mesh is generated. Since convex polygons can be treated as a set of triangle-fan triangles, this property is used to add new triangles to the decal mesh. See "9.2.2 Polygon Clipping" in "Mathematics for 3D Game Programming &and Computer Graphics, 3rd Edition" for details on constructing triangular polygons from convex polygons.
+### 3.6 Decal mesh is generated based on the polygonal polygon information created in step-5.
+Triangle polygons are generated based on the vertex information of the convex polygon obtained by dividing the triangle polygons, and the final decal mesh is generated. Since convex polygons can be treated as a set of triangle-fan triangles, this property is used to add new triangles to the decal mesh. See "9.2.2 Polygon Clipping" in "Mathematics for 3D Game Programming & Computer Graphics, 3rd Edition" for details on constructing triangle polygons from convex polygons.
 <p align="center">
 <img width="80%" src="Documentation/fig-006.png" alt="Treat convex polygons as triangular polygons"><br>
-<font color="grey">Treat convex polygons as triangular polygons</font>
+<font color="grey">Treat convex polygons as triangle polygons</font>
 </p>
 
 **Related Source Code**<br/>
