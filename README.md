@@ -17,7 +17,7 @@ Also, URP decals can only be used with Unity2021 or higher, while CyDecal suppor
 ## Section 2 Feature
 CyDecal implements decal processing using the typical mesh generation method used in many games.<br/>
 
-Mesh-generated decals realize decal expression by generating a mesh at runtime with a shape that matches the model to which the decal is to be applied, and then applying a texture to it.<br/>
+Mesh-generated decals implement decal expression by generating a mesh at runtime with a shape that matches the model to which the decal will be applied and then applying a texture to it.<br/>
 
 On the other hand, the decal process implemented in Unity implements projected DBuffer decals and screen space decals.<br/>
 
