@@ -97,7 +97,7 @@ To use CyDecal, you must have one game object attached to this component in your
 </p>
 
 ### 3.2 CyDecalProjector
-This component is used to project decals. Add this component to the game object to be installed as a decal projector.
+This component is used to project decals. Add this component to the game object that you want to use as a decal projector.
 
 <p align="center">
 <img width="50%" src="Documentation/fig-004.png" alt="CyDecalProjector inspector"><br>
