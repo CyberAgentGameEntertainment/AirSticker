@@ -70,7 +70,7 @@ Once the position on the receiver object is determined and mesh generation is fi
 Once mesh generation is complete, CyDecal can be used to greatly improve runtime performance(see Section 2.3 for details).<br/>
 
 ### 2.3 URP Decal and CyDecal rendering performance
-CyDecal takes several frames to generate the mesh, but the drawing performance is the same as simple mesh drawing.
+CyDecal takes several frames to generate the mesh, but once generated, the drawing performance is no different than simple mesh drawing.<br/>
 On the other hand, URP decals do not require mesh generation, but a complex drawing process is performed to display the decals.<br/><br/>
 Therefore, the mesh generation method is more advantageous in terms of frame-by-frame rendering performance.<br/><br/>
 
