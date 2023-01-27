@@ -47,7 +47,7 @@ The advantages/disadvantages of URP decals and CyDecal are as follows.
 Thus, the two decals can be used together to complement many of the disadvantages.<br/>
 
 ### 2.2 Combination of URP decal and CyDecal
-As we saw in the previous section, the two decal treatments can be used together to complement the limitations of URP decals.<br/><br/>
+As we saw in the previous section, the two decal treatments can be used together to complement many disadvantages.<br/><br/>
 
 The following model case is presented here as a way of combining the two.
 
