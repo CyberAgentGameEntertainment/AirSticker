@@ -76,7 +76,6 @@ Instance._decalMeshPool.EnableDecalMeshRenderers();
 ```
 
 **Related Source Code**<br/>
-[Assets/CyDecal/Runtime/Scripts/Core/CyDecalMeshPool.cs](Assets/CyDecal/Runtime/Scripts/CyDecalSystem.cs)<br/>
 [Assets/CyDecal/Runtime/Scripts/Core/CyDecalMeshPool.cs](Assets/CyDecal/Runtime/Scripts/Core/CyDecalMeshPool.cs)<br/>
 [Assets/CyDecal/Runtime/Scripts/Core/CyDecalMesh.cs](Assets/CyDecal/Runtime/Scripts/Core/CyDecalMesh.cs)
 
