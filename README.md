@@ -67,7 +67,7 @@ The following movie demonstrates the implementation of this model case.
 In this movie, URP decal is used when the decal moves on the receiver object and to buy time until mesh generation is complete.<br/>
 Once the position on the receiver object is determined and mesh generation is finished, the decal by CyDecal is displayed thereafter.<br/>
 
-Once mesh generation is complete, CyDecal can be used to greatly improve runtime performance, a critical issue for mobile games (see Section 2.3 for details).<br/>
+Once mesh generation is complete, CyDecal can be used to greatly improve runtime performance(see Section 2.3 for details).<br/>
 
 ### 2.3 URP Decal and CyDecal rendering performance
 
