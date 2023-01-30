@@ -32,7 +32,7 @@ namespace AirSticker.Runtime.Scripts.Core
         /// <summary>
         ///     Queueing startup requests to the queue.
         /// </summary>
-        public void Request(global::AirSticker.Runtime.Scripts.AirStickerProjector projector, Action onLaunch)
+        public void Request(AirStickerProjector projector, Action onLaunch)
         {
             _launchRequestQueues.Enqueue(new LaunchRequest(projector, onLaunch));
         }
@@ -42,7 +42,7 @@ namespace AirSticker.Runtime.Scripts.Core
             return _currentRequest == null // The request is empty.
                    || !_currentRequest.Projector // Projector that threw the request is dead.
                    || _currentRequest.Projector.NowState ==
-                   global::AirSticker.Runtime.Scripts.AirStickerProjector.State.LaunchingCompleted; // Launching is completed.
+                   AirStickerProjector.State.LaunchingCompleted; // Launching is completed.
         }
 
         private void ProcessNextRequest()
@@ -64,13 +64,13 @@ namespace AirSticker.Runtime.Scripts.Core
 
         private class LaunchRequest
         {
-            public LaunchRequest(global::AirSticker.Runtime.Scripts.AirStickerProjector projector, Action onLaunch)
+            public LaunchRequest(AirStickerProjector projector, Action onLaunch)
             {
                 Projector = projector;
                 OnLaunch = onLaunch;
             }
 
-            public global::AirSticker.Runtime.Scripts.AirStickerProjector Projector { get; }
+            public AirStickerProjector Projector { get; }
             public Action OnLaunch { get; }
         }
     }
