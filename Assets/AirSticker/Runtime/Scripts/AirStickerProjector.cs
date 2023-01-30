@@ -217,7 +217,7 @@ namespace AirSticker.Runtime.Scripts
             // Waiting to worker thread.
             while (_executeLaunchingOnWorkerThread) yield return null;
 
-            foreach (var cyDecalMesh in DecalMeshes) cyDecalMesh.ExecutePostProcessingAfterWorkerThread();
+            foreach (var decalMesh in DecalMeshes) decalMesh.ExecutePostProcessingAfterWorkerThread();
             OnFinished(State.LaunchingCompleted);
             _convexPolygonInfos = null;
 
@@ -234,7 +234,7 @@ namespace AirSticker.Runtime.Scripts
         }
 
         /// <summary>
-        ///     Create and add CyDecalProjector to the GameObject. 
+        ///     Create and add AirStickerProjector to the GameObject. 
         /// </summary>
         /// <param name="owner">Game object to which the component will be added.</param>
         /// <param name="receiverObject">Receiver object to which decal is applied.</param>

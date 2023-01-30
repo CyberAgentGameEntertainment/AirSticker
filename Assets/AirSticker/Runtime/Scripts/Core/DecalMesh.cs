@@ -7,7 +7,7 @@ namespace AirSticker.Runtime.Scripts.Core
 {
     /// <summary>
     ///     Decal mesh.
-    ///     Its instance will be created by CyDecalProjector.
+    ///     Its instance will be created by AirStickerProjector.
     /// </summary>
     public sealed class DecalMesh : IDisposable
     {

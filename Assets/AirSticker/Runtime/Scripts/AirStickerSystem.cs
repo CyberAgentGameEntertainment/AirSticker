@@ -18,8 +18,8 @@ namespace AirSticker.Runtime.Scripts
         private readonly IDecalProjectorLauncher _decalProjectorLauncher =
             new DecalProjectorLauncher();
         
-        private readonly ICyReceiverObjectTrianglePolygonsPool _receiverObjectTrianglePolygonsPool =
-            new CyReceiverObjectTrianglePolygonsPool();
+        private readonly IReceiverObjectTrianglePolygonsPool _receiverObjectTrianglePolygonsPool =
+            new ReceiverObjectTrianglePolygonsPool();
 
         private TrianglePolygonsFactory _trianglePolygonsFactory;
 
@@ -41,12 +41,12 @@ namespace AirSticker.Runtime.Scripts
             }
         }
 
-        public static CyReceiverObjectTrianglePolygonsPool ReceiverObjectTrianglePolygonsPool
+        public static ReceiverObjectTrianglePolygonsPool ReceiverObjectTrianglePolygonsPool
         {
             get
             {
                 if (!Instance) return null;
-                return (CyReceiverObjectTrianglePolygonsPool)Instance._receiverObjectTrianglePolygonsPool;
+                return (ReceiverObjectTrianglePolygonsPool)Instance._receiverObjectTrianglePolygonsPool;
             }
         }
 

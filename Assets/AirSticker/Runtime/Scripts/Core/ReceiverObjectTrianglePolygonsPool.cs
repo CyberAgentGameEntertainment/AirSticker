@@ -16,7 +16,7 @@ namespace AirSticker.Runtime.Scripts.Core
         public bool IsOutsideClipSpace { get; set; } 
     }
 
-    internal interface ICyReceiverObjectTrianglePolygonsPool
+    internal interface IReceiverObjectTrianglePolygonsPool
     {
         IReadOnlyDictionary<GameObject, List<ConvexPolygonInfo>> ConvexPolygonsPool { get; }
 
@@ -28,12 +28,12 @@ namespace AirSticker.Runtime.Scripts.Core
     ///     Triangle polygon pool of receiver object.<br />
     ///     Triangle polygons are registered in the pool with the receiver object as the key.<br />
     /// </summary>
-    public sealed class CyReceiverObjectTrianglePolygonsPool : ICyReceiverObjectTrianglePolygonsPool
+    public sealed class ReceiverObjectTrianglePolygonsPool : IReceiverObjectTrianglePolygonsPool
     {
         private readonly Dictionary<GameObject, List<ConvexPolygonInfo>> _trianglePolygonsPool =
             new Dictionary<GameObject, List<ConvexPolygonInfo>>();
 
-        IReadOnlyDictionary<GameObject, List<ConvexPolygonInfo>> ICyReceiverObjectTrianglePolygonsPool.
+        IReadOnlyDictionary<GameObject, List<ConvexPolygonInfo>> IReceiverObjectTrianglePolygonsPool.
             ConvexPolygonsPool => _trianglePolygonsPool;
 
         /// <summary>
@@ -48,7 +48,7 @@ namespace AirSticker.Runtime.Scripts.Core
         /// <summary>
         ///     If the receiver object that is registered is dead, it is removed from pool.  
         /// </summary>
-        void ICyReceiverObjectTrianglePolygonsPool.GarbageCollect()
+        void IReceiverObjectTrianglePolygonsPool.GarbageCollect()
         {
             var deleteList = _trianglePolygonsPool.Where(item => item.Key == null).ToList();
             foreach (var item in deleteList) _trianglePolygonsPool.Remove(item.Key);
