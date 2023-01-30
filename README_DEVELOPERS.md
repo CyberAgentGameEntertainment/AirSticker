@@ -1,4 +1,3 @@
-
 # Air Sticker Technical Documentation
 
 ## Section 1 Summary
