@@ -107,7 +107,7 @@ namespace AirSticker.Runtime.Scripts
         private static Matrix4x4[][] CalculateMatricesPallet(SkinnedMeshRenderer[] skinnedMeshRenderers)
         {
             var boneMatricesPallet = new Matrix4x4[skinnedMeshRenderers.Length][];
-            var skindMeshRendererNo = 0;
+            var skinnedMeshRendererNo = 0;
             foreach (var skinnedMeshRenderer in skinnedMeshRenderers)
             {
                 if (!skinnedMeshRenderer) continue;
@@ -121,10 +121,10 @@ namespace AirSticker.Runtime.Scripts
                         boneMatrices[boneNo] = skinnedMeshRenderer.bones[boneNo].localToWorldMatrix
                                                * mesh.bindposes[boneNo];
 
-                    boneMatricesPallet[skindMeshRendererNo] = boneMatrices;
+                    boneMatricesPallet[skinnedMeshRendererNo] = boneMatrices;
                 }
 
-                skindMeshRendererNo++;
+                skinnedMeshRendererNo++;
             }
 
             return boneMatricesPallet;
