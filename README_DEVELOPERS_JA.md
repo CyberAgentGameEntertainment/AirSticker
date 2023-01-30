@@ -69,7 +69,7 @@ foreach (var renderer in renderers)
     }
     else
     {
-        var newMesh = new AirStickerMesh(receiverObject, decalMaterial, renderer);
+        var newMesh = new DecalMesh(receiverObject, decalMaterial, renderer);
         results.Add(newMesh);
         pool.RegisterDecalMesh(hash, newMesh);
     }
@@ -80,8 +80,8 @@ Instance._decalMeshPool.EnableDecalMeshRenderers();
 ```
 
 **関連ソースコード**<br/>
-[Assets/AirSticker/Runtime/Scripts/Core/AirStickerMeshPool.cs](Assets/AirSticker/Runtime/Scripts/Core/AirStickerMeshPool.cs)<br/>
-[Assets/AirSticker/Runtime/Scripts/Core/AirStickerMesh.cs](Assets/AirSticker/Runtime/Scripts/Core/AirStickerMesh.cs)
+[Assets/AirSticker/Runtime/Scripts/Core/DecalMeshPool.cs](Assets/AirSticker/Runtime/Scripts/Core/DecalMeshPool.cs)<br/>
+[Assets/AirSticker/Runtime/Scripts/Core/DecalMesh.cs](Assets/AirSticker/Runtime/Scripts/Core/DecalMesh.cs)
 
 ### 3.2 デカールを貼り付けるレシーバーオブジェクトの三角形ポリゴンスープを取得
 AirStickerSystemが保持している三角形ポリゴンスープのプールからレシーバオブジェクトの三角形ポリゴンスープを取得します。<br/>

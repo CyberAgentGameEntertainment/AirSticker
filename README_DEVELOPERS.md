@@ -65,19 +65,19 @@ foreach (var renderer in renderers)
     }
     else
     {
-        var newMesh = new AirStickerMesh(receiverObject, decalMaterial, renderer);
+        var newMesh = new DecalMesh(receiverObject, decalMaterial, renderer);
         results.Add(newMesh);
         pool.RegisterDecalMesh(hash, newMesh);
     }
 }
 
 // Restore the renderer of decal mesh was disabled.
-Instance._decalMeshPool.EnableDecalMeshRenderers();
+Instance._decal3.EnableDecalMeshRenderers();
 ```
 
 **Related Source Code**<br/>
-[Assets/AirSticker/Runtime/Scripts/Core/AirStickerMeshPool.cs](Assets/AirSticker/Runtime/Scripts/Core/AirStickerMeshPool.cs)<br/>
-[Assets/AirSticker/Runtime/Scripts/Core/AirStickerMesh.cs](Assets/AirSticker/Runtime/Scripts/Core/AirStickerMesh.cs)
+[Assets/AirSticker/Runtime/Scripts/Core/DecalMeshPool.cs](Assets/AirSticker/Runtime/Scripts/Core/DecalMeshPool.cs)<br/>
+[Assets/AirSticker/Runtime/Scripts/Core/DecalMesh.cs](Assets/AirSticker/Runtime/Scripts/Core/DecalMesh.cs)
 
 ### 3.2 Get the triangle polygons in model space of the receiver object to which the decal will be applied
 Gets the triangle polygons of the receiver object from the triangle polygons pool held by AirStickerSystem.<br/>
@@ -123,7 +123,7 @@ private IEnumerator BuildFromMeshFilter(MeshFilter[] meshFilters, MeshRenderer[]
                 // New triangle infomation.
                 newConvexPolygonInfos[newConvexPolygonNo] = new ConvexPolygonInfo
                 {
-                    ConvexPolygon = new CyConvexPolygon(
+                    ConvexPolygon = new ConvexPolygon(
                         positionBuffer,
                         normalBuffer,
                         boneWeightBuffer,

@@ -1,5 +1,5 @@
 <p align="center">
-<img src="Documentation/header.png" alt="CyDecal(仮)">
+<img src="Documentation/header.png" alt="Air Sticker3">
 </p>
 
 # Air Sticker
