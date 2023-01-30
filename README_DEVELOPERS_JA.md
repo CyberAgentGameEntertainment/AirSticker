@@ -32,7 +32,7 @@ Air Stickerはデカールテクスチャを貼り付けるデカールメッシ
 ## Section 3 アルゴリズム詳細
 Section 3では各種ステップの詳細を説明してきます。
 ### 3.1 デカールメッシュプールから編集するデカールメッシュを取得
-CyRenderDecalFeatureが保持しているデカールメッシュプールから編集するデカールメッシュを取得します。<br/>
+AirStickerSystemが保持しているデカールメッシュプールから編集するデカールメッシュを取得します。<br/>
 デカールメッシュはレシーバーオブジェクト、レンダラー、マテリアルのハッシュ値をキーとして、プールに登録されており、この値が同一であれば使いまわしされます。
 また、このハッシュ値がプールに登録されていなければ、新しくデカールメッシュを作成します。<br/>
 そのため、次のようなデカールの場合は一つのデカールメッシュとして扱われています。
@@ -62,7 +62,7 @@ foreach (var renderer in renderers)
 {
     if (!renderer) return;
     var pool = Instance._decalMeshPool;
-    var hash = CyDecalMeshPool.CalculateHash(receiverObject, renderer, decalMaterial);
+    var hash = DecalMeshPool.CalculateHash(receiverObject, renderer, decalMaterial);
     if (pool.Contains(hash))
     {
         results.Add(pool.GetDecalMesh(hash));
@@ -126,7 +126,7 @@ private IEnumerator BuildFromMeshFilter(MeshFilter[] meshFilters, MeshRenderer[]
                 // 収集したデータから新しいポリゴン情報を作成する。
                 newConvexPolygonInfos[newConvexPolygonNo] = new ConvexPolygonInfo
                 {
-                    ConvexPolygon = new CyConvexPolygon(
+                    ConvexPolygon = new ConvexPolygon(
                         positionBuffer,
                         normalBuffer,
                         boneWeightBuffer,
@@ -154,7 +154,7 @@ private IEnumerator BuildFromMeshFilter(MeshFilter[] meshFilters, MeshRenderer[]
 [Assets/AirSticker/Runtime/Scripts/Core/ReceiverObjectTrianglePolygonsPool.cs](Assets/AirSticker/Runtime/Scripts/Core/ReceiverObjectTrianglePolygonsPool.cs)<br/>
 [Assets/AirSticker/Runtime/Scripts/Core/TrianglePolygonsFactory.cs](Assets/AirSticker/Runtime/Scripts/Core/TrianglePolygonsFactory.cs)
 <br/>
-[Assets/AirSticker/Runtime/Scripts/Core/CyConvexPolygon.cs](Assets/AirSticker/Runtime/Scripts/Core/ConvexPolygon.cs)
+[Assets/AirSticker/Runtime/Scripts/Core/ConvexPolygon.cs](Assets/AirSticker/Runtime/Scripts/Core/ConvexPolygon.cs)
 
 ### 3.3 デカールを貼り付ける三角形ポリゴンの早期枝切り(ブロードフェーズ)
 このステップでは、デカールボックスの起点となる座標と各ポリゴンの頂点との距離の計算により、このステップ以降に処理する三角形ポリゴンを早期枝切りするためのブロードフェーズが実行されます。<br/>
