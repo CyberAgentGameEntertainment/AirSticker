@@ -1,9 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
-using CyDecal.Runtime.Scripts.Core;
+using AirSticker.Runtime.Scripts.Core;
 using UnityEngine;
 
-namespace CyDecal.Runtime.Scripts
+namespace AirSticker.Runtime.Scripts
 {
     /// <summary>
     ///     Decal System.
@@ -11,33 +11,33 @@ namespace CyDecal.Runtime.Scripts
     ///         1. Facade
     ///         2. Singleton
     /// </summary>
-    public sealed class CyDecalSystem : MonoBehaviour
+    public sealed class AirStickerSystem : MonoBehaviour
     {
-        private readonly ICyDecalMeshPool _decalMeshPool = new CyDecalMeshPool();
+        private readonly IDecalMeshPool _decalMeshPool = new DecalMeshPool();
         
-        private readonly ICyDecalProjectorLauncher _decalProjectorLauncher =
-            new CyDecalProjectorLauncher();
+        private readonly IDecalProjectorLauncher _decalProjectorLauncher =
+            new DecalProjectorLauncher();
         
         private readonly ICyReceiverObjectTrianglePolygonsPool _receiverObjectTrianglePolygonsPool =
             new CyReceiverObjectTrianglePolygonsPool();
 
-        private CyTrianglePolygonsFactory _trianglePolygonsFactory;
+        private TrianglePolygonsFactory _trianglePolygonsFactory;
 
-        public static CyDecalProjectorLauncher DecalProjectorLauncher
+        public static DecalProjectorLauncher DecalProjectorLauncher
         {
             get
             {
                 if (!Instance) return null;
-                return (CyDecalProjectorLauncher)Instance._decalProjectorLauncher;
+                return (DecalProjectorLauncher)Instance._decalProjectorLauncher;
             }
         }
 
-        public static CyDecalMeshPool DecalMeshPool
+        public static DecalMeshPool DecalMeshPool
         {
             get
             {
                 if (!Instance) return null;
-                return (CyDecalMeshPool)Instance._decalMeshPool;
+                return (DecalMeshPool)Instance._decalMeshPool;
             }
         }
 
@@ -50,14 +50,14 @@ namespace CyDecal.Runtime.Scripts
             }
         }
 
-        private static CyDecalSystem Instance { get; set; }
+        private static AirStickerSystem Instance { get; set; }
 
         private void Awake()
         {
             Debug.Assert(Instance == null,
-                "CyDecalSystem can't be instantiated multiply, but but it has already been instantiated.");
+                "AirStickerSystem can't be instantiated multiply, but but it has already been instantiated.");
             Instance = this;
-            _trianglePolygonsFactory = new CyTrianglePolygonsFactory();
+            _trianglePolygonsFactory = new TrianglePolygonsFactory();
         }
         
         private void Update()
@@ -97,7 +97,7 @@ namespace CyDecal.Runtime.Scripts
         }
         
         internal static void CollectEditDecalMeshes(
-            List<CyDecalMesh> results,
+            List<DecalMesh> results,
             GameObject receiverObject,
             Material decalMaterial)
         {
@@ -110,14 +110,14 @@ namespace CyDecal.Runtime.Scripts
             {
                 if (!renderer) return;
                 var pool = Instance._decalMeshPool;
-                var hash = CyDecalMeshPool.CalculateHash(receiverObject, renderer, decalMaterial);
+                var hash = DecalMeshPool.CalculateHash(receiverObject, renderer, decalMaterial);
                 if (pool.Contains(hash))
                 {
                     results.Add(pool.GetDecalMesh(hash));
                 }
                 else
                 {
-                    var newMesh = new CyDecalMesh(receiverObject, decalMaterial, renderer);
+                    var newMesh = new DecalMesh(receiverObject, decalMaterial, renderer);
                     results.Add(newMesh);
                     pool.RegisterDecalMesh(hash, newMesh);
                 }

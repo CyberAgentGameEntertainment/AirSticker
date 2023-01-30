@@ -1,12 +1,12 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace CyDecal.Runtime.Scripts.Core
+namespace AirSticker.Runtime.Scripts.Core
 {
     /// <summary>
     ///     This class run broad phase convex polygons detection.
     /// </summary>
-    internal static class CyBroadPhaseConvexPolygonsDetection
+    internal static class BroadPhaseConvexPolygonsDetection
     {
         /// <summary>
         ///     Execute broad phase.
@@ -64,12 +64,12 @@ namespace CyDecal.Runtime.Scripts.Core
             }
 
             var broadPhaseConvexPolygonInfos = new List<ConvexPolygonInfo>(broadPhaseConvexPolygonCount);
-            var positionBuffer = new Vector3[CyConvexPolygon.DefaultMaxVertex * broadPhaseConvexPolygonCount];
-            var normalBuffer = new Vector3[CyConvexPolygon.DefaultMaxVertex * broadPhaseConvexPolygonCount];
-            var localPositionBuffer = new Vector3[CyConvexPolygon.DefaultMaxVertex * broadPhaseConvexPolygonCount];
-            var localNormalBuffer = new Vector3[CyConvexPolygon.DefaultMaxVertex * broadPhaseConvexPolygonCount];
-            var boneWeightBuffer = new BoneWeight[CyConvexPolygon.DefaultMaxVertex * broadPhaseConvexPolygonCount];
-            var lineBuffer = new CyLine[CyConvexPolygon.DefaultMaxVertex * broadPhaseConvexPolygonCount];
+            var positionBuffer = new Vector3[ConvexPolygon.DefaultMaxVertex * broadPhaseConvexPolygonCount];
+            var normalBuffer = new Vector3[ConvexPolygon.DefaultMaxVertex * broadPhaseConvexPolygonCount];
+            var localPositionBuffer = new Vector3[ConvexPolygon.DefaultMaxVertex * broadPhaseConvexPolygonCount];
+            var localNormalBuffer = new Vector3[ConvexPolygon.DefaultMaxVertex * broadPhaseConvexPolygonCount];
+            var boneWeightBuffer = new BoneWeight[ConvexPolygon.DefaultMaxVertex * broadPhaseConvexPolygonCount];
+            var lineBuffer = new Line[ConvexPolygon.DefaultMaxVertex * broadPhaseConvexPolygonCount];
             var startOffsetInBuffer = 0;
 
             for (var i = 0; i < convexPolygonInfos.Count; i++)
@@ -79,13 +79,13 @@ namespace CyDecal.Runtime.Scripts.Core
                 {
                     broadPhaseConvexPolygonInfos.Add(new ConvexPolygonInfo
                     {
-                        ConvexPolygon = new CyConvexPolygon(convexPolygonInfo.ConvexPolygon, positionBuffer,
+                        ConvexPolygon = new ConvexPolygon(convexPolygonInfo.ConvexPolygon, positionBuffer,
                             normalBuffer, boneWeightBuffer, lineBuffer, localPositionBuffer, localNormalBuffer,
                             startOffsetInBuffer),
                         IsOutsideClipSpace = convexPolygonInfo.IsOutsideClipSpace
                     });
 
-                    startOffsetInBuffer += CyConvexPolygon.DefaultMaxVertex;
+                    startOffsetInBuffer += ConvexPolygon.DefaultMaxVertex;
                 }
 
                 convexPolygonInfo.IsOutsideClipSpace = false;

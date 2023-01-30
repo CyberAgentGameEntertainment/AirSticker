@@ -1,8 +1,8 @@
 #define TEST_START_PROJECTION_METHOD // If this symbol is defined, Test the StartProjection method.
 
 using System.Collections.Generic;
-using CyDecal.Runtime.Scripts;
-using CyDecal.Runtime.Scripts.Core;
+using AirSticker.Runtime.Scripts;
+using AirSticker.Runtime.Scripts.Core;
 using UnityEngine;
 #if UNITY_2021_1_OR_NEWER
 using UnityEngine.Rendering.Universal;
@@ -18,7 +18,7 @@ namespace Demo.Demo_00.Scripts
         [SerializeField] private GameObject[] moveImageObjects;
         [SerializeField] private Material[] urpDecalMaterials;
         [SerializeField] private GameObject _collectPolyInputFieldTextObject;
-        private readonly List<List<CyDecalMesh>> _cyDecalMeshesList = new List<List<CyDecalMesh>>();
+        private readonly List<List<DecalMesh>> _decalMeshesList = new List<List<DecalMesh>>();
         private AgingTest _agingTest;
         private GameObject _currentProjectorObject;
         private int _currentReceiverObjectNo;
@@ -37,7 +37,7 @@ namespace Demo.Demo_00.Scripts
         {
             _agingTest = new AgingTest(this);
             var text = _collectPolyInputFieldTextObject.GetComponent<Text>();
-            CyTrianglePolygonsFactory.MaxGeneratedPolygonPerFrame = int.Parse(text.text);
+            TrianglePolygonsFactory.MaxGeneratedPolygonPerFrame = int.Parse(text.text);
         }
 
         // Update is called once per frame
@@ -75,7 +75,7 @@ namespace Demo.Demo_00.Scripts
                 projectorSize.z = 10.0f;
                 projectorObj.transform.localPosition =
                     hit_info.point + Camera.main.transform.forward * -0.1f;
-                CyDecalProjector.CreateAndLaunch(
+                AirStickerProjector.CreateAndLaunch(
                     projectorObj,
                     receiverObjects[_currentReceiverObjectNo],
                     decalMaterials[decalMaterialIndex],
@@ -144,7 +144,7 @@ namespace Demo.Demo_00.Scripts
                 {
                     var projectorObj = _currentProjectorObject;
 #if !TEST_START_PROJECTION_METHOD
-                    var projector = CyDecalProjector.AddTo(
+                    var projector = AirStickerProjector.AddTo(
                         _currentProjectorObject,
                         receiverObjects[_currentReceiverObjectNo],
                         decalMaterials[CurrentDecalMaterialIndex],
@@ -158,7 +158,7 @@ namespace Demo.Demo_00.Scripts
                             Object.Destroy(projectorObj);
                         });
 #else
-                    var projector = CyDecalProjector.CreateAndLaunch(
+                    var projector = AirStickerProjector.CreateAndLaunch(
                         _currentProjectorObject,
                         receiverObjects[_currentReceiverObjectNo],
                         decalMaterials[CurrentDecalMaterialIndex],
@@ -174,7 +174,7 @@ namespace Demo.Demo_00.Scripts
                             Destroy(projectorObj);
                         });
 #endif
-                    _cyDecalMeshesList.Add(projector.DecalMeshes);
+                    _decalMeshesList.Add(projector.DecalMeshes);
                 }
 
                 moveImageObjects[CurrentDecalMaterialIndex].SetActive(false);
@@ -185,10 +185,10 @@ namespace Demo.Demo_00.Scripts
 
         public void ClearDecalMesh()
         {
-            foreach (var decalMeshes in _cyDecalMeshesList)
+            foreach (var decalMeshes in _decalMeshesList)
             foreach (var decalMesh in decalMeshes)
                 decalMesh.Clear();
-            _cyDecalMeshesList.Clear();
+            _decalMeshesList.Clear();
         }
 
 

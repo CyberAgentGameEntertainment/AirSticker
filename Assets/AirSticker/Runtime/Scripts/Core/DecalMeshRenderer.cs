@@ -1,14 +1,14 @@
 using UnityEngine;
 
-namespace CyDecal.Runtime.Scripts.Core
+namespace AirSticker.Runtime.Scripts.Core
 {
-    internal sealed class CyDecalMeshRenderer
+    internal sealed class DecalMeshRenderer
     {
         private readonly Renderer _renderer;
 
-        public CyDecalMeshRenderer(Renderer receiverRenderer, Material decalMaterial, Mesh mesh)
+        public DecalMeshRenderer(Renderer receiverRenderer, Material decalMaterial, Mesh mesh)
         {
-            Owner = new GameObject("CyDecalRenderer");
+            Owner = new GameObject("AirStickerRenderer");
             if (receiverRenderer is MeshRenderer)
             {
                 var meshRenderer = Owner.AddComponent<MeshRenderer>();

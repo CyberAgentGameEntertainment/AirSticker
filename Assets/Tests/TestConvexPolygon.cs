@@ -1,10 +1,10 @@
-using CyDecal.Runtime.Scripts.Core;
+using AirSticker.Runtime.Scripts.Core;
 using NUnit.Framework;
 using UnityEngine;
 
 namespace Tests
 {
-    public class TestCyConvexPolygon
+    public class TestConvexPolygon
     {
         // A Test behaves as an ordinary method
         [Test]
@@ -32,7 +32,7 @@ namespace Tests
             boneWeights[0] = new BoneWeight();
             boneWeights[1] = new BoneWeight();
             boneWeights[2] = new BoneWeight();
-            var lines = new CyLine[3];
+            var lines = new Line[3];
 
             var rayStart = new Vector3();
             rayStart.x = 0.0f;
@@ -44,7 +44,7 @@ namespace Tests
             rayEnd.y = 0.0f;
             rayEnd.z = -2.0f;
 
-            var convexPolygon = new CyConvexPolygon(
+            var convexPolygon = new ConvexPolygon(
                 vertices,
                 normals,
                 boneWeights,

@@ -10,12 +10,12 @@ using System.Collections.Generic;
 using Unity.Collections;
 using UnityEngine;
 
-namespace CyDecal.Runtime.Scripts.Core
+namespace AirSticker.Runtime.Scripts.Core
 {
     /// <summary>
     ///     Create Triangle polygons info from the mesh renderer or skinned mesh renderer. 
     /// </summary>
-    public class CyTrianglePolygonsFactory : IDisposable
+    public class TrianglePolygonsFactory : IDisposable
     {
         private static readonly int VertexCountOfTrianglePolygon = 3;
         private static readonly int MaxWorkingVertexCount = 65536;
@@ -127,7 +127,7 @@ namespace CyDecal.Runtime.Scripts.Core
             var positionBuffer = new Vector3[bufferSize];
             var boneWeightBuffer = new BoneWeight[bufferSize];
             var normalBuffer = new Vector3[bufferSize];
-            var lineBuffer = new CyLine[bufferSize];
+            var lineBuffer = new Line[bufferSize];
             var localPositionBuffer = new Vector3[bufferSize];
             var localNormalBuffer = new Vector3[bufferSize];
             var startOffsetOfBuffer = 0;
@@ -175,7 +175,7 @@ namespace CyDecal.Runtime.Scripts.Core
                         boneWeightBuffer[startOffsetOfBuffer + 2] = default;
                         newConvexPolygonInfos[newConvexPolygonNo] = new ConvexPolygonInfo
                         {
-                            ConvexPolygon = new CyConvexPolygon(
+                            ConvexPolygon = new ConvexPolygon(
                                 positionBuffer,
                                 normalBuffer,
                                 boneWeightBuffer,
@@ -239,7 +239,7 @@ namespace CyDecal.Runtime.Scripts.Core
             var boneWeightBuffer = new BoneWeight[bufferSize];
             var normalBuffer = new Vector3[bufferSize];
             var localNormalBuffer = new Vector3[bufferSize];
-            var lineBuffer = new CyLine[bufferSize];
+            var lineBuffer = new Line[bufferSize];
             var startOffsetOfBuffer = 0;
 #if MEASUREMENT_METHOD_BuildFromSkinMeshRenderer
             sw.Stop();
@@ -306,7 +306,7 @@ namespace CyDecal.Runtime.Scripts.Core
 
                         newConvexPolygonInfos[newConvexPolygonNo] = new ConvexPolygonInfo
                         {
-                            ConvexPolygon = new CyConvexPolygon(
+                            ConvexPolygon = new ConvexPolygon(
                                 positionBuffer,
                                 normalBuffer,
                                 boneWeightBuffer,

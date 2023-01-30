@@ -2,14 +2,14 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
-namespace CyDecal.Runtime.Scripts.Core
+namespace AirSticker.Runtime.Scripts.Core
 {
     /// <summary>
     ///     The information of convex polygon.
     /// </summary>
     public class ConvexPolygonInfo
     {
-        public CyConvexPolygon ConvexPolygon { get; set; }
+        public ConvexPolygon ConvexPolygon { get; set; }
         /// <summary>
         ///     This flag indicates whether the convex polygon is outside the clip space defined by the decal box.
         /// </summary>

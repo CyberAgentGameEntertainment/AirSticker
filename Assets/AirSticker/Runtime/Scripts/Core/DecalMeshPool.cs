@@ -2,16 +2,16 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
-namespace CyDecal.Runtime.Scripts.Core
+namespace AirSticker.Runtime.Scripts.Core
 {
-    internal interface ICyDecalMeshPool
+    internal interface IDecalMeshPool
     {
         int GetPoolSize();
         void DisableDecalMeshRenderers();
         void EnableDecalMeshRenderers();
         bool Contains(int hash);
-        void RegisterDecalMesh(int hash, CyDecalMesh decalMesh);
-        CyDecalMesh GetDecalMesh(int hash);
+        void RegisterDecalMesh(int hash, DecalMesh decalMesh);
+        DecalMesh GetDecalMesh(int hash);
         void Dispose();
         void GarbageCollect();
     }
@@ -19,21 +19,21 @@ namespace CyDecal.Runtime.Scripts.Core
     /// <summary>
     ///     Decal mesh pool.
     /// </summary>
-    public sealed class CyDecalMeshPool : ICyDecalMeshPool
+    public sealed class DecalMeshPool : IDecalMeshPool
     {
-        private readonly Dictionary<int, CyDecalMesh> _decalMeshes = new Dictionary<int, CyDecalMesh>();
+        private readonly Dictionary<int, DecalMesh> _decalMeshes = new Dictionary<int, DecalMesh>();
 
         public int GetPoolSize()
         {
             return _decalMeshes.Count;
         }
 
-        void ICyDecalMeshPool.DisableDecalMeshRenderers()
+        void IDecalMeshPool.DisableDecalMeshRenderers()
         {
             foreach (var decalMesh in _decalMeshes) decalMesh.Value.DisableDecalMeshRenderer();
         }
 
-        void ICyDecalMeshPool.EnableDecalMeshRenderers()
+        void IDecalMeshPool.EnableDecalMeshRenderers()
         {
             foreach (var decalMesh in _decalMeshes) decalMesh.Value.EnableDecalMeshRenderer();
         }
@@ -46,7 +46,7 @@ namespace CyDecal.Runtime.Scripts.Core
         ///     It should be calculated by the CalculateHash method.
         /// </param>
         /// <returns>Returns true if the pool contains it.</returns>
-        bool ICyDecalMeshPool.Contains(int hash)
+        bool IDecalMeshPool.Contains(int hash)
         {
             return _decalMeshes.ContainsKey(hash);
         }
@@ -59,7 +59,7 @@ namespace CyDecal.Runtime.Scripts.Core
         ///     It should be calculated by the CalculateHash method.
         /// </param>
         /// <param name="decalMesh">Decal mesh to be registered.</param>
-        void ICyDecalMeshPool.RegisterDecalMesh(int hash, CyDecalMesh decalMesh)
+        void IDecalMeshPool.RegisterDecalMesh(int hash, DecalMesh decalMesh)
         {
             _decalMeshes.Add(hash, decalMesh);
         }
@@ -71,12 +71,12 @@ namespace CyDecal.Runtime.Scripts.Core
         ///     The hash value.
         ///     It should be calculated by the CalculateHash method.
         /// </param>
-        CyDecalMesh ICyDecalMeshPool.GetDecalMesh(int hash)
+        DecalMesh IDecalMeshPool.GetDecalMesh(int hash)
         {
             return _decalMeshes[hash];
         }
 
-        void ICyDecalMeshPool.Dispose()
+        void IDecalMeshPool.Dispose()
         {
             foreach (var item in _decalMeshes) item.Value?.Dispose();
         }
@@ -84,7 +84,7 @@ namespace CyDecal.Runtime.Scripts.Core
         /// <summary>
         ///     Garbage collect unreferenced decal mesh
         /// </summary>
-        void ICyDecalMeshPool.GarbageCollect()
+        void IDecalMeshPool.GarbageCollect()
         {
             // Create deletable list.
             var removeList = _decalMeshes.Where(item => item.Value.CanRemoveFromPool()).ToList();

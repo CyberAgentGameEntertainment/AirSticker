@@ -3,20 +3,20 @@ using System.Collections.Generic;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
-namespace CyDecal.Runtime.Scripts.Core
+namespace AirSticker.Runtime.Scripts.Core
 {
     /// <summary>
     ///     Decal mesh.
     ///     Its instance will be created by CyDecalProjector.
     /// </summary>
-    public sealed class CyDecalMesh : IDisposable
+    public sealed class DecalMesh : IDisposable
     {
         private readonly Matrix4x4[] _bindPoses;
         private readonly Material _decalMaterial;
         private readonly Renderer _receiverMeshRenderer;
         private readonly GameObject _receiverObject;
         private BoneWeight[] _boneWeightsBuffer;
-        private CyDecalMeshRenderer _decalMeshRenderer;
+        private DecalMeshRenderer _decalMeshRenderer;
         private bool _disposed;
 
         private int[] _indexBuffer;
@@ -27,7 +27,7 @@ namespace CyDecal.Runtime.Scripts.Core
         private Vector3[] _positionBuffer;
         private Vector2[] _uvBuffer;
 
-        public CyDecalMesh(
+        public DecalMesh(
             GameObject receiverObject,
             Material decalMaterial,
             Renderer receiverMeshRenderer)
@@ -74,13 +74,13 @@ namespace CyDecal.Runtime.Scripts.Core
             _mesh.Optimize();
             _mesh.RecalculateBounds();
 
-            _decalMeshRenderer = new CyDecalMeshRenderer(
+            _decalMeshRenderer = new DecalMeshRenderer(
                 _receiverMeshRenderer,
                 _decalMaterial,
                 _mesh);
         }
 
-        ~CyDecalMesh()
+        ~DecalMesh()
         {
             Dispose();
         }
@@ -124,7 +124,7 @@ namespace CyDecal.Runtime.Scripts.Core
         ///     Add triangle polygons to decal mesh from convex polygons.
         /// </summary>
         public void AddTrianglePolygonsToDecalMesh(
-            List<CyConvexPolygon> convexPolygons,
+            List<ConvexPolygon> convexPolygons,
             Vector3 decalSpaceOriginPosInWorldSpace,
             Vector3 decalSpaceTangentInWorldSpace,
             Vector3 decalSpaceBiNormalInWorldSpace,

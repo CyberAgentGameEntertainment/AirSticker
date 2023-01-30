@@ -1,6 +1,6 @@
 using System;
-using CyDecal.Runtime.Scripts;
-using CyDecal.Runtime.Scripts.Core;
+using AirSticker.Runtime.Scripts;
+using AirSticker.Runtime.Scripts.Core;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using Random = UnityEngine.Random;
@@ -48,10 +48,10 @@ namespace Demo.Demo_00.Scripts
 
         private void ExecuteAction()
         {
-            if (CyDecalSystem.DecalProjectorLauncher.GetWaitingRequestCount() > 50)
+            if (AirStickerSystem.DecalProjectorLauncher.GetWaitingRequestCount() > 50)
             {
                 // The request for projection decal is over 50, so return.
-                CyTrianglePolygonsFactory.MaxGeneratedPolygonPerFrame = 100;
+                TrianglePolygonsFactory.MaxGeneratedPolygonPerFrame = 100;
                 return;
             }
 
@@ -68,7 +68,7 @@ namespace Demo.Demo_00.Scripts
                 _demo00.Launch(
                     pos,
                     Random.Range(0, 6));
-                CyTrianglePolygonsFactory.MaxGeneratedPolygonPerFrame = Random.Range(50, 100);
+                TrianglePolygonsFactory.MaxGeneratedPolygonPerFrame = Random.Range(50, 100);
                 _launchCount++;
                 _frameCounter = 0;
                 _endIdleFrame = Random.Range(0, 20);

@@ -3,17 +3,17 @@ using System.Runtime.CompilerServices;
 using UnityEngine;
 using UnityEngine.Assertions;
 
-namespace CyDecal.Runtime.Scripts.Core
+namespace AirSticker.Runtime.Scripts.Core
 {
     /// <summary>
     ///     Convex polygons with more vertices possible.
     /// </summary>
-    public sealed class CyConvexPolygon
+    public sealed class ConvexPolygon
     {
         public const int DefaultMaxVertex = 64;
         private readonly BoneWeight[] _boneWeightBuffer;
         private readonly bool _isSkinnedMeshRenderer;
-        private readonly CyLine[] _lineBuffer;
+        private readonly Line[] _lineBuffer;
         private readonly int _maxVertex;
         private readonly Vector3[] _normalInModelSpaceBuffer;
         private readonly Vector3[] _normalInWorldSpaceBuffer;
@@ -47,11 +47,11 @@ namespace CyDecal.Runtime.Scripts.Core
         ///     A convex polygon can be divided up to the value of this argument.<br />
         ///     If not specified, the value of DefaultMaxVertex is the maximum number of vertices.<br />
         /// </param>
-        public CyConvexPolygon(
+        public ConvexPolygon(
             Vector3[] positionInWorldSpaceBuffer,
             Vector3[] normalInWorldSpaceBuffer,
             BoneWeight[] boneWeightBuffer,
-            CyLine[] lineBuffer,
+            Line[] lineBuffer,
             Vector3[] positionInModelSpaceBuffer,
             Vector3[] normalInModelSpaceBuffer,
             Renderer receiverMeshRenderer,
@@ -92,8 +92,8 @@ namespace CyDecal.Runtime.Scripts.Core
         /// <param name="lineBuffer">Buffer of lines of convex polygons.</param>
         /// <param name="positionInModelSpaceBuffer">Buffer of vertex position in model space.</param>
         /// <param name="normalInModelSpaceBuffer">Buffer of vertex normal in model space.</param>
-        public CyConvexPolygon(CyConvexPolygon srcConvexPolygon, Vector3[] positionInWorldSpaceBuffer,
-            Vector3[] normalInWorldSpaceBuffer, BoneWeight[] boneWeightBuffer, CyLine[] lineBuffer,
+        public ConvexPolygon(ConvexPolygon srcConvexPolygon, Vector3[] positionInWorldSpaceBuffer,
+            Vector3[] normalInWorldSpaceBuffer, BoneWeight[] boneWeightBuffer, Line[] lineBuffer,
             Vector3[] positionInModelSpaceBuffer, Vector3[] normalInModelSpaceBuffer, int startOffsetInBuffer,
             int maxVertex = DefaultMaxVertex)
         {
@@ -148,8 +148,8 @@ namespace CyDecal.Runtime.Scripts.Core
             out Vector3 newLocalVert1,
             out Vector3 newLocalNormal0,
             out Vector3 newLocalNormal1,
-            CyLine l0,
-            CyLine l1,
+            Line l0,
+            Line l1,
             Vector4 clipPlane)
         {
             var t = Vector4.Dot(clipPlane, Vector3ToVector4(l0.EndPosition))
@@ -358,13 +358,13 @@ namespace CyDecal.Runtime.Scripts.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private CyLine GetLine(int startVertNo)
+        private Line GetLine(int startVertNo)
         {
             return _lineBuffer[startVertNo];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private ref CyLine GetLineRef(int startVertNo)
+        private ref Line GetLineRef(int startVertNo)
         {
             return ref _lineBuffer[startVertNo];
         }

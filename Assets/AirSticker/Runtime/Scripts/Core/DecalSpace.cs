@@ -1,13 +1,13 @@
 using UnityEngine;
 
-namespace CyDecal.Runtime.Scripts.Core
+namespace AirSticker.Runtime.Scripts.Core
 {
     /// <summary>
     ///     Decal space.
     /// </summary>
-    internal sealed class CyDecalSpace
+    internal sealed class DecalSpace
     {
-        public CyDecalSpace(Vector3 ex, Vector3 ey, Vector3 ez)
+        public DecalSpace(Vector3 ex, Vector3 ey, Vector3 ez)
         {
             Ex = ex;
             Ey = ey;

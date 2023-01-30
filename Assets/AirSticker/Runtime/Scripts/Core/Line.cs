@@ -1,11 +1,11 @@
 using UnityEngine;
 
-namespace CyDecal.Runtime.Scripts.Core
+namespace AirSticker.Runtime.Scripts.Core
 {
     /// <summary>
     ///     Line of convex polygons.
     /// </summary>
-    public struct CyLine
+    public struct Line
     {
         public Vector3 StartPosition { get; private set; }
         public Vector3 EndPosition { get; private set; }
