@@ -256,5 +256,5 @@ Triangle polygons are generated based on the vertex information of the convex po
 </p>
 
 **Related Source Code**<br/>
-[Assets/AirSticker/Runtime/Scripts/Core/AirStickerMesh.cs](Assets/AirSticker/Runtime/Scripts/Core/AirStickerMesh.cs)
+[Assets/AirSticker/Runtime/Scripts/Core/DecalMesh.cs](Assets/AirSticker/Runtime/Scripts/Core/DecalMesh.cs)
 
