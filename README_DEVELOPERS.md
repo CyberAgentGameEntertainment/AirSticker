@@ -1,162 +1,144 @@
 
-# CyDecal(仮)技術ドキュメント
+# CyDecal Technical Documentation
 
-## Section 1 概要
-このドキュメントはCyDecalの内部で使われているアルゴリズムなどの詳細を説明する、エンジニア向けのドキュメントです。<br/>
-
-また、エンドユーザー向けのCyDecalの使用方法に関するドキュメントは下記を参照してください。<br/>
-
-**使用方法** ([日本語](README.md))
+## Section 1 Summary
+This document is intended for engineers and describes in detail the algorithms used inside CyDecal.<br/>
 
 
-## Section 2 アルゴリズム概要
-CyDecalはデカールテクスチャを貼り付けるデカールメッシュを動的に生成して、デカール表現を行っています。<br/>
-次の図のように、キャラクターにステッカーをデカールとして貼り付ける場合、そのステッカーがモデルに綺麗に添うようなデカールメッシュを動的に生成します。<br/>
+## Section 2 Algorithm Overview
+CyDecal dynamically generates a decal mesh to which the decal texture is applied to create a decal representation.<br/>
+When a sticker is applied to a character as a decal, as shown in the following figure, a decal mesh is dynamically generated so that the sticker will nicely adhere to the model.<br/>
 
 <p align="center">
-<img width="60%" src="Documentation/fig-000.png" alt="生成されたデカールメッシュ"><br>
-<font color="grey">生成されたデカールメッシュ</font>
+<img width="60%" src="Documentation/fig-000.png" alt="Generated decal mesh"><br>
+<font color="grey">Generated decal mesh</font>
 </p>
 
 
-デカールメッシュの作成アルゴリズムのステップは次のようになっています。
-1. デカールメッシュプールから編集するデカールメッシュを取得
-2. デカールテクスチャを貼り付けるレシーバーオブジェクトのレンダラーから三角形ポリゴンスープを取得
-3. デカールテクスチャを貼り付ける三角形ポリゴンの早期枝切り(ブロードフェーズ)
-4. デカールボックスと三角形ポリゴンとの衝突判定
-   1. 衝突していなければ終了
-5. デカールボックスの情報から分割平面を定義
-6. 5で定義した分割平面で衝突する三角形ポリゴンを分割して、多角形ポリゴンにしていく
-7. 6で作られた多角形ポリゴン情報を元に、デカールメッシュを生成
+The steps of the algorithm for creating a decal mesh are as follows.
+1. Get the decal mesh to be edited from the decal mesh pool.
+2. Get the triangle polygons in model space of the receiver object to which the decal will be applied.
+3. Conduct an early branch cut (broad phase) on triangle polygons before applying decal textures.
+4. Defines the clipping plane using the information in the decal box.
+5. Split the triangle polygon intersecting the clipping plane defined in Step-4.
+6. Decal mesh is generated based on the polygonal polygon information created in step-5.
 
-また、4～7のポリゴン分割ついては「ゲームプログラミングのための3D数学」の「9.2デカールの貼り付け」を参考にしているため、アルゴリズムの概要と関連ソースコードの記述のみにとどめます。ポリゴン分割の詳細については参考文献を参照して下さい。
+Also, since polygon division in step-4 to 6 is based on "9.2 Decal Application" in "Mathematics for 3D Game Programming & Computer Graphics, 3rd Edition" only the outline of the algorithm and the related source code are described. For details of polygon division, please refer to the references.
 
-## Section 3 アルゴリズム詳細
-Section 3では各種ステップの詳細を説明してきます。
-### 3.1 デカールメッシュプールから編集するデカールメッシュを取得
-CyRenderDecalFeatureが保持しているデカールメッシュプールから編集するデカールメッシュを取得します。<br/>
-デカールメッシュはレシーバーオブジェクト、レンダラー、マテリアルのハッシュ値をキーとして、プールに登録されており、この値が同一であれば使いまわしされます。
-また、このハッシュ値がプールに登録されていなければ、新しくデカールメッシュを作成します。<br/>
-そのため、次のようなデカールの場合は一つのデカールメッシュとして扱われています。
+## Section 3 Algorithm Details
+Section 3 will go into more detail on the various steps.
+### 3.1 Get the decal mesh to be edited from the decal mesh pool
+Get the decal mesh to be edited from the decal mesh pool held by CyDecalSystem.<br/>
+The decal mesh is registered in the pool using the hash values of the receiver object, renderer, and material as keys, and if these values are identical, the registration is reused. If this hash value is not registered in the pool, a new decal mesh is created.
+<br/>
+Therefore, the following decals are treated as a single decal mesh.
 
 <p align="center">
-<img width="60%" src="Documentation/fig-008.png" alt="一つのデカールメッシュ"><br>
-<font color="grey">一つのデカールメッシュ</font>
+<img width="60%" src="Documentation/fig-008.png" alt="Single Decal Mesh"><br>
+<font color="grey">Single Decal Mesh</font>
 </p>
-また、次のようなケースであれば、レシーバーオブジェクト、レンダラーは同じですが、デカールマテリアルが異なるため、二つのデカールメッシュとして扱われています。
+In the following case, the receiver object and renderer are the same, but the decal material is different, so they are treated as two decal meshes.<br/>
 
 <p align="center">
-<img width="60%" src="Documentation/fig-009.png" alt="二つのデカールメッシュ"><br>
-<font color="grey">二つのデカールメッシュ</font>
+<img width="60%" src="Documentation/fig-009.png" alt="Two Decal Mesh"><br>
+<font color="grey">Two Decal Mesh</font>
 </p>
 
 
-デカールメッシュの数＝ドローコールの数です。そのため、デカールメッシュの種類を減らすことが最適化の一つの指針になります。
+Number of decal meshes is equal to number of draw calls. Therefore, one guideline for optimization is to reduce the number of decal mesh types.
 
-[**プールからデカールメッシュを取得しているコード**]
+[**Code that retrieves the decal mesh from the pool**]
 ```C#
-/// <summary>
-///     デカールメッシュのリストを取得
-/// </summary>
-/// <remarks>
-///     デカールメッシュは貼り付けるターゲットオブジェクトとデカールマテリアルが同じ場合に共有されます。
-///     また、全く新規のターゲットオブジェクトとマテリアルであれば、
-///     新規のデカールメッシュを作成します。
-/// </remarks>
-/// <param name="decalMeshes">デカールメッシュの格納先</param>
-/// <param name="projectorObject">デカールプロジェクター</param>
-/// <param name="receiverObject">デカールを貼り付けるターゲットオブジェクト</param>
-/// <param name="decalMaterial">デカールマテリアル</param>
-/// <returns></returns>
-public void GetDecalMeshes(
-    List<CyDecalMesh> decalMeshes,
-    GameObject projectorObject,
-    GameObject receiverObject,
-    Material decalMaterial)
+// We want to collect only the renderer of receiver objects,
+// But the renderer of decal mesh hanging from receiver object.
+// Therefore, temporarily disable to the renderer of decal mesh.
+Instance._decalMeshPool.DisableDecalMeshRenderers();
+var renderers = receiverObject.GetComponentsInChildren<Renderer>();
+foreach (var renderer in renderers)
 {
-    var renderers = receiverObject.GetComponentsInChildren<Renderer>();
-    foreach (var renderer in renderers)
+    if (!renderer) return;
+    var pool = Instance._decalMeshPool;
+    var hash = CyDecalMeshPool.CalculateHash(receiverObject, renderer, decalMaterial);
+    if (pool.Contains(hash))
     {
-        var hash = receiverObject.GetInstanceID()
-                           + decalMaterial.name.GetHashCode()
-                           + renderer.GetInstanceID();
-        if (_decalMeshes.ContainsKey(hash))
-        {
-            decalMeshes.Add(_decalMeshes[hash]);
-        }
-        else
-        {
-            var newMesh = new CyDecalMesh(projectorObject, decalMaterial, renderer);
-            decalMeshes.Add(newMesh);
-            _decalMeshes.Add(hash, newMesh);
-        }
+        results.Add(pool.GetDecalMesh(hash));
+    }
+    else
+    {
+        var newMesh = new CyDecalMesh(receiverObject, decalMaterial, renderer);
+        results.Add(newMesh);
+        pool.RegisterDecalMesh(hash, newMesh);
     }
 }
+
+// Restore the renderer of decal mesh was disabled.
+Instance._decalMeshPool.EnableDecalMeshRenderers();
 ```
 
-**関連ソースコード**<br/>
+**Related Source Code**<br/>
 [Assets/CyDecal/Runtime/Scripts/Core/CyDecalMeshPool.cs](Assets/CyDecal/Runtime/Scripts/Core/CyDecalMeshPool.cs)<br/>
 [Assets/CyDecal/Runtime/Scripts/Core/CyDecalMesh.cs](Assets/CyDecal/Runtime/Scripts/Core/CyDecalMesh.cs)
 
-### 3.2 デカールを貼り付けるレシーバーオブジェクトの三角形ポリゴンスープを取得
-CyRenderDecalFeatureが保持している三角形ポリゴンスープのプールからレシーバオブジェクトの三角形ポリゴンスープを取得します。<br/>
-このプールはレシーバーオブジェクトをキーとして、三角形ポリゴンスープが登録されており、すでに登録済みの場合は、使いまわしされます。また、新規のレシーバーオブジェクトであれば、レンダラーの情報から三角形ポリゴンスープが作成されます。<br/><br/>
-ポリゴンスープが保持している頂点はワールド空間に変換されている必要があるため、メッシュの全頂点を空間変換するための行列演算が行われます。そのため、この処理は(特にスキンメッシュのモデル)非常に時間のかかるものとなっています。この処理によるスパイクを隠ぺいするために、ポリゴンスープの作成は数フレームにわたって分割して処理が実行されます。<br/><br/>
-この処理が実行されるため、初めてデカールテクスチャを貼り付けるレシーバーオブジェクトが登録されるときのみ、デカール貼り付け完了までに遅延が発生します。ただし、レシーバーオブジェクトがワールド空間上移動した場合は再作成を行う必要があるため、再度遅延が発生します。<br/><br/>
-次の図はポリゴンスーププールを可視化したものです。
+### 3.2 Get the triangle polygons in model space of the receiver object to which the decal will be applied
+Gets the triangle polygons of the receiver object from the triangle polygons pool held by CyDecalSystem.<br/>
+This pool is keyed to the receiver object, and the triangle polygons are registered and used if it has already been registered. If it is a new receiver object, the triangle polygons are created from the renderer's information.<br/><br/>
 
-<p align="center">
-<img width="60%" src="Documentation/fig-010.png" alt="ポリゴンスーププール"><br>
-<font color="grey">ポリゴンスーププール</font>
-</p>
 
-[**メッシュフィルターから三角形ポリゴン情報を収集しているコード**]
+[**Code that collects triangle polygon information from mesh filters**]
 ```C#
-/// <summary>
-///     MeshFilterから凸ポリゴン情報を登録する。
-/// </summary>
-/// <param name="meshFilters">レシーバーオブジェクトのメッシュフィルター</param>
-/// <param name="meshRenderers">レシーバーオブジェクトのメッシュレンダラー</param>
-/// <param name="convexPolygonInfos">凸ポリゴン情報の格納先</param>
-private static IEnumerator BuildFromMeshFilter(MeshFilter[] meshFilters, MeshRenderer[] meshRenderers,
+private IEnumerator BuildFromMeshFilter(MeshFilter[] meshFilters, MeshRenderer[] meshRenderers,
     List<ConvexPolygonInfo> convexPolygonInfos)
 {
         ・
         ・
-    　 省略
-        ・
         ・
     foreach (var meshFilter in meshFilters)
     {
-        var localToWorldMatrix = meshFilter.transform.localToWorldMatrix;
-        // メッシュのポリゴン情報を取得
+        if (!meshFilter || meshFilter.sharedMesh == null)
+            // Mesh filter is deleted, so process is terminated.
+            yield break;
         var mesh = meshFilter.sharedMesh;
-        var numPoly = mesh.triangles.Length / 3;
-        var meshTriangles = mesh.triangles;
-        var meshVertices = mesh.vertices;
-        var meshNormals = mesh.normals;
-        for (var i = 0; i < numPoly; i++)
+        using var meshDataArray = Mesh.AcquireReadOnlyMeshData(mesh);
+        var meshData = meshDataArray[0];
+        meshData.GetVertices(_workingVertexPositions);
+        meshData.GetNormals(_workingVertexNormals);
+        var subMeshCount = meshData.subMeshCount;
+        for (var meshNo = 0; meshNo < subMeshCount; meshNo++)
         {
-            if ((newConvexPolygonNo + 1) % MaxGeneratedPolygonPerFrame == 0)
-                // 1フレームに処理するポリゴンは最大でMaxGeneratedPolygonPerFrameまで
-                yield return null;
-
-                // メッシュのポリゴン情報をワールド空間に変換していく。
-                    ・
-                    ・
-                   省略
-                    ・
-                    ・
-            // 凸ポリゴン情報を追加する。
-            newConvexPolygonInfos[newConvexPolygonNo] = new ConvexPolygonInfo
+            meshData.GetIndices(_workingTriangles, meshNo);
+            var numPoly = polygonCounts[indexOfPolygonCounts++];
+            for (var i = 0; i < numPoly; i++)
             {
-                ConvexPolygon = new CyConvexPolygon(
-                    vertices,
-                    normals,
-                    boneWeights,
-                    meshRenderers[rendererNo])
-            };
-            newConvexPolygonNo++;
+                if ((newConvexPolygonNo + 1) % MaxGeneratedPolygonPerFrame == 0)
+                    // Maximum number of polygons processed per frame is MaxGeneratedPolygonPerFrame.
+                    yield return null;
+                if (!meshFilter || meshFilter.sharedMesh == null)
+                    // Mesh filter is deleted, so process is terminated.
+                    yield break;
+                // Collect triangle data.
+
+                     ・
+                     ・
+                     ・
+                // New triangle infomation.
+                newConvexPolygonInfos[newConvexPolygonNo] = new ConvexPolygonInfo
+                {
+                    ConvexPolygon = new CyConvexPolygon(
+                        positionBuffer,
+                        normalBuffer,
+                        boneWeightBuffer,
+                        lineBuffer,
+                        localPositionBuffer,
+                        localNormalBuffer,
+                        meshRenderers[rendererNo],
+                        startOffsetOfBuffer,
+                        VertexCountOfTrianglePolygon,
+                        rendererNo,
+                        VertexCountOfTrianglePolygon)
+                };
+                newConvexPolygonNo++;
+                startOffsetOfBuffer += VertexCountOfTrianglePolygon;
+            }
         }
 
         rendererNo++;
@@ -165,93 +147,64 @@ private static IEnumerator BuildFromMeshFilter(MeshFilter[] meshFilters, MeshRen
     convexPolygonInfos.AddRange(newConvexPolygonInfos);
 }
 ```
-**関連ソースコード**<br/>
+**Related Source Code**<br/>
 [Assets/CyDecal/Runtime/Scripts/Core/CyReceiverObjectTrianglePolygonsPool.cs](Assets/CyDecal/Runtime/Scripts/Core/CyReceiverObjectTrianglePolygonsPool.cs)<br/>
 [Assets/CyDecal/Runtime/Scripts/Core/CyTrianglePolygonsFactory.cs](Assets/CyDecal/Runtime/Scripts/Core/CyTrianglePolygonsFactory.cs)
 <br/>
 [Assets/CyDecal/Runtime/Scripts/Core/CyConvexPolygon.cs](Assets/CyDecal/Runtime/Scripts/Core/CyConvexPolygon.cs)
 
-### 3.3 デカールを貼り付ける三角形ポリゴンの早期枝切り(ブロードフェーズ)
-このステップでは、デカールボックスの起点となる座標と各ポリゴンの頂点との距離の計算により、このステップ以降に処理する三角形ポリゴンを早期枝切りするためのブロードフェーズが実行されます。<br/>
-ブロードフェーズによる安価な計算による早期枝切りが行われることによって、後のステップの複雑な処理の計算量を下げることができるため、大幅な高速化が期待できます。
+### 3.3 Conduct an early branch cut (broad phase) on triangle polygons before applying decal textures
+In this step, the distance between the starting coordinates of the decal box and the vertex of each polygon is used to remove the triangle polygons.<br/>
+This inexpensive computational branch cutting lowers the computational complexity of the subsequent steps, resulting in a significant speedup.<br/>
 
-また、デカールボックスとは、デカールを貼り付ける空間を現わすボックスです。<br/>
+Also, a decal box is a box that represents a space for attaching decals.<br/>
 <p align="center">
-<img width="60%" src="Documentation/fig-011.png" alt="デカールボックス"><br>
-<font color="grey">デカールボックス</font>
+<img width="60%" src="Documentation/fig-011.png" alt="Decal Box"><br>
+<font color="grey">Decal Box</font>
 </p>
 
-[**早期枝切を行っているコード**]
+[**Codes with early branch cutting**]
 ```C#
-// 三角形ポリゴン情報でのループ
+// Loop by triangle polygons data.
 foreach (var convexPolygonInfo in convexPolygonInfos)
 {
     if (Vector3.Dot(decalSpaceNormalWs, convexPolygonInfo.ConvexPolygon.FaceNormal) < 0)
     {
-        // デカールボックスの向きと真逆を向いているポリゴン。
-        // 枝切りの印をつける。
+        // Set the flag of outside the clip space.
         convexPolygonInfo.IsOutsideClipSpace = true;
         continue;
     }
 
-    var v0 = convexPolygonInfo.ConvexPolygon.GetVertexPosition(0);
-    v0 -= originPosInDecalSpace;
+    var vertNo_0 = convexPolygonInfo.ConvexPolygon.GetRealVertexNo(0);
+    var v0 = convexPolygonInfo.ConvexPolygon.GetVertexPositionInWorldSpace(vertNo_0);
+    v0 -= centerPosInDecalBox;
     if (v0.sqrMagnitude > threshold)
     {
-        var v1 = convexPolygonInfo.ConvexPolygon.GetVertexPosition(1);
-        v1 -= originPosInDecalSpace;
+        var vertNo_1 = convexPolygonInfo.ConvexPolygon.GetRealVertexNo(1);
+        var v1 = convexPolygonInfo.ConvexPolygon.GetVertexPositionInWorldSpace(vertNo_1);
+        v1 -= centerPosInDecalBox;
         if (v1.sqrMagnitude > threshold)
         {
-            var v2 = convexPolygonInfo.ConvexPolygon.GetVertexPosition(2);
-            v2 -= originPosInDecalSpace;
+            var vertNo_2 = convexPolygonInfo.ConvexPolygon.GetRealVertexNo(2);
+            var v2 = convexPolygonInfo.ConvexPolygon.GetVertexPositionInWorldSpace(vertNo_2);
+            v2 -= centerPosInDecalBox;
             if (v2.sqrMagnitude > threshold)
-                // 全ての頂点が範囲外。
+            {
+                // Set the flag of outside the clip space.
                 convexPolygonInfo.IsOutsideClipSpace = true;
+                continue;
+            }
         }
     }
+    broadPhaseConvexPolygonCount++;
 }
 ```
 
-### 3.4 デカールボックスと三角形ポリゴンとの衝突判定
-このステップでは、デカールボックスの起点からボックスが向いている方向に向かってレイを飛ばして、衝突点を検出します<br/>
-ここで衝突しない場合は以下の処理はスキップされて、デカールは貼り付けられません。<br/>
 
-[**衝突判定しているコード**]
-```C#
-/// <summary>
-///     デカールボックスの中心を通るレイとレシーバーオブジェクトの三角形オブジェクトの衝突判定を行う。
-/// </summary>
-/// <param name="hitPoint">衝突点の格納先</param>
-/// <returns>trueが帰ってきたら衝突している</returns>
-private bool IntersectRayToTrianglePolygons(out Vector3 hitPoint)
-{
-    hitPoint = Vector3.zero;
-    // レイの作成
-    var trans = transform;
-    var rayStartPos = trans.position;
-    var rayEndPos = rayStartPos + trans.forward * depth;
-    // 枝切りされたポリゴン情報に対して衝突検出を行う。
-    foreach (var triPolyInfo in _broadPhaseConvexPolygonInfos)
-        if (triPolyInfo.ConvexPolygon.IsIntersectRayToTriangle(out hitPoint, rayStartPos, rayEndPos))
-        {
-            _basePointToNearClipDistance = Vector3.Distance(rayStartPos, hitPoint);
-            _basePointToFarClipDistance = depth - _basePointToNearClipDistance;
-            return true;
-        }
+### 3.4 Defines the clipping plane using the information in the decal box
+Next, define a clipping plane to divide the triangle polygon based on the center coordinates, width, and height of the decal box. See "9.2.1 Construction of Decal Mesh" in "Mathematics for 3D Game Programming & Computer Graphics, 3rd Edition" for more information on defining a clipping plane.
 
-    return false;
-}
-```
-
-**関連ソースコード**<br/>
-[Assets/CyDecal/Runtime/Scripts/CyDecalProjector.cs](Assets/CyDecal/Runtime/Scripts/CyDecalProjector.cs)<br/>
-[Assets/CyDecal/Runtime/Scripts/Core/CyConvexPolygon.cs](Assets/CyDecal/Runtime/Scripts/Core/CyConvexPolygon.cs)
-
-
-### 3.5 デカールボックスの情報から分割平面を定義
-続いて、衝突点の情報とデカールボックスの幅、高さなどの情報を元に、デカールボックスを構築する6平面の情報を構築します。分割平面の定義の詳細は「ゲームプログラミングのための3D数学」の「9.2.1 デカールメッシュの構築」を参照してください。
-
-[**分割平面を定義しているコード**]
+[**Code defining the clipping plane**]
 ```C#
 private void BuildClipPlanes(Vector3 basePoint)
 {
@@ -269,7 +222,7 @@ private void BuildClipPlanes(Vector3 basePoint)
     };
         ・
         ・
-       省略
+        ・
         ・
         ・
     // Build back plane.
@@ -282,26 +235,27 @@ private void BuildClipPlanes(Vector3 basePoint)
     };
 }
 ```
-**関連ソースコード**<br/>
+**Related Source Code**<br/>
 [Assets/CyDecal/Runtime/Scripts/CyDecalProjector.cs](Assets/CyDecal/Runtime/Scripts/CyDecalProjector.cs)
 
-### 3.6 5で定義した分割平面で衝突する三角形ポリゴンを分割して、多角形ポリゴンにしていく
-ここでは、三角形ポリゴンの各辺と６枚の分割平面との交差を判定を行って分割していき、凸多角形ポリゴンにしていきます。三角形ポリゴンの分割の詳細は「ゲームプログラミングのための3D数学」の「9.2.2 ポリゴンのクリッピング」を参照してください。
+
+### 3.5 Split the triangle polygon intersecting the clipping plane defined in Step-4
+Here, the triangular polygon is divided by finding the intersection of each side of the triangle polygons and the six clipping planes. See "9.2.2 Polygon Clipping" in "Mathematics for 3D Game Programming & Computer Graphics, 3rd Edition" for more information on triangular polygon segmentation.
 <p align="center">
-<img width="80%" src="Documentation/fig-007.png" alt="凸多角形ポリゴンを三角形ポリゴンとして扱う"><br>
-<font color="grey">凸多角形ポリゴンを三角形ポリゴンとして扱う</font>
+<img width="80%" src="Documentation/fig-007.png" alt="Treat convex polygons as triangular polygons"><br>
+<font color="grey"Treat convex polygons as triangular polygons</font>
 </p>
 
-**関連ソースコード**<br/>
+**Related Source Code**<br/>
 [Assets/CyDecal/Runtime/Scripts/CyDecalProjector.cs](Assets/CyDecal/Runtime/Scripts/CyDecalProjector.cs)
 
-### 3.7 6で作られた多角形ポリゴン情報を元に、デカールメッシュを生成
-三角形ポリゴンの分割で得られた、凸多角形ポリゴンの頂点情報を元に、三角形ポリゴンを生成していき、最終的なデカールメッシュを生成します。凸多角形ポリゴンはトライアングルファンの三角形の集合と扱うことができるため、この特性を利用して、デカールメッシュに新たな三角形を追加していきます。凸多角形ポリゴンから三角形ポリゴンの構築の詳細は「ゲームプログラミングのための3D数学」の「9.2.2 ポリゴンのクリッピング」を参照してください。
+### 3.6 Decal mesh is generated based on the polygonal polygon information created in step-5.
+Triangle polygons are generated based on the vertex information of the convex polygon obtained by dividing the triangle polygons, and the final decal mesh is generated. Since convex polygons can be treated as a set of triangle-fan triangles, this property is used to add new triangles to the decal mesh. See "9.2.2 Polygon Clipping" in "Mathematics for 3D Game Programming & Computer Graphics, 3rd Edition" for details on constructing triangle polygons from convex polygons.
 <p align="center">
-<img width="80%" src="Documentation/fig-006.png" alt="凸多角形ポリゴンを三角形ポリゴンとして扱う"><br>
-<font color="grey">凸多角形ポリゴンを三角形ポリゴンとして扱う</font>
+<img width="80%" src="Documentation/fig-006.png" alt="Treat convex polygons as triangular polygons"><br>
+<font color="grey">Treat convex polygons as triangle polygons</font>
 </p>
 
-**関連ソースコード**<br/>
+**Related Source Code**<br/>
 [Assets/CyDecal/Runtime/Scripts/Core/CyDecalMesh.cs](Assets/CyDecal/Runtime/Scripts/Core/CyDecalMesh.cs)
 
