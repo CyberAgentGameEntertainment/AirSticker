@@ -92,7 +92,7 @@ The following two cmponents are the most important of these.
 To use Air Sticker, you must have one game object attached to this component in your scene.
 
 <p align="center">
-<img width="80%" src="Documentation/fig-013.png" alt="AirStickerSystem"><br>
+<img width="50%" src="Documentation/fig-013.png" alt="AirStickerSystem"><br>
 <font color="grey">AirStickerSystem</font>
 </p>
 

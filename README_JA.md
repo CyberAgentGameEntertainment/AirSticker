@@ -89,7 +89,7 @@ Air StickerはAssets/AirStickerフォルダーを自身のプロジェクトに�
 Air Stickerを利用するためには、必ず、このコンポーネントが貼られたゲームオブジェクトを一つ設置する必要があります。
 
 <p align="center">
-<img width="80%" src="Documentation/fig-013.png" alt="AirStickerSystem"><br>
+<img width="50%" src="Documentation/fig-013.png" alt="AirStickerSystem"><br>
 <font color="grey">AirStickerSystem</font>
 </p>
 
