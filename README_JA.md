@@ -140,7 +140,7 @@ void LaunchProjector(
     // プロジェクターの向きは法線の逆向き
     projectorObject.transform.rotation = Quaternion.LookRotation( hitNormal * -1.0f );
 
-    CyDecalProjector.CreateAndLaunch(
+    AirStickerProjector.CreateAndLaunch(
                     projectorObj,
                     receiverObject,
                     decalMaterial,
