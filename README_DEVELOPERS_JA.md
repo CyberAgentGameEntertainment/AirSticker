@@ -251,5 +251,5 @@ private void BuildClipPlanes(Vector3 basePoint)
 </p>
 
 **関連ソースコード**<br/>
-[Assets/AirSticker/Runtime/Scripts/Core/AirStickerMesh.cs](Assets/AirSticker/Runtime/Scripts/Core/AirStickerMesh.cs)
+[Assets/AirSticker/Runtime/Scripts/Core/DecalMesh.cs](Assets/AirSticker/Runtime/Scripts/Core/DecalMesh.cs)
 
