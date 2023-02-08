@@ -1,16 +1,16 @@
 
-# CyDecal(仮)技術ドキュメント
+# Air Sticker 技術ドキュメント
 
 ## Section 1 概要
-このドキュメントはCyDecalの内部で使われているアルゴリズムなどの詳細を説明する、エンジニア向けのドキュメントです。<br/>
+このドキュメントはAir Stickerの内部で使われているアルゴリズムなどの詳細を説明する、エンジニア向けのドキュメントです。<br/>
 
-また、エンドユーザー向けのCyDecalの使用方法に関するドキュメントは下記を参照してください。<br/>
+また、エンドユーザー向けのAir Stickerの使用方法に関するドキュメントは下記を参照してください。<br/>
 
-**使用方法** ([日本語](README.md))
+**使用方法** ([日本語](README_JA.md))
 
 
 ## Section 2 アルゴリズム概要
-CyDecalはデカールテクスチャを貼り付けるデカールメッシュを動的に生成して、デカール表現を行っています。<br/>
+Air Stickerはデカールテクスチャを貼り付けるデカールメッシュを動的に生成して、デカール表現を行っています。<br/>
 次の図のように、キャラクターにステッカーをデカールとして貼り付ける場合、そのステッカーがモデルに綺麗に添うようなデカールメッシュを動的に生成します。<br/>
 
 <p align="center">
@@ -32,7 +32,7 @@ CyDecalはデカールテクスチャを貼り付けるデカールメッシュ�
 ## Section 3 アルゴリズム詳細
 Section 3では各種ステップの詳細を説明してきます。
 ### 3.1 デカールメッシュプールから編集するデカールメッシュを取得
-CyRenderDecalFeatureが保持しているデカールメッシュプールから編集するデカールメッシュを取得します。<br/>
+AirStickerSystemが保持しているデカールメッシュプールから編集するデカールメッシュを取得します。<br/>
 デカールメッシュはレシーバーオブジェクト、レンダラー、マテリアルのハッシュ値をキーとして、プールに登録されており、この値が同一であれば使いまわしされます。
 また、このハッシュ値がプールに登録されていなければ、新しくデカールメッシュを作成します。<br/>
 そのため、次のようなデカールの場合は一つのデカールメッシュとして扱われています。
@@ -62,14 +62,14 @@ foreach (var renderer in renderers)
 {
     if (!renderer) return;
     var pool = Instance._decalMeshPool;
-    var hash = CyDecalMeshPool.CalculateHash(receiverObject, renderer, decalMaterial);
+    var hash = DecalMeshPool.CalculateHash(receiverObject, renderer, decalMaterial);
     if (pool.Contains(hash))
     {
         results.Add(pool.GetDecalMesh(hash));
     }
     else
     {
-        var newMesh = new CyDecalMesh(receiverObject, decalMaterial, renderer);
+        var newMesh = new DecalMesh(receiverObject, decalMaterial, renderer);
         results.Add(newMesh);
         pool.RegisterDecalMesh(hash, newMesh);
     }
@@ -80,11 +80,11 @@ Instance._decalMeshPool.EnableDecalMeshRenderers();
 ```
 
 **関連ソースコード**<br/>
-[Assets/CyDecal/Runtime/Scripts/Core/CyDecalMeshPool.cs](Assets/CyDecal/Runtime/Scripts/Core/CyDecalMeshPool.cs)<br/>
-[Assets/CyDecal/Runtime/Scripts/Core/CyDecalMesh.cs](Assets/CyDecal/Runtime/Scripts/Core/CyDecalMesh.cs)
+[Assets/AirSticker/Runtime/Scripts/Core/DecalMeshPool.cs](Assets/AirSticker/Runtime/Scripts/Core/DecalMeshPool.cs)<br/>
+[Assets/AirSticker/Runtime/Scripts/Core/DecalMesh.cs](Assets/AirSticker/Runtime/Scripts/Core/DecalMesh.cs)
 
 ### 3.2 デカールを貼り付けるレシーバーオブジェクトの三角形ポリゴンスープを取得
-CyRenderDecalFeatureが保持している三角形ポリゴンスープのプールからレシーバオブジェクトの三角形ポリゴンスープを取得します。<br/>
+AirStickerSystemが保持している三角形ポリゴンスープのプールからレシーバオブジェクトの三角形ポリゴンスープを取得します。<br/>
 このプールはレシーバーオブジェクトをキーとして、三角形ポリゴンスープが登録されており、すでに登録済みの場合は、使いまわしされます。また、新規のレシーバーオブジェクトであれば、レンダラーの情報から三角形ポリゴンスープが作成されます。<br/><br/>
 
 [**メッシュフィルターから三角形ポリゴン情報を収集しているコード**]
@@ -126,7 +126,7 @@ private IEnumerator BuildFromMeshFilter(MeshFilter[] meshFilters, MeshRenderer[]
                 // 収集したデータから新しいポリゴン情報を作成する。
                 newConvexPolygonInfos[newConvexPolygonNo] = new ConvexPolygonInfo
                 {
-                    ConvexPolygon = new CyConvexPolygon(
+                    ConvexPolygon = new ConvexPolygon(
                         positionBuffer,
                         normalBuffer,
                         boneWeightBuffer,
@@ -151,10 +151,10 @@ private IEnumerator BuildFromMeshFilter(MeshFilter[] meshFilters, MeshRenderer[]
 }
 ```
 **関連ソースコード**<br/>
-[Assets/CyDecal/Runtime/Scripts/Core/CyReceiverObjectTrianglePolygonsPool.cs](Assets/CyDecal/Runtime/Scripts/Core/CyReceiverObjectTrianglePolygonsPool.cs)<br/>
-[Assets/CyDecal/Runtime/Scripts/Core/CyTrianglePolygonsFactory.cs](Assets/CyDecal/Runtime/Scripts/Core/CyTrianglePolygonsFactory.cs)
+[Assets/AirSticker/Runtime/Scripts/Core/ReceiverObjectTrianglePolygonsPool.cs](Assets/AirSticker/Runtime/Scripts/Core/ReceiverObjectTrianglePolygonsPool.cs)<br/>
+[Assets/AirSticker/Runtime/Scripts/Core/TrianglePolygonsFactory.cs](Assets/AirSticker/Runtime/Scripts/Core/TrianglePolygonsFactory.cs)
 <br/>
-[Assets/CyDecal/Runtime/Scripts/Core/CyConvexPolygon.cs](Assets/CyDecal/Runtime/Scripts/Core/CyConvexPolygon.cs)
+[Assets/AirSticker/Runtime/Scripts/Core/ConvexPolygon.cs](Assets/AirSticker/Runtime/Scripts/Core/ConvexPolygon.cs)
 
 ### 3.3 デカールを貼り付ける三角形ポリゴンの早期枝切り(ブロードフェーズ)
 このステップでは、デカールボックスの起点となる座標と各ポリゴンの頂点との距離の計算により、このステップ以降に処理する三角形ポリゴンを早期枝切りするためのブロードフェーズが実行されます。<br/>
@@ -231,7 +231,7 @@ private void BuildClipPlanes(Vector3 basePoint)
 }
 ```
 **関連ソースコード**<br/>
-[Assets/CyDecal/Runtime/Scripts/CyDecalProjector.cs](Assets/CyDecal/Runtime/Scripts/CyDecalProjector.cs)
+[Assets/AirSticker/Runtime/Scripts/AirStickerProjector.cs](Assets/AirSticker/Runtime/Scripts/AirStickerProjector.cs)
 
 ### 3.5 4で定義した分割平面で衝突する三角形ポリゴンを分割して、多角形ポリゴンにしていく
 ここでは、三角形ポリゴンの各辺と６枚の分割平面との交差を判定を行って分割していき、凸多角形ポリゴンにしていきます。三角形ポリゴンの分割の詳細は「ゲームプログラミングのための3D数学」の「9.2.2 ポリゴンのクリッピング」を参照してください。
@@ -241,7 +241,7 @@ private void BuildClipPlanes(Vector3 basePoint)
 </p>
 
 **関連ソースコード**<br/>
-[Assets/CyDecal/Runtime/Scripts/CyDecalProjector.cs](Assets/CyDecal/Runtime/Scripts/CyDecalProjector.cs)
+[Assets/AirSticker/Runtime/Scripts/AirStickerProjector.cs](Assets/AirSticker/Runtime/Scripts/AirStickerProjector.cs)
 
 ### 3.7 6で作られた多角形ポリゴン情報を元に、デカールメッシュを生成
 三角形ポリゴンの分割で得られた、凸多角形ポリゴンの頂点情報を元に、三角形ポリゴンを生成していき、最終的なデカールメッシュを生成します。凸多角形ポリゴンはトライアングルファンの三角形の集合と扱うことができるため、この特性を利用して、デカールメッシュに新たな三角形を追加していきます。凸多角形ポリゴンから三角形ポリゴンの構築の詳細は「ゲームプログラミングのための3D数学」の「9.2.2 ポリゴンのクリッピング」を参照してください。
@@ -251,5 +251,5 @@ private void BuildClipPlanes(Vector3 basePoint)
 </p>
 
 **関連ソースコード**<br/>
-[Assets/CyDecal/Runtime/Scripts/Core/CyDecalMesh.cs](Assets/CyDecal/Runtime/Scripts/Core/CyDecalMesh.cs)
+[Assets/AirSticker/Runtime/Scripts/Core/DecalMesh.cs](Assets/AirSticker/Runtime/Scripts/Core/DecalMesh.cs)
 

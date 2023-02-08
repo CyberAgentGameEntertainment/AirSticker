@@ -1,4 +1,4 @@
-using CyDecal.Runtime.Scripts.Core;
+using AirSticker.Runtime.Scripts.Core;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -87,7 +87,7 @@ namespace Demo.Demo_00.Scripts
             var text = go.GetComponent<Text>();
 
             var result = int.TryParse(text.text, out var value);
-            if (result) CyTrianglePolygonsFactory.MaxGeneratedPolygonPerFrame = value;
+            if (result) TrianglePolygonsFactory.MaxGeneratedPolygonPerFrame = value;
         }
 
         public void StopAnimation()

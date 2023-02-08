@@ -1,4 +1,4 @@
-using CyDecal.Runtime.Scripts;
+using AirSticker.Runtime.Scripts;
 using UnityEngine;
 
 namespace Demo.Demo_00.Scripts
@@ -31,7 +31,7 @@ namespace Demo.Demo_00.Scripts
                     var projectorObject = new GameObject("Decal Projector");
                     projectorObject.transform.position = hit_info.point + Camera.main.transform.forward * -0.1f;
 
-                    var projector = CyDecalProjector.CreateAndLaunch(
+                    var projector = AirStickerProjector.CreateAndLaunch(
                         projectorObject,
                         receiverObject,
                         shotDecalMaterials[Random.Range(0, shotDecalMaterials.Length)],

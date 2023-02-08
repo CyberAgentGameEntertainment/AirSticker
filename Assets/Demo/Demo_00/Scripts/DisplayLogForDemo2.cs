@@ -2,8 +2,8 @@
 // Copyright 2022 CyberAgent, Inc.
 // --------------------------------------------------------------
 
-using CyDecal.Runtime.Scripts;
-using CyDecal.Runtime.Scripts.Core;
+using AirSticker.Runtime.Scripts;
+using AirSticker.Runtime.Scripts.Core;
 using UnityEngine;
 using UnityEngine.Profiling;
 using UnityEngine.UI;
@@ -36,10 +36,10 @@ namespace Demo.Demo_00.Scripts
 
             var fps = 1.0f / Time.deltaTime;
             _logText.text = $"FPS = {fps:0.00}\n"
-                            + $"Decal Mesh Pool Size = {CyDecalSystem.DecalMeshPool.GetPoolSize()}\n"
-                            + $"Triangle Polygons Pool Size = {CyDecalSystem.ReceiverObjectTrianglePolygonsPool.GetPoolSize()}\n"
+                            + $"Decal Mesh Pool Size = {AirStickerSystem.DecalMeshPool.GetPoolSize()}\n"
+                            + $"Triangle Polygons Pool Size = {AirStickerSystem.ReceiverObjectTrianglePolygonsPool.GetPoolSize()}\n"
                             + $"Used Memory = {usedMemory:0.0} MB\n"
-                            + $"Collect poly per frame = {CyTrianglePolygonsFactory.MaxGeneratedPolygonPerFrame}\n";
+                            + $"Collect poly per frame = {TrianglePolygonsFactory.MaxGeneratedPolygonPerFrame}\n";
             /*_logText.text = $"timer[0] = {CyTrianglePolygonsFactory.Time_BuildFromSkinMeshRenderer[0]}\n"
                                  + $"timer[1] = {CyTrianglePolygonsFactory.Time_BuildFromSkinMeshRenderer[1]}\n";*/
         }
