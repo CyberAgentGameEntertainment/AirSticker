@@ -1,5 +1,5 @@
 <p align="center">
-<img src="Documentation/header.png" alt="AirSticker">
+<img src="Documentation/AirSticker_logo_color.png" alt="AirSticker">
 </p>
 
 # Air Sticker
