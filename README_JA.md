@@ -1,5 +1,6 @@
 <p align="center">
-<img src="Documentation/header.png" alt="Air Sticker3">
+<img src="Documentation/AirSticker_logo_color.png#gh-light-mode-only" alt="AirSticker">
+<img src="Documentation/AirSticker_logo_dark.png#gh-dark-mode-only" alt="AirSticker">
 </p>
 
 # Air Sticker
