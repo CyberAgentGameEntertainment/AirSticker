@@ -6,8 +6,8 @@ namespace Demo.Demo_00.Scripts
     public class Demo01 : MonoBehaviour
     {
         [SerializeField] private Material[] shotDecalMaterials;
+        [SerializeField] private Vector3[] projectorSize;
         [SerializeField] private GameObject receiverObject;
-
         private void Start()
         {
             var animator = receiverObject.GetComponent<Animator>();
@@ -30,14 +30,15 @@ namespace Demo.Demo_00.Scripts
                 {
                     var projectorObject = new GameObject("Decal Projector");
                     projectorObject.transform.position = hit_info.point + Camera.main.transform.forward * -0.1f;
-
-                    var projector = AirStickerProjector.CreateAndLaunch(
+                    var matNo = Random.Range(0, shotDecalMaterials.Length);
+                    var size = projectorSize[matNo] * 0.8f;
+                               var projector = AirStickerProjector.CreateAndLaunch(
                         projectorObject,
                         receiverObject,
-                        shotDecalMaterials[Random.Range(0, shotDecalMaterials.Length)],
-                        0.08f,
-                        0.08f,
-                        2.0f,
+                        shotDecalMaterials[matNo],
+                        size.x,
+                        size.y,
+                        size.z,
                         true,
                         result => { Destroy(projectorObject); });
                 }

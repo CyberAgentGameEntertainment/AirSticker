@@ -397,9 +397,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   shotDecalMaterials:
-  - {fileID: 2100000, guid: a703058748ff05e47902c4d67eb05d6c, type: 2}
-  - {fileID: 2100000, guid: b4bb3856d8815064498b7b0604a6019b, type: 2}
-  - {fileID: 2100000, guid: 9cecb40fcf042a64fac27e73b75339b1, type: 2}
+  - {fileID: 2100000, guid: 434c39936d241ab45a19d599d9a2785a, type: 2}
+  - {fileID: 2100000, guid: eb066cf3a24312a488867b401db7fc67, type: 2}
+  - {fileID: 2100000, guid: b6f889dbd7278084687a4ed6207465ac, type: 2}
+  projectorSize:
+  - {x: 0.12, y: 0.12, z: 10}
+  - {x: 0.22848, y: 0.12, z: 10}
+  - {x: 0.3906, y: 0.09, z: 10}
   receiverObject: {fileID: 871373255}
 --- !u!4 &341696256
 Transform:
@@ -580,8 +584,8 @@ Camera:
   m_GameObject: {fileID: 717527654}
   m_Enabled: 1
   serializedVersion: 2
-  m_ClearFlags: 1
-  m_BackGroundColor: {r: 0.19215687, g: 0.3019608, b: 0.4745098, a: 0}
+  m_ClearFlags: 2
+  m_BackGroundColor: {r: 1, g: 1, b: 1, a: 0}
   m_projectionMatrixMode: 1
   m_GateFitMode: 2
   m_FOVAxisMode: 0

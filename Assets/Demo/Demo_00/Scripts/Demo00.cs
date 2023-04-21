@@ -17,6 +17,7 @@ namespace Demo.Demo_00.Scripts
         [SerializeField] private GameObject[] receiverObjects;
         [SerializeField] private GameObject[] moveImageObjects;
         [SerializeField] private Material[] urpDecalMaterials;
+        [SerializeField] private Vector3[] projectorSize;
         [SerializeField] private GameObject _collectPolyInputFieldTextObject;
         private readonly List<List<DecalMesh>> _decalMeshesList = new List<List<DecalMesh>>();
         private AgingTest _agingTest;
@@ -68,20 +69,16 @@ namespace Demo.Demo_00.Scripts
             if (is_hit)
             {
                 var projectorObj = new GameObject("Decal Projector");
-                var projectorSize = new Vector3();
-                projectorSize.x = 0.05f;
-                projectorSize.y = 0.05f;
-                if (decalMaterialIndex == 3) projectorSize.x *= 4.496f;
-                projectorSize.z = 10.0f;
+                
                 projectorObj.transform.localPosition =
                     hit_info.point + Camera.main.transform.forward * -0.1f;
                 AirStickerProjector.CreateAndLaunch(
                     projectorObj,
                     receiverObjects[_currentReceiverObjectNo],
                     decalMaterials[decalMaterialIndex],
-                    projectorSize.x,
-                    projectorSize.y,
-                    projectorSize.z,
+                    projectorSize[decalMaterialIndex].x,
+                    projectorSize[decalMaterialIndex].y,
+                    projectorSize[decalMaterialIndex].z,
                     true,
                     result => { Destroy(projectorObj); });
             }
@@ -118,11 +115,6 @@ namespace Demo.Demo_00.Scripts
                         if (_currentProjectorObject == null)
                         {
                             _currentProjectorObject = new GameObject("Decal Projector");
-                            _projectorSize = new Vector3();
-                            _projectorSize.x = 0.08f;
-                            _projectorSize.y = 0.08f;
-                            if (CurrentDecalMaterialIndex == 3) _projectorSize.x *= 4.496f;
-                            _projectorSize.z = 0.5f;
 #if UNITY_2021_1_OR_NEWER
                             _urpDecalProjector = _currentProjectorObject.AddComponent<DecalProjector>();
                             _urpDecalProjector.size = _projectorSize;
@@ -162,9 +154,9 @@ namespace Demo.Demo_00.Scripts
                         _currentProjectorObject,
                         receiverObjects[_currentReceiverObjectNo],
                         decalMaterials[CurrentDecalMaterialIndex],
-                        _projectorSize.x,
-                        _projectorSize.y,
-                        _projectorSize.z,
+                        projectorSize[CurrentDecalMaterialIndex].x,
+                        projectorSize[CurrentDecalMaterialIndex].y,
+                        projectorSize[CurrentDecalMaterialIndex].z,
                         false,
                         null);
                     projector.Launch(
