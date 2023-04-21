@@ -16,7 +16,6 @@ namespace Demo.Demo_00.Scripts
         [SerializeField] private Material[] decalMaterials;
         [SerializeField] private GameObject[] receiverObjects;
         [SerializeField] private GameObject[] moveImageObjects;
-        [SerializeField] private Material[] urpDecalMaterials;
         [SerializeField] private Vector3[] projectorSize;
         [SerializeField] private GameObject _collectPolyInputFieldTextObject;
         private readonly List<List<DecalMesh>> _decalMeshesList = new List<List<DecalMesh>>();
@@ -26,9 +25,7 @@ namespace Demo.Demo_00.Scripts
         private bool _isMouseLButtonPress;
         private Mode _mode = Mode.Normal;
         private Vector3 _projectorSize;
-#if UNITY_2021_1_OR_NEWER
-        private DecalProjector _urpDecalProjector;
-#endif
+        
         public int CurrentDecalMaterialIndex { get; set; }
 
         public bool IsLaunchReady { get; set; }
@@ -108,21 +105,10 @@ namespace Demo.Demo_00.Scripts
 
                     if (is_hit)
                     {
-#if UNITY_2021_1_OR_NEWER
-                        moveImageObjects[CurrentDecalMaterialIndex].SetActive(false);
-#endif
                         // Create the Decal Projector.
                         if (_currentProjectorObject == null)
                         {
                             _currentProjectorObject = new GameObject("Decal Projector");
-#if UNITY_2021_1_OR_NEWER
-                            _urpDecalProjector = _currentProjectorObject.AddComponent<DecalProjector>();
-                            _urpDecalProjector.size = _projectorSize;
-                            var pivot = new Vector3();
-                            pivot.z = _projectorSize.z * 0.5f;
-                            _urpDecalProjector.pivot = pivot;
-                            _urpDecalProjector.material = urpDecalMaterials[CurrentDecalMaterialIndex];
-#endif
                         }
 
                         _currentProjectorObject.transform.localPosition =
@@ -135,21 +121,6 @@ namespace Demo.Demo_00.Scripts
                 if (_currentProjectorObject != null)
                 {
                     var projectorObj = _currentProjectorObject;
-#if !TEST_START_PROJECTION_METHOD
-                    var projector = AirStickerProjector.AddTo(
-                        _currentProjectorObject,
-                        receiverObjects[_currentReceiverObjectNo],
-                        decalMaterials[CurrentDecalMaterialIndex],
-                        _projectorSize.x,
-                        _projectorSize.y,
-                        _projectorSize.z,
-                        true,
-                        () =>
-                        {
-                            // The projector is deleted when the launching process is finished.
-                            Object.Destroy(projectorObj);
-                        });
-#else
                     var projector = AirStickerProjector.CreateAndLaunch(
                         _currentProjectorObject,
                         receiverObjects[_currentReceiverObjectNo],
@@ -165,7 +136,6 @@ namespace Demo.Demo_00.Scripts
                             // The projector is deleted when the launching process is finished.
                             Destroy(projectorObj);
                         });
-#endif
                     _decalMeshesList.Add(projector.DecalMeshes);
                 }
 
