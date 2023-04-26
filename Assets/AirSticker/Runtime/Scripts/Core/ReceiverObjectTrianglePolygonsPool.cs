@@ -50,6 +50,7 @@ namespace AirSticker.Runtime.Scripts.Core
         /// </summary>
         void IReceiverObjectTrianglePolygonsPool.GarbageCollect()
         {
+            return;
             var deleteList = _trianglePolygonsPool.Where(item => item.Key == null).ToList();
             foreach (var item in deleteList) _trianglePolygonsPool.Remove(item.Key);
         }

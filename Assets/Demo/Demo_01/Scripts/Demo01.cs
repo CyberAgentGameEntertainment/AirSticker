@@ -31,7 +31,7 @@ namespace Demo.Demo_00.Scripts
                     var projectorObject = new GameObject("Decal Projector");
                     projectorObject.transform.position = hit_info.point + Camera.main.transform.forward * -0.1f;
                     var matNo = Random.Range(0, shotDecalMaterials.Length);
-                    var size = projectorSize[matNo] * 0.8f;
+                    var size = projectorSize[matNo] * 0.5f;
                                var projector = AirStickerProjector.CreateAndLaunch(
                         projectorObject,
                         receiverObject,

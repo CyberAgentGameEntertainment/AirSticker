@@ -9,7 +9,7 @@ namespace Demo.Demo_00.Scripts
 {
     public class AgingTest
     {
-        private readonly Demo00 _demo00;
+        private readonly Demo02 _demo02;
         private int _endIdleFrame;
         private int _frameCounter;
 
@@ -18,9 +18,9 @@ namespace Demo.Demo_00.Scripts
         private State _state = State.Idle;
 
         // Start is called before the first frame update
-        public AgingTest(Demo00 demo00)
+        public AgingTest(Demo02 demo02)
         {
-            _demo00 = demo00;
+            _demo02 = demo02;
         }
 
         // Update is called once per frame
@@ -65,7 +65,7 @@ namespace Demo.Demo_00.Scripts
                 var heightHalfRange = Screen.height * 0.5f;
                 pos.x += Random.Range(-widthHalfRange, widthHalfRange);
                 pos.y += Random.Range(-heightHalfRange, heightHalfRange);
-                _demo00.Launch(
+                _demo02.Launch(
                     pos,
                     Random.Range(0, 6));
                 TrianglePolygonsFactory.MaxGeneratedPolygonPerFrame = Random.Range(50, 100);
@@ -79,9 +79,9 @@ namespace Demo.Demo_00.Scripts
                 var t = Random.Range(0, 99);
                 if (t < 20)
                 {
-                    _demo00.DeleteCurrentReceiverObject();
-                    _demo00.SetNextReceiverObject();
-                    if (_demo00.HasReceiverObjectsDeleted())
+                    _demo02.DeleteCurrentReceiverObject();
+                    _demo02.SetNextReceiverObject();
+                    if (_demo02.HasReceiverObjectsDeleted())
                         // Reset scene.
                         SceneManager.LoadScene("Demo_00");
                 }

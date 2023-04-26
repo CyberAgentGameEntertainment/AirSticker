@@ -6,12 +6,12 @@ namespace Demo.Demo_00.Scripts
     {
         [SerializeField] private GameObject decalProjectorLauncher;
         [SerializeField] private GameObject playerButtonsGameObject;
-        private Demo00 _decalProjector;
+        private Demo02 _decalProjector;
 
         // Start is called before the first frame update
         private void Start()
         {
-            _decalProjector = decalProjectorLauncher.GetComponent<Demo00>();
+            _decalProjector = decalProjectorLauncher.GetComponent<Demo02>();
         }
 
         public void OnSelectImage(int imageNo)

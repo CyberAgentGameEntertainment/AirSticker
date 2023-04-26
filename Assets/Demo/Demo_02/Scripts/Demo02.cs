@@ -11,7 +11,7 @@ using UnityEngine.UI;
 
 namespace Demo.Demo_00.Scripts
 {
-    public class Demo00 : MonoBehaviour
+    public class Demo02 : MonoBehaviour
     {
         [SerializeField] private Material[] decalMaterials;
         [SerializeField] private GameObject[] receiverObjects;
