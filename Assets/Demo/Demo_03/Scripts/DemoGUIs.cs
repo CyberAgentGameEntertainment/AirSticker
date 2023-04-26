@@ -1,9 +1,10 @@
 using AirSticker.Runtime.Scripts.Core;
+using Demo.Demo_02.Scripts;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-namespace Demo.Demo_00.Scripts
+namespace Demo.Demo_03.Scripts
 {
     public class DemoGUIs : MonoBehaviour
     {
@@ -24,7 +25,7 @@ namespace Demo.Demo_00.Scripts
 
         public void OnClickChange()
         {
-            var launcher = decalProjectorLauncherObject.GetComponent<Demo02>();
+            var launcher = decalProjectorLauncherObject.GetComponent<Demo03>();
             launcher.SetNextReceiverObject();
 
             if (_isPlayAnim)
@@ -40,7 +41,7 @@ namespace Demo.Demo_00.Scripts
 
         public void OnClickPlayAnim()
         {
-            var launcher = decalProjectorLauncherObject.GetComponent<Demo02>();
+            var launcher = decalProjectorLauncherObject.GetComponent<Demo03>();
             if (launcher.HasAnimatorInCurrentReceiverObject() == false) return;
             var text = playAnimTextObject.GetComponent<Text>();
             text.text = _isPlayAnim ? "Play Anim" : "Stop Anim";
@@ -54,7 +55,7 @@ namespace Demo.Demo_00.Scripts
 
         public void OnClickClear()
         {
-            var launcher = decalProjectorLauncherObject.GetComponent<Demo02>();
+            var launcher = decalProjectorLauncherObject.GetComponent<Demo03>();
             launcher.ClearDecalMesh();
         }
 
@@ -63,7 +64,7 @@ namespace Demo.Demo_00.Scripts
             var text = playRotTextObject.GetComponent<Text>();
             text.text = _isPlayRot ? "Play Rot" : "Stop Rot";
             _isPlayRot = !_isPlayRot;
-            var launcher = decalProjectorLauncherObject.GetComponent<Demo02>();
+            var launcher = decalProjectorLauncherObject.GetComponent<Demo03>();
             if (_isPlayRot)
                 launcher.PlayRotateToCurrentReceiverObject();
             else
@@ -77,7 +78,7 @@ namespace Demo.Demo_00.Scripts
 
         public void OnClickDeleteObject()
         {
-            var launcher = decalProjectorLauncherObject.GetComponent<Demo02>();
+            var launcher = decalProjectorLauncherObject.GetComponent<Demo03>();
             launcher.DeleteCurrentReceiverObject();
         }
 
@@ -94,7 +95,7 @@ namespace Demo.Demo_00.Scripts
         {
             if (!_isPlayAnim) return;
             _isPlayAnim = false;
-            var launcher = decalProjectorLauncherObject.GetComponent<Demo02>();
+            var launcher = decalProjectorLauncherObject.GetComponent<Demo03>();
             if (launcher.HasAnimatorInCurrentReceiverObject() == false) return;
             var text = playAnimTextObject.GetComponent<Text>();
             text.text = "Play Anim";
@@ -107,7 +108,7 @@ namespace Demo.Demo_00.Scripts
             var text = playRotTextObject.GetComponent<Text>();
             text.text = "Play Rot";
             _isPlayRot = false;
-            var launcher = decalProjectorLauncherObject.GetComponent<Demo02>();
+            var launcher = decalProjectorLauncherObject.GetComponent<Demo03>();
             launcher.StopRotateToCurrentReceiverObject();
         }
 
@@ -119,7 +120,7 @@ namespace Demo.Demo_00.Scripts
 
         private void SetupAgingTest()
         {
-            var launcher = decalProjectorLauncherObject.GetComponent<Demo02>();
+            var launcher = decalProjectorLauncherObject.GetComponent<Demo03>();
             var text = runningAgingTestTextObject.GetComponent<Text>();
             if (_isRunningAgingTest)
             {

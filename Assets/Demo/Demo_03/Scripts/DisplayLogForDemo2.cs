@@ -8,7 +8,7 @@ using UnityEngine;
 using UnityEngine.Profiling;
 using UnityEngine.UI;
 
-namespace Demo.Demo_00.Scripts
+namespace Demo.Demo_03.Scripts
 {
     public class DisplayLogForDemo2 : MonoBehaviour
     {

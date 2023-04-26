@@ -1,15 +1,16 @@
 using System;
 using AirSticker.Runtime.Scripts;
 using AirSticker.Runtime.Scripts.Core;
+using Demo.Demo_02.Scripts;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using Random = UnityEngine.Random;
 
-namespace Demo.Demo_00.Scripts
+namespace Demo.Demo_03.Scripts
 {
     public class AgingTest
     {
-        private readonly Demo02 _demo02;
+        private readonly Demo03 _demo03;
         private int _endIdleFrame;
         private int _frameCounter;
 
@@ -18,9 +19,9 @@ namespace Demo.Demo_00.Scripts
         private State _state = State.Idle;
 
         // Start is called before the first frame update
-        public AgingTest(Demo02 demo02)
+        public AgingTest(Demo03 demo03)
         {
-            _demo02 = demo02;
+            _demo03 = demo03;
         }
 
         // Update is called once per frame
@@ -65,7 +66,7 @@ namespace Demo.Demo_00.Scripts
                 var heightHalfRange = Screen.height * 0.5f;
                 pos.x += Random.Range(-widthHalfRange, widthHalfRange);
                 pos.y += Random.Range(-heightHalfRange, heightHalfRange);
-                _demo02.Launch(
+                _demo03.Launch(
                     pos,
                     Random.Range(0, 6));
                 TrianglePolygonsFactory.MaxGeneratedPolygonPerFrame = Random.Range(50, 100);
@@ -79,9 +80,9 @@ namespace Demo.Demo_00.Scripts
                 var t = Random.Range(0, 99);
                 if (t < 20)
                 {
-                    _demo02.DeleteCurrentReceiverObject();
-                    _demo02.SetNextReceiverObject();
-                    if (_demo02.HasReceiverObjectsDeleted())
+                    _demo03.DeleteCurrentReceiverObject();
+                    _demo03.SetNextReceiverObject();
+                    if (_demo03.HasReceiverObjectsDeleted())
                         // Reset scene.
                         SceneManager.LoadScene("Demo_00");
                 }

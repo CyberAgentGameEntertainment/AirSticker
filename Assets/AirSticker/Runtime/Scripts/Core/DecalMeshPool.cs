@@ -100,9 +100,8 @@ namespace AirSticker.Runtime.Scripts.Core
         /// </summary>
         public static int CalculateHash(GameObject receiverObject, Renderer renderer, Material decalMaterial)
         {
-            return receiverObject.GetInstanceID()
-                   + decalMaterial.name.GetHashCode()
-                   + renderer.GetInstanceID();
+            var nameKey = $"{receiverObject.name}_{decalMaterial.name}_{renderer.name}";
+            return nameKey.GetHashCode();
         }
     }
 }

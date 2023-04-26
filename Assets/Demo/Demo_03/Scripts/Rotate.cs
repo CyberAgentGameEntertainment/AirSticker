@@ -4,7 +4,7 @@
 
 using UnityEngine;
 
-namespace Demo.Demo_00.Scripts
+namespace Demo.Demo_03.Scripts
 {
     public class Rotate : MonoBehaviour
     {
