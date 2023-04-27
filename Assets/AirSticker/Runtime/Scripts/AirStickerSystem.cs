@@ -111,6 +111,7 @@ namespace AirSticker.Runtime.Scripts
                 if (!renderer) return;
                 var pool = Instance._decalMeshPool;
                 var hash = DecalMeshPool.CalculateHash(receiverObject, renderer, decalMaterial);
+                
                 if (pool.Contains(hash))
                 {
                     results.Add(pool.GetDecalMesh(hash));

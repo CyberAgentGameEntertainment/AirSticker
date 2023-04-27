@@ -6,6 +6,7 @@ using System.Threading;
 using AirSticker.Runtime.Scripts.Core;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.Serialization;
 
 namespace AirSticker.Runtime.Scripts
 {
@@ -31,9 +32,9 @@ namespace AirSticker.Runtime.Scripts
         [SerializeField] private float width; // Width of the decal box.
         [SerializeField] private float height; // Height of the decal box.
         [SerializeField] private float depth; // Depth of the decal box.
-        [SerializeField] private GameObject receiverObject; // The receiver object that will be pasted decal.
+        [SerializeField] private GameObject[] receiverObjects; // The receiver object that will be pasted decal.
         [SerializeField] private Material decalMaterial; // The decal material that will be pasted to the receiver object.
-
+        [SerializeField] private bool projectionBackside; // This flag indicates whether it is possible to project onto the backside. 
         [Tooltip("When this is checked, the decal projection process is started at the instance is created.")] [SerializeField]
         private bool launchOnAwake; // When an instance is created, the decal projection process also starts automatically.。
 
@@ -141,83 +142,92 @@ namespace AirSticker.Runtime.Scripts
         private IEnumerator ExecuteLaunch()
         {
             InitializeOriginAxisInDecalSpace();
-            
-            AirStickerSystem.CollectEditDecalMeshes(DecalMeshes, receiverObject, decalMaterial);
 
-            var skinnedMeshRenderers = receiverObject.GetComponentsInChildren<SkinnedMeshRenderer>();
-            skinnedMeshRenderers = skinnedMeshRenderers.Where(s => s.name != "AirStickerRenderer").ToArray();
-            
-            if (AirStickerSystem.ReceiverObjectTrianglePolygonsPool.Contains(receiverObject) == false)
+            foreach (var receiverObject in receiverObjects)
             {
-                // new receiver object.
-                _convexPolygonInfos = new List<ConvexPolygonInfo>();
-                // Collect triangle polygon data.
-                yield return AirStickerSystem.BuildTrianglePolygonsFromReceiverObject(
-                    receiverObject.GetComponentsInChildren<MeshFilter>(),
-                    receiverObject.GetComponentsInChildren<MeshRenderer>(),
-                    skinnedMeshRenderers,
-                    _convexPolygonInfos);
-                AirStickerSystem.ReceiverObjectTrianglePolygonsPool.RegisterTrianglePolygons(receiverObject,
-                    _convexPolygonInfos);
-            }
+                if (receiverObject == null || !receiverObject)
+                {
+                    continue;
+                }
+                AirStickerSystem.CollectEditDecalMeshes(DecalMeshes, receiverObject, decalMaterial);
 
-            if (!receiverObject)
-            {
-                // Receiver object is already dead.
-                // So the process will be finished.
-                OnFinished(State.LaunchingCanceled);
-                yield break;
-            }
+                var skinnedMeshRenderers = receiverObject.GetComponentsInChildren<SkinnedMeshRenderer>();
+                skinnedMeshRenderers = skinnedMeshRenderers.Where(s => s.name != "AirStickerRenderer").ToArray();
 
-            #region Prepare to run on worker threads.
+                if (AirStickerSystem.ReceiverObjectTrianglePolygonsPool.Contains(receiverObject) == false)
+                {
+                    // new receiver object.
+                    _convexPolygonInfos = new List<ConvexPolygonInfo>();
+                    // Collect triangle polygon data.
+                    yield return AirStickerSystem.BuildTrianglePolygonsFromReceiverObject(
+                        receiverObject.GetComponentsInChildren<MeshFilter>(),
+                        receiverObject.GetComponentsInChildren<MeshRenderer>(),
+                        skinnedMeshRenderers,
+                        _convexPolygonInfos);
+                    AirStickerSystem.ReceiverObjectTrianglePolygonsPool.RegisterTrianglePolygons(receiverObject,
+                        _convexPolygonInfos);
+                }
 
-            _convexPolygonInfos = AirStickerSystem.GetTrianglePolygonsFromPool(
-                receiverObject);
-            // Calculate bone matrix pallet.
-            var boneMatricesPallet = CalculateMatricesPallet(skinnedMeshRenderers);
+                if (!receiverObject)
+                {
+                    // Receiver object is already dead.
+                    // So the process will be finished.
+                    OnFinished(State.LaunchingCanceled);
+                    yield break;
+                }
 
-            var transform1 = transform;
-            var projectorPosition = transform1.position;
-            // basePosition is center of the decal box.
-            var centerPositionOfDecalBox = projectorPosition + transform1.forward * (depth * 0.5f);
+                #region Prepare to run on worker threads.
 
-            for (var polyNo = 0; polyNo < _convexPolygonInfos.Count; polyNo++)
-                _convexPolygonInfos[polyNo].ConvexPolygon.PrepareToRunOnWorkerThread();
+                _convexPolygonInfos = AirStickerSystem.GetTrianglePolygonsFromPool(
+                    receiverObject);
+                // Calculate bone matrix pallet.
+                var boneMatricesPallet = CalculateMatricesPallet(skinnedMeshRenderers);
 
-            #endregion // Prepare to run on worker threads.
+                var transform1 = transform;
+                var projectorPosition = transform1.position;
+                // basePosition is center of the decal box.
+                var centerPositionOfDecalBox = projectorPosition + transform1.forward * (depth * 0.5f);
 
-            #region Run worker thread.
-
-            // Split Convex Polygon.
-            _executeLaunchingOnWorkerThread = true;
-            ThreadPool.QueueUserWorkItem(RunActionByWorkerThread, new Action(() =>
-            {
-                var localToWorldMatrices = new Matrix4x4[3];
-                var boneWeights = new BoneWeight[3];
                 for (var polyNo = 0; polyNo < _convexPolygonInfos.Count; polyNo++)
-                    _convexPolygonInfos[polyNo].ConvexPolygon.CalculatePositionsAndNormalsInWorldSpace(
-                        boneMatricesPallet, localToWorldMatrices, boneWeights);
+                    _convexPolygonInfos[polyNo].ConvexPolygon.PrepareToRunOnWorkerThread();
 
-                _broadPhaseConvexPolygonInfos = BroadPhaseConvexPolygonsDetection.Execute(
-                    projectorPosition,
-                    _decalSpace.Ez,
-                    width,
-                    height,
-                    depth,
-                    _convexPolygonInfos);
+                #endregion // Prepare to run on worker threads.
 
-                BuildClipPlanes(centerPositionOfDecalBox);
-                SplitConvexPolygonsByPlanes();
-                AddTrianglePolygonsToDecalMeshFromConvexPolygons(centerPositionOfDecalBox);
-                _executeLaunchingOnWorkerThread = false;
-            }));
+                #region Run worker thread.
 
-            #endregion // Run worker thread. 
+                // Split Convex Polygon.
+                _executeLaunchingOnWorkerThread = true;
+                ThreadPool.QueueUserWorkItem(RunActionByWorkerThread, new Action(() =>
+                {
+                    var localToWorldMatrices = new Matrix4x4[3];
+                    var boneWeights = new BoneWeight[3];
+                    for (var polyNo = 0; polyNo < _convexPolygonInfos.Count; polyNo++)
+                        _convexPolygonInfos[polyNo].ConvexPolygon.CalculatePositionsAndNormalsInWorldSpace(
+                            boneMatricesPallet, localToWorldMatrices, boneWeights);
 
-            // Waiting to worker thread.
-            while (_executeLaunchingOnWorkerThread) yield return null;
+                    _broadPhaseConvexPolygonInfos = BroadPhaseConvexPolygonsDetection.Execute(
+                        projectorPosition,
+                        _decalSpace.Ez,
+                        width,
+                        height,
+                        depth,
+                        _convexPolygonInfos,
+                        projectionBackside);
 
-            foreach (var decalMesh in DecalMeshes) decalMesh.ExecutePostProcessingAfterWorkerThread();
+                    BuildClipPlanes(centerPositionOfDecalBox);
+                    SplitConvexPolygonsByPlanes();
+                    AddTrianglePolygonsToDecalMeshFromConvexPolygons(centerPositionOfDecalBox);
+                    _executeLaunchingOnWorkerThread = false;
+                }));
+
+                #endregion // Run worker thread. 
+
+                // Waiting to worker thread.
+                while (_executeLaunchingOnWorkerThread) yield return null;
+
+                foreach (var decalMesh in DecalMeshes) decalMesh.ExecutePostProcessingAfterWorkerThread();
+            }
+            
             OnFinished(State.LaunchingCompleted);
             _convexPolygonInfos = null;
 
@@ -261,7 +271,8 @@ namespace AirSticker.Runtime.Scripts
             projector.width = width;
             projector.height = height;
             projector.depth = depth;
-            projector.receiverObject = receiverObject;
+            projector.receiverObjects = new GameObject[1];
+            projector.receiverObjects[0] = receiverObject;
             projector.decalMaterial = decalMaterial;
             projector.launchOnAwake = false;
             projector.onFinishedLaunch = new UnityEvent<State>();
@@ -292,7 +303,7 @@ namespace AirSticker.Runtime.Scripts
                 this,
                 () =>
                 {
-                    if (receiverObject)
+                    if (receiverObjects != null)
                         StartCoroutine(ExecuteLaunch());
                     else
                         // Receiver object has been dead, so process is terminated.

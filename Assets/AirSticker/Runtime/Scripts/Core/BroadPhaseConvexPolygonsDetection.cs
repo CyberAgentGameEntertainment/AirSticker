@@ -21,7 +21,8 @@ namespace AirSticker.Runtime.Scripts.Core
             float decalBoxWidth,
             float decalBoxHeight,
             float decalBoxDepth,
-            List<ConvexPolygonInfo> convexPolygonInfos)
+            List<ConvexPolygonInfo> convexPolygonInfos,
+            bool projectionBackside)
         {
             var threshold = Mathf.Max(decalBoxWidth / 2, decalBoxHeight / 2, decalBoxDepth);
             threshold *= 1.414f;
@@ -31,7 +32,7 @@ namespace AirSticker.Runtime.Scripts.Core
             for (var i = 0; i < convexPolygonInfos.Count; i++)
             {
                 var convexPolygonInfo = convexPolygonInfos[i];
-                if (Vector3.Dot(decalSpaceNormalWs, convexPolygonInfo.ConvexPolygon.FaceNormal) < 0)
+                if (!projectionBackside && Vector3.Dot(decalSpaceNormalWs, convexPolygonInfo.ConvexPolygon.FaceNormal) < 0)
                 {
                     // Set the flag of outside the clip space.
                     convexPolygonInfo.IsOutsideClipSpace = true;
