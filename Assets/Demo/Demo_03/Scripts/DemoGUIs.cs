@@ -73,7 +73,7 @@ namespace Demo.Demo_03.Scripts
 
         public void OnClickResetScene()
         {
-            SceneManager.LoadScene("Demo_00");
+            SceneManager.LoadScene("Demo_03");
         }
 
         public void OnClickDeleteObject()

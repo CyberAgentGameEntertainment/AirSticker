@@ -399,7 +399,7 @@ MonoBehaviour:
   shotDecalMaterials:
   - {fileID: 2100000, guid: 434c39936d241ab45a19d599d9a2785a, type: 2}
   - {fileID: 2100000, guid: eb066cf3a24312a488867b401db7fc67, type: 2}
-  - {fileID: 2100000, guid: b6f889dbd7278084687a4ed6207465ac, type: 2}
+  - {fileID: 2100000, guid: c39aabb158e252f478b6b033ba498310, type: 2}
   projectorSize:
   - {x: 0.12, y: 0.12, z: 10}
   - {x: 0.22848, y: 0.12, z: 10}

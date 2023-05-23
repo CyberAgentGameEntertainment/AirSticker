@@ -68,7 +68,7 @@ namespace Demo.Demo_03.Scripts
                 pos.y += Random.Range(-heightHalfRange, heightHalfRange);
                 _demo03.Launch(
                     pos,
-                    Random.Range(0, 6));
+                    Random.Range(0, 3));
                 TrianglePolygonsFactory.MaxGeneratedPolygonPerFrame = Random.Range(50, 100);
                 _launchCount++;
                 _frameCounter = 0;
@@ -84,11 +84,11 @@ namespace Demo.Demo_03.Scripts
                     _demo03.SetNextReceiverObject();
                     if (_demo03.HasReceiverObjectsDeleted())
                         // Reset scene.
-                        SceneManager.LoadScene("Demo_00");
+                        SceneManager.LoadScene("Demo_03");
                 }
                 else if (t < 40)
                 {
-                    SceneManager.LoadScene("Demo_00");
+                    SceneManager.LoadScene("Demo_03");
                 }
 
                 _launchCount = 0;
