@@ -881,7 +881,7 @@ MonoBehaviour:
   decalMaterials:
   - {fileID: 2100000, guid: 434c39936d241ab45a19d599d9a2785a, type: 2}
   - {fileID: 2100000, guid: eb066cf3a24312a488867b401db7fc67, type: 2}
-  - {fileID: 2100000, guid: b6f889dbd7278084687a4ed6207465ac, type: 2}
+  - {fileID: 2100000, guid: c39aabb158e252f478b6b033ba498310, type: 2}
   receiverObjects:
   - {fileID: 871373255}
   - {fileID: 289244484}
@@ -893,7 +893,7 @@ MonoBehaviour:
   - {x: 0.1, y: 0.1, z: 10}
   - {x: 0.2, y: 0.1, z: 10}
   - {x: 0.3, y: 0.1, z: 19}
-  _collectPolyInputFieldTextObject: {fileID: 1533493564}
+  _collectPolyInputFieldTextObject: {fileID: 69921758}
 --- !u!4 &341696256
 Transform:
   m_ObjectHideFlags: 0

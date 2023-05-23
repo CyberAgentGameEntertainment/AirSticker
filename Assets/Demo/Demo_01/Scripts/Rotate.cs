@@ -11,7 +11,7 @@ namespace Demo.Demo_03.Scripts
         // Update is called once per frame
         private void Update()
         {
-            var rot = Quaternion.AngleAxis(0.25f, Vector3.up);
+            var rot = Quaternion.AngleAxis(40.0f * Time.deltaTime, Vector3.up);
             var transform1 = transform;
             transform1.localRotation = rot * transform1.localRotation;
         }
