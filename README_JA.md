@@ -16,6 +16,15 @@
 Air StickerはURPのデカールのデメリットを補完するものとなっており、非常に軽量に動作するデカール処理です。<br/>
 また、URPデカールはUnity2021以降でしか使えませんが、Air StickerはUnity2020からの動作をサポートします。<br/>
 
+<br/>
+<p align="center">
+<img width="60%" src="Documentation/fig-014.gif"><br>
+</p>
+
+<br/>
+<p align="center">
+<img width="60%" src="Documentation/fig-015.gif"><br>
+</p>
 
 ## Section 2 特徴
 Air Stickerには多くのゲームで採用されている、典型的なメッシュ生成方式によるデカール処理が実装されています。<br/><br/>

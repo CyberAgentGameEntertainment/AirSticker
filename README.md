@@ -15,6 +15,16 @@
 Air Sticker is a decal system that addresses the limitations of URP decals and has a low impact on performance.<br/>
 Also, URP decals can only be used with Unity2021 or higher, while Air Sticker supports operation with Unity2020 or higher.<br/>
 
+<br/>
+<p align="center">
+<img width="60%" src="Documentation/fig-014.gif"><br>
+</p>
+
+<br/>
+<p align="center">
+<img width="60%" src="Documentation/fig-015.gif"><br>
+</p>
+
 ## Section 2 Feature
 Air Sticker implements decal processing using the typical mesh generation method used in many games.<br/>
 
