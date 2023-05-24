@@ -163,5 +163,9 @@ void LaunchProjector(
 }
 ```
 
+***
+<p align="right">
+© Unity Technologies Japan/UC
+</p>
 
 
