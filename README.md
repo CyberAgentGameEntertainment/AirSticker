@@ -168,6 +168,11 @@ void LaunchProjector(
                     /*onCompletedLaunch*/() => { Destroy(projectorObj); });
 }
 ```
+***
+<p align="right">
+© Unity Technologies Japan/UC
+</p>
+
 
 
 
