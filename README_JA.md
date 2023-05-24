@@ -18,12 +18,12 @@ Air StickerはURPのデカールのデメリットを補完するものとなっ
 
 <br/>
 <p align="center">
-<img width="60%" src="Documentation/fig-014.gif"><br>
+<img src="Documentation/fig-014.gif"><br>
 </p>
 
 <br/>
 <p align="center">
-<img width="60%" src="Documentation/fig-015.gif"><br>
+<img src="Documentation/fig-015.gif"><br>
 </p>
 
 ## Section 2 特徴
