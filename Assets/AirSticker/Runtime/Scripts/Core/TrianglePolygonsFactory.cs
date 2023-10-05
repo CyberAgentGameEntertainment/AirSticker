@@ -18,6 +18,7 @@ namespace AirSticker.Runtime.Scripts.Core
     public class TrianglePolygonsFactory : IDisposable
     {
         private static readonly int VertexCountOfTrianglePolygon = 3;
+        private static readonly int MaxWorkingVertexCountForTerrain = 128 * 128; // 16,384
         private static readonly int MaxWorkingVertexCount = 65536;
         private static readonly int MaxWorkingTriangleCount = 65536;
         private readonly List<BoneWeight> _workingBoneWeights = new List<BoneWeight>(MaxWorkingVertexCount);
@@ -47,20 +48,24 @@ namespace AirSticker.Runtime.Scripts.Core
             _disposed = true;
             GC.SuppressFinalize(this);
         }
-        
+
         internal IEnumerator BuildFromReceiverObject(
             MeshFilter[] meshFilters,
             MeshRenderer[] meshRenderers,
             SkinnedMeshRenderer[] skinnedMeshRenderers,
+            Terrain[] terrains,
             List<ConvexPolygonInfo> trianglePolygonInfos)
         {
-            CalculateCapacityConvexPolygonInfos(meshFilters, skinnedMeshRenderers, trianglePolygonInfos);
+            var numTerrainMeshPolygon = GetNumPolygonsFromTerrains(terrains, 1.0f);
+            var terrainMehResolutionScale = Mathf.Sqrt(MaxWorkingVertexCountForTerrain / (float)numTerrainMeshPolygon);
+            CalculateCapacityConvexPolygonInfos(meshFilters, skinnedMeshRenderers, terrains, trianglePolygonInfos,
+                terrainMehResolutionScale);
             yield return BuildFromMeshFilter(meshFilters, meshRenderers, trianglePolygonInfos);
             yield return BuildFromSkinMeshRenderer(skinnedMeshRenderers, trianglePolygonInfos);
-
+            yield return BuildFromTerrain(terrains, terrainMehResolutionScale, trianglePolygonInfos);
             yield return null;
         }
-        
+
         private static int GetNumPolygonsFromSkinModelRenderers(SkinnedMeshRenderer[] skinnedMeshRenderers)
         {
             var numPolygon = 0;
@@ -74,7 +79,26 @@ namespace AirSticker.Runtime.Scripts.Core
 
             return numPolygon;
         }
-        
+
+        private static int GetNumPolygonsFromTerrain(Terrain terrain, float terrainMehResolutionScale)
+        {
+            var terrainData = terrain.terrainData;
+            var vertexCountX = (int)(terrainData.heightmapResolution * terrainMehResolutionScale);
+            var vertexCountY = (int)(terrainData.heightmapResolution * terrainMehResolutionScale);
+            return (vertexCountX - 1) * (vertexCountY - 1) * 2;
+        }
+
+        private static int GetNumPolygonsFromTerrains(Terrain[] terrains, float terrainMehResolutionScale)
+        {
+            var numPolygon = 0;
+            foreach (var terrain in terrains)
+            {
+                numPolygon += GetNumPolygonsFromTerrain(terrain, terrainMehResolutionScale);
+            }
+
+            return numPolygon;
+        }
+
         private static int GetNumPolygonsFromMeshFilters(MeshFilter[] meshFilters)
         {
             var numPolygon = 0;
@@ -88,16 +112,18 @@ namespace AirSticker.Runtime.Scripts.Core
 
             return numPolygon;
         }
-        
+
         private static void CalculateCapacityConvexPolygonInfos(MeshFilter[] meshFilters,
-            SkinnedMeshRenderer[] skinnedMeshRenderers, List<ConvexPolygonInfo> convexPolygonInfos)
+            SkinnedMeshRenderer[] skinnedMeshRenderers, Terrain[] terrains, List<ConvexPolygonInfo> convexPolygonInfos,
+            float terrainMehResolutionScale)
         {
             var capacity = 0;
             capacity += GetNumPolygonsFromMeshFilters(meshFilters);
             capacity += GetNumPolygonsFromSkinModelRenderers(skinnedMeshRenderers);
+            capacity += GetNumPolygonsFromTerrains(terrains, terrainMehResolutionScale);
             if (capacity > 0) convexPolygonInfos.Capacity = capacity;
         }
-        
+
         private IEnumerator BuildFromMeshFilter(MeshFilter[] meshFilters, MeshRenderer[] meshRenderers,
             List<ConvexPolygonInfo> convexPolygonInfos)
         {
@@ -198,7 +224,7 @@ namespace AirSticker.Runtime.Scripts.Core
 
             convexPolygonInfos.AddRange(newConvexPolygonInfos);
         }
-        
+
         private IEnumerator BuildFromSkinMeshRenderer(SkinnedMeshRenderer[] skinnedMeshRenderers,
             List<ConvexPolygonInfo> trianglePolygonInfos)
         {
@@ -330,6 +356,150 @@ namespace AirSticker.Runtime.Scripts.Core
             sw.Stop();
             Time_BuildFromSkinMeshRenderer[1] = sw.ElapsedMilliseconds;
 #endif
+        }
+
+        private IEnumerator BuildFromTerrain(Terrain[] terrains, float terrainMeshResolutionScale,
+            List<ConvexPolygonInfo> convexPolygonInfos)
+        {
+            var numBuildConvexPolygon = GetNumPolygonsFromTerrains(terrains, terrainMeshResolutionScale);
+            if (numBuildConvexPolygon < 0) yield break;
+            var newConvexPolygonInfos = new ConvexPolygonInfo[numBuildConvexPolygon];
+            // Calculate size of some buffers and store the count of the polygons.
+            var bufferSize = 0;
+            var polygonCounts = new List<int>();
+            foreach (var terrain in terrains)
+            {
+                if (!terrain || terrain == null)
+                    continue;
+                var numPoly = GetNumPolygonsFromTerrain(terrain, terrainMeshResolutionScale);
+                bufferSize += numPoly * VertexCountOfTrianglePolygon;
+                polygonCounts.Add(numPoly);
+            }
+
+            // Allocate some buffers.
+            var positionBuffer = new Vector3[bufferSize];
+            var boneWeightBuffer = new BoneWeight[bufferSize];
+            var normalBuffer = new Vector3[bufferSize];
+            var lineBuffer = new Line[bufferSize];
+            var localPositionBuffer = new Vector3[bufferSize];
+            var localNormalBuffer = new Vector3[bufferSize];
+            var workingVertexPositions = new Vector3[bufferSize];
+            var workingVertexNormals = new Vector3[bufferSize];
+            var startOffsetOfBuffer = 0;
+
+            var rendererNo = 0;
+            var newConvexPolygonNo = 0;
+            var indexOfPolygonCounts = 0;
+
+            foreach (var terrain in terrains)
+            {
+                if (!terrain || terrain == null)
+                    // Terrain is deleted, so process is terminated.
+                    yield break;
+                var terrainData = terrain.terrainData;
+                var invResolutionScale = 1.0f / terrainMeshResolutionScale;
+                var vertexCountW = Math.Max(2, (int)(terrainData.heightmapResolution * terrainMeshResolutionScale));
+                var vertexCountH = Math.Max(2, (int)(terrainData.heightmapResolution * terrainMeshResolutionScale));
+                var size = terrainData.size;
+
+                // Build vertex buffer.
+                var vertexNo = 0;
+                for (var y = 0; y < vertexCountH; y++)
+                {
+                    for (var x = 0; x < vertexCountW; x++)
+                    {
+                        var normalizedPosition =
+                            new Vector2(x / (float)(vertexCountW - 1), y / (float)(vertexCountH - 1));
+                        workingVertexNormals[vertexNo] = terrainData.GetInterpolatedNormal(
+                            x / (float)(vertexCountW - 1),
+                            y / (float)(vertexCountH - 1));
+                        float height = terrainData.GetInterpolatedHeight(normalizedPosition.x, normalizedPosition.y);
+                        workingVertexPositions[vertexNo] = new Vector3(size.x * normalizedPosition.x,
+                            height, size.z * normalizedPosition.y);
+                        vertexNo++;
+                    }
+                }
+
+                // Build Convex Polygon.
+                for (int y = 0; y < vertexCountH - 1; y++)
+                {
+                    for (int x = 0; x < vertexCountW - 1; x++)
+                    {
+                        {
+                            var v0_no = (y * vertexCountW) + x;
+                            var v1_no = ((y + 1) * vertexCountW) + x;
+                            var v2_no = (y * vertexCountW) + x + 1;
+
+                            localPositionBuffer[startOffsetOfBuffer] = workingVertexPositions[v0_no];
+                            localPositionBuffer[startOffsetOfBuffer + 1] = workingVertexPositions[v1_no];
+                            localPositionBuffer[startOffsetOfBuffer + 2] = workingVertexPositions[v2_no];
+
+                            localNormalBuffer[startOffsetOfBuffer] = workingVertexNormals[v0_no];
+                            localNormalBuffer[startOffsetOfBuffer + 1] = workingVertexNormals[v1_no];
+                            localNormalBuffer[startOffsetOfBuffer + 2] = workingVertexNormals[v2_no];
+
+                            boneWeightBuffer[startOffsetOfBuffer] = default;
+                            boneWeightBuffer[startOffsetOfBuffer + 1] = default;
+                            boneWeightBuffer[startOffsetOfBuffer + 2] = default;
+
+                            newConvexPolygonInfos[newConvexPolygonNo] = new ConvexPolygonInfo
+                            {
+                                ConvexPolygon = new ConvexPolygon(
+                                    positionBuffer,
+                                    normalBuffer,
+                                    boneWeightBuffer,
+                                    lineBuffer,
+                                    localPositionBuffer,
+                                    localNormalBuffer,
+                                    terrain,
+                                    startOffsetOfBuffer,
+                                    VertexCountOfTrianglePolygon,
+                                    0,
+                                    VertexCountOfTrianglePolygon)
+                            };
+                            newConvexPolygonNo++;
+                            startOffsetOfBuffer += VertexCountOfTrianglePolygon;
+                        }
+                        {
+                            var v0_no = ((y + 1) * vertexCountW) + x;
+                            var v1_no = ((y + 1) * vertexCountW) + x + 1;
+                            var v2_no = (y * vertexCountW) + x + 1;
+
+                            localPositionBuffer[startOffsetOfBuffer] = workingVertexPositions[v0_no];
+                            localPositionBuffer[startOffsetOfBuffer + 1] = workingVertexPositions[v1_no];
+                            localPositionBuffer[startOffsetOfBuffer + 2] = workingVertexPositions[v2_no];
+
+                            localNormalBuffer[startOffsetOfBuffer] = workingVertexNormals[v0_no];
+                            localNormalBuffer[startOffsetOfBuffer + 1] = workingVertexNormals[v1_no];
+                            localNormalBuffer[startOffsetOfBuffer + 2] = workingVertexNormals[v2_no];
+
+                            boneWeightBuffer[startOffsetOfBuffer] = default;
+                            boneWeightBuffer[startOffsetOfBuffer + 1] = default;
+                            boneWeightBuffer[startOffsetOfBuffer + 2] = default;
+
+                            newConvexPolygonInfos[newConvexPolygonNo] = new ConvexPolygonInfo
+                            {
+                                ConvexPolygon = new ConvexPolygon(
+                                    positionBuffer,
+                                    normalBuffer,
+                                    boneWeightBuffer,
+                                    lineBuffer,
+                                    localPositionBuffer,
+                                    localNormalBuffer,
+                                    terrain,
+                                    startOffsetOfBuffer,
+                                    VertexCountOfTrianglePolygon,
+                                    0,
+                                    VertexCountOfTrianglePolygon)
+                            };
+                            newConvexPolygonNo++;
+                            startOffsetOfBuffer += VertexCountOfTrianglePolygon;
+                        }
+                    }
+                }
+            }
+
+            convexPolygonInfos.AddRange(newConvexPolygonInfos);
         }
     }
 }

@@ -13,7 +13,7 @@ namespace AirSticker.Runtime.Scripts.Core
     {
         private readonly Matrix4x4[] _bindPoses;
         private readonly Material _decalMaterial;
-        private readonly Renderer _receiverMeshRenderer;
+        private readonly Component _receiverComponent;
         private readonly GameObject _receiverObject;
         private BoneWeight[] _boneWeightsBuffer;
         private DecalMeshRenderer _decalMeshRenderer;
@@ -30,14 +30,14 @@ namespace AirSticker.Runtime.Scripts.Core
         public DecalMesh(
             GameObject receiverObject,
             Material decalMaterial,
-            Renderer receiverMeshRenderer)
+            Component receiverComponent)
         {
             _mesh = new Mesh();
-            _receiverMeshRenderer = receiverMeshRenderer;
+            _receiverComponent = receiverComponent;
             _decalMaterial = decalMaterial;
             _receiverObject = receiverObject;
 
-            if (_receiverMeshRenderer is SkinnedMeshRenderer skinnedMeshRenderer)
+            if (_receiverComponent is SkinnedMeshRenderer skinnedMeshRenderer)
                 _bindPoses = skinnedMeshRenderer.sharedMesh.bindposes;
         }
 
@@ -75,7 +75,7 @@ namespace AirSticker.Runtime.Scripts.Core
             _mesh.RecalculateBounds();
 
             _decalMeshRenderer = new DecalMeshRenderer(
-                _receiverMeshRenderer,
+                _receiverComponent,
                 _decalMaterial,
                 _mesh);
         }
@@ -93,7 +93,7 @@ namespace AirSticker.Runtime.Scripts.Core
         public bool CanRemoveFromPool()
         {
             return !_decalMaterial
-                   || !_receiverMeshRenderer
+                   || !_receiverComponent
                    || !_receiverObject;
         }
 
@@ -129,10 +129,11 @@ namespace AirSticker.Runtime.Scripts.Core
             Vector3 decalSpaceTangentInWorldSpace,
             Vector3 decalSpaceBiNormalInWorldSpace,
             float decalSpaceWidth,
-            float decalSpaceHeight
+            float decalSpaceHeight,
+            float zOffsetInDecalSpace
         )
         {
-            if (!_receiverMeshRenderer) return;
+            if (!_receiverComponent) return;
 
             var uv = new Vector2();
             // Calculate the vertex count and the index count to be added.
@@ -140,7 +141,7 @@ namespace AirSticker.Runtime.Scripts.Core
             var deltaIndex = 0;
             foreach (var convexPolygon in convexPolygons)
             {
-                if (convexPolygon.ReceiverMeshRenderer != _receiverMeshRenderer) continue;
+                if (convexPolygon.ReceiverComponent != _receiverComponent) continue;
                 deltaVertex += convexPolygon.VertexCount;
                 // Index count increases with the number of triangles*3
                 deltaIndex += (convexPolygon.VertexCount - 2) * 3;
@@ -162,7 +163,7 @@ namespace AirSticker.Runtime.Scripts.Core
 
             foreach (var convexPolygon in convexPolygons)
             {
-                if (convexPolygon.ReceiverMeshRenderer != _receiverMeshRenderer) continue;
+                if (convexPolygon.ReceiverComponent != _receiverComponent) continue;
 
                 var numVertex = convexPolygon.VertexCount;
                 for (var localVertNo = 0; localVertNo < numVertex; localVertNo++)
@@ -182,7 +183,7 @@ namespace AirSticker.Runtime.Scripts.Core
 
                     // Add a slight offset in the opposite direction of the decal projection to avoid Z-fighting.
                     // TODO: This number can be adjusted later.
-                    vertPos += normal * 0.005f;
+                    vertPos += normal * zOffsetInDecalSpace;
                     _positionBuffer[addVertNo] = vertPos;
                     _normalBuffer[addVertNo] = normal;
                     _boneWeightsBuffer[addVertNo] = convexPolygon.GetVertexBoneWeight(vertNo);
