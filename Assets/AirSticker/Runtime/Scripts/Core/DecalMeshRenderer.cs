@@ -26,7 +26,6 @@ namespace AirSticker.Runtime.Scripts.Core
             }
 
             _receiverComponent = receiverComponent;
-            _receiverComponent = receiverComponent;
             Owner.transform.parent = _receiverComponent.transform;
             Owner.transform.localPosition = Vector3.zero;
             Owner.transform.localRotation = Quaternion.identity;
