@@ -35,7 +35,7 @@ namespace AirSticker.Runtime.Scripts.Core
         /// <param name="lineBuffer">Buffer of lines of convex polygons.</param>
         /// <param name="positionInModelSpaceBuffer">Buffer of vertex position in model space.</param>
         /// <param name="normalInModelSpaceBuffer">Buffer of vertex normal in model space.</param>
-        /// <param name="receiverMeshRenderer">Receiver mesh renderer which the decal mesh will be attached.</param>
+        /// <param name="receiverComponent">Receiver mesh renderer which the decal mesh will be attached.</param>
         /// <param name="startOffsetInBuffer">
         ///     offset of start index in buffer.<br />
         ///     The value of this variable is the starting position where the vertex information of this polygon is stored.
@@ -54,13 +54,17 @@ namespace AirSticker.Runtime.Scripts.Core
             Line[] lineBuffer,
             Vector3[] positionInModelSpaceBuffer,
             Vector3[] normalInModelSpaceBuffer,
-            Renderer receiverMeshRenderer,
+            Component receiverComponent,
             int startOffsetInBuffer,
             int initVertexCount,
             int rendererNo,
             int maxVertex = DefaultMaxVertex)
         {
-            _isSkinnedMeshRenderer = receiverMeshRenderer is SkinnedMeshRenderer;
+            if (receiverComponent != null)
+            {
+                _isSkinnedMeshRenderer = receiverComponent is SkinnedMeshRenderer;
+            }
+
             _rendererNo = rendererNo;
             _positionInModelSpaceBuffer = positionInModelSpaceBuffer;
             _normalInModelSpaceBuffer = normalInModelSpaceBuffer;
@@ -70,7 +74,7 @@ namespace AirSticker.Runtime.Scripts.Core
             _normalInWorldSpaceBuffer = normalInWorldSpaceBuffer;
             _lineBuffer = lineBuffer;
             _startOffsetInBuffer = startOffsetInBuffer;
-            ReceiverMeshRenderer = receiverMeshRenderer;
+            ReceiverComponent = receiverComponent;
             VertexCount = initVertexCount;
         }
 
@@ -97,7 +101,7 @@ namespace AirSticker.Runtime.Scripts.Core
             Vector3[] positionInModelSpaceBuffer, Vector3[] normalInModelSpaceBuffer, int startOffsetInBuffer,
             int maxVertex = DefaultMaxVertex)
         {
-            ReceiverMeshRenderer = srcConvexPolygon.ReceiverMeshRenderer;
+            ReceiverComponent = srcConvexPolygon.ReceiverComponent;
             VertexCount = srcConvexPolygon.VertexCount;
 
             _isSkinnedMeshRenderer = srcConvexPolygon._isSkinnedMeshRenderer;
@@ -133,9 +137,9 @@ namespace AirSticker.Runtime.Scripts.Core
         public int VertexCount { get; private set; }
 
         /// <summary>
-        ///     The receiver mesh renderer which the decal mesh will be attached.
+        ///     The receiver component which the decal mesh will be attached.
         /// </summary>
-        public Renderer ReceiverMeshRenderer { get; }
+        public Component ReceiverComponent { get; }
 
         private void CalculateNewVertexDataBySplitPlane(
             out Vector3 newVert0,
@@ -796,10 +800,19 @@ namespace AirSticker.Runtime.Scripts.Core
         /// </remarks>
         public void PrepareToRunOnWorkerThread()
         {
-            _localToWorldMatrix = ReceiverMeshRenderer.localToWorldMatrix;
+            if (ReceiverComponent is Renderer renderer)
+            {
+                // TODO: Do I need to use the Renderer's localWorldMatrix?
+                _localToWorldMatrix = renderer.localToWorldMatrix;
+            }
+            else if (ReceiverComponent is Terrain terrain)
+            {
+                _localToWorldMatrix = terrain.transform.localToWorldMatrix;
+            }
+
             if (_isSkinnedMeshRenderer)
             {
-                var skinnedMeshRenderer = ReceiverMeshRenderer as SkinnedMeshRenderer;
+                var skinnedMeshRenderer = ReceiverComponent as SkinnedMeshRenderer;
                 _existsRootBone = skinnedMeshRenderer.rootBone != null;
             }
             else

@@ -14,10 +14,10 @@ namespace AirSticker.Runtime.Scripts
     public sealed class AirStickerSystem : MonoBehaviour
     {
         private readonly IDecalMeshPool _decalMeshPool = new DecalMeshPool();
-        
+
         private readonly IDecalProjectorLauncher _decalProjectorLauncher =
             new DecalProjectorLauncher();
-        
+
         private readonly IReceiverObjectTrianglePolygonsPool _receiverObjectTrianglePolygonsPool =
             new ReceiverObjectTrianglePolygonsPool();
 
@@ -59,7 +59,7 @@ namespace AirSticker.Runtime.Scripts
             Instance = this;
             _trianglePolygonsFactory = new TrianglePolygonsFactory();
         }
-        
+
         private void Update()
         {
             _receiverObjectTrianglePolygonsPool.GarbageCollect();
@@ -73,20 +73,22 @@ namespace AirSticker.Runtime.Scripts
             _trianglePolygonsFactory.Dispose();
             Instance = null;
         }
-        
+
         internal static IEnumerator BuildTrianglePolygonsFromReceiverObject(
             MeshFilter[] meshFilters,
             MeshRenderer[] meshRenderers,
             SkinnedMeshRenderer[] skinnedMeshRenderers,
+            Terrain[] terrains,
             List<ConvexPolygonInfo> convexPolygonInfos)
         {
             yield return Instance._trianglePolygonsFactory.BuildFromReceiverObject(
                 meshFilters,
                 meshRenderers,
                 skinnedMeshRenderers,
+                terrains,
                 convexPolygonInfos);
         }
-        
+
         internal static List<ConvexPolygonInfo> GetTrianglePolygonsFromPool(GameObject receiverObject)
         {
             if (Instance == null) return null;
@@ -95,7 +97,7 @@ namespace AirSticker.Runtime.Scripts
             foreach (var info in convexPolygonInfos) info.IsOutsideClipSpace = false;
             return convexPolygonInfos;
         }
-        
+
         internal static void CollectEditDecalMeshes(
             List<DecalMesh> results,
             GameObject receiverObject,
@@ -111,7 +113,7 @@ namespace AirSticker.Runtime.Scripts
                 if (!renderer) return;
                 var pool = Instance._decalMeshPool;
                 var hash = DecalMeshPool.CalculateHash(receiverObject, renderer, decalMaterial);
-                
+
                 if (pool.Contains(hash))
                 {
                     results.Add(pool.GetDecalMesh(hash));
@@ -123,7 +125,26 @@ namespace AirSticker.Runtime.Scripts
                     pool.RegisterDecalMesh(hash, newMesh);
                 }
             }
-            
+
+            var terrains = receiverObject.GetComponentsInChildren<Terrain>();
+            foreach (var terrain in terrains)
+            {
+                if (!terrain) return;
+                var pool = Instance._decalMeshPool;
+                var hash = DecalMeshPool.CalculateHash(receiverObject, terrain, decalMaterial);
+
+                if (pool.Contains(hash))
+                {
+                    results.Add(pool.GetDecalMesh(hash));
+                }
+                else
+                {
+                    var newMesh = new DecalMesh(receiverObject, decalMaterial, terrain);
+                    results.Add(newMesh);
+                    pool.RegisterDecalMesh(hash, newMesh);
+                }
+            }
+
             // Restore the renderer of decal mesh was disabled.
             Instance._decalMeshPool.EnableDecalMeshRenderers();
         }

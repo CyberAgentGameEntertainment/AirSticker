@@ -33,18 +33,27 @@ namespace AirSticker.Runtime.Scripts
         [SerializeField] private float height; // Height of the decal box.
         [SerializeField] private float depth; // Depth of the decal box.
         [SerializeField] private GameObject[] receiverObjects; // The receiver object that will be pasted decal.
-        [SerializeField] private Material decalMaterial; // The decal material that will be pasted to the receiver object.
-        [SerializeField] private bool projectionBackside; // This flag indicates whether it is possible to project onto the backside. 
-        [Tooltip("When this is checked, the decal projection process is started at the instance is created.")] [SerializeField]
-        private bool launchOnAwake; // When an instance is created, the decal projection process also starts automatically.。
+        [SerializeField] private float zOffsetInDecalSpace = 0.005f ; // The Z offset of the decal space from the receiver surface.
+        [SerializeField]
+        private Material decalMaterial; // The decal material that will be pasted to the receiver object.
 
-        [SerializeField] private UnityEvent<State> onFinishedLaunch; //　The event is called when decal projection is finished.
+        [SerializeField]
+        private bool projectionBackside; // This flag indicates whether it is possible to project onto the backside.
 
-        private readonly Vector4[] _clipPlanes = new Vector4[(int)ClipPlane.Num]; 
+        [Tooltip("When this is checked, the decal projection process is started at the instance is created.")]
+        [SerializeField]
+        private bool
+            launchOnAwake; // When an instance is created, the decal projection process also starts automatically.。
+
+        [SerializeField]
+        private UnityEvent<State> onFinishedLaunch; //　The event is called when decal projection is finished.
+
+        private readonly Vector4[] _clipPlanes = new Vector4[(int)ClipPlane.Num];
         private List<ConvexPolygonInfo> _broadPhaseConvexPolygonInfos = new List<ConvexPolygonInfo>();
         private List<ConvexPolygonInfo> _convexPolygonInfos;
         private DecalSpace _decalSpace;
         private bool _executeLaunchingOnWorkerThread;
+
         /// <summary>
         ///     State of decal projector.
         /// </summary>
@@ -95,7 +104,7 @@ namespace AirSticker.Runtime.Scripts
             Gizmos.DrawLine(arrowEnd, arrowEnd + arrowRight);
             Gizmos.matrix = cache;
         }
-        
+
         private void OnFinished(State finishedState)
         {
             if (onFinishedLaunch == null) return;
@@ -104,7 +113,7 @@ namespace AirSticker.Runtime.Scripts
             NowState = finishedState;
             onFinishedLaunch = null;
         }
-        
+
         private static Matrix4x4[][] CalculateMatricesPallet(SkinnedMeshRenderer[] skinnedMeshRenderers)
         {
             var boneMatricesPallet = new Matrix4x4[skinnedMeshRenderers.Length][];
@@ -149,10 +158,13 @@ namespace AirSticker.Runtime.Scripts
                 {
                     continue;
                 }
+
                 AirStickerSystem.CollectEditDecalMeshes(DecalMeshes, receiverObject, decalMaterial);
 
                 var skinnedMeshRenderers = receiverObject.GetComponentsInChildren<SkinnedMeshRenderer>();
                 skinnedMeshRenderers = skinnedMeshRenderers.Where(s => s.name != "AirStickerRenderer").ToArray();
+
+                var terrains = receiverObject.GetComponentsInChildren<Terrain>();
 
                 if (AirStickerSystem.ReceiverObjectTrianglePolygonsPool.Contains(receiverObject) == false)
                 {
@@ -163,6 +175,7 @@ namespace AirSticker.Runtime.Scripts
                         receiverObject.GetComponentsInChildren<MeshFilter>(),
                         receiverObject.GetComponentsInChildren<MeshRenderer>(),
                         skinnedMeshRenderers,
+                        terrains,
                         _convexPolygonInfos);
                     AirStickerSystem.ReceiverObjectTrianglePolygonsPool.RegisterTrianglePolygons(receiverObject,
                         _convexPolygonInfos);
@@ -227,7 +240,7 @@ namespace AirSticker.Runtime.Scripts
 
                 foreach (var decalMesh in DecalMeshes) decalMesh.ExecutePostProcessingAfterWorkerThread();
             }
-            
+
             OnFinished(State.LaunchingCompleted);
             _convexPolygonInfos = null;
 
@@ -257,6 +270,7 @@ namespace AirSticker.Runtime.Scripts
         ///     If it is false, the decal projection is started by explicitly calling the Launch method.
         /// </param>
         /// <param name="onCompletedLaunch">Callback function called when decal projection is complete.</param>
+        /// <param name="zOffsetInDecalSpace">The Z offset of the decal space from the receiver surface.</param>
         public static AirStickerProjector CreateAndLaunch(
             GameObject owner,
             GameObject receiverObject,
@@ -265,19 +279,21 @@ namespace AirSticker.Runtime.Scripts
             float height,
             float depth,
             bool launchOnAwake,
-            UnityAction<State> onCompletedLaunch)
+            UnityAction<State> onCompletedLaunch,
+            float zOffsetInDecalSpace = 0.005f)
         {
             var projector = owner.AddComponent<AirStickerProjector>();
             projector.width = width;
             projector.height = height;
             projector.depth = depth;
+            projector.zOffsetInDecalSpace = zOffsetInDecalSpace;
             projector.receiverObjects = new GameObject[1];
             projector.receiverObjects[0] = receiverObject;
             projector.decalMaterial = decalMaterial;
             projector.launchOnAwake = false;
             projector.onFinishedLaunch = new UnityEvent<State>();
 
-            if (launchOnAwake) 
+            if (launchOnAwake)
                 projector.Launch(onCompletedLaunch);
             else if (onCompletedLaunch != null) projector.onFinishedLaunch.AddListener(onCompletedLaunch);
 
@@ -310,13 +326,13 @@ namespace AirSticker.Runtime.Scripts
                         OnFinished(State.LaunchingCanceled);
                 });
         }
-        
+
         private void InitializeOriginAxisInDecalSpace()
         {
             var trans = transform;
             _decalSpace = new DecalSpace(trans.right, trans.up, trans.forward * -1.0f);
         }
-        
+
         private void AddTrianglePolygonsToDecalMeshFromConvexPolygons(Vector3 originPosInDecalSpace)
         {
             var convexPolygons = new List<ConvexPolygon>();
@@ -334,9 +350,10 @@ namespace AirSticker.Runtime.Scripts
                     _decalSpace.Ex,
                     _decalSpace.Ey,
                     width,
-                    height);
+                    height,
+                    zOffsetInDecalSpace);
         }
-        
+
         private void SplitConvexPolygonsByPlanes()
         {
             // Convex polygons will be split by clip planes.
@@ -351,7 +368,7 @@ namespace AirSticker.Runtime.Scripts
                 convexPolyInfo.IsOutsideClipSpace = isOutsideClipSpace;
             }
         }
-        
+
         private void BuildClipPlanes(Vector3 basePoint)
         {
             var basePointToNearClipDistance = depth * 0.5f;
@@ -408,7 +425,7 @@ namespace AirSticker.Runtime.Scripts
                 w = basePointToFarClipDistance - Vector3.Dot(decalSpaceNormalWs, basePoint)
             };
         }
-        
+
         private enum ClipPlane
         {
             Left,
