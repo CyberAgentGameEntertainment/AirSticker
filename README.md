@@ -109,7 +109,7 @@ Or, open `Packages/manifest.json` and add the following to the dependencies bloc
 ```json
 {
     "dependencies": {
-        "jp.co.cyberagent.airsticker": "https://github.com/CyberAgentGameEntertainment/AirSticker.git?path=/Assets/AirSticker"
+        "jp.co.cyberagent.air-sticker": "https://github.com/CyberAgentGameEntertainment/AirSticker.git?path=/Assets/AirSticker"
     }
 }
 ```

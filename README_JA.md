@@ -105,7 +105,7 @@ Air Stickerはメッシュ生成に数フレームかかりますが、描画パ
 ```json
 {
     "dependencies": {
-        "jp.co.cyberagent.airsticker": "https://github.com/CyberAgentGameEntertainment/AirSticker.git?path=/Assets/AirSticker"
+        "jp.co.cyberagent.air-sticker": "https://github.com/CyberAgentGameEntertainment/AirSticker.git?path=/Assets/AirSticker"
     }
 }
 ```
