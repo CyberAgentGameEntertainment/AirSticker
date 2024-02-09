@@ -92,14 +92,57 @@ In all cases, Air Sticker was superior, with the most significant difference bei
 <font color="grey">Performance Measurement Results</font>
 </p>
 
+## Section 3 Install
+To install the software, follow the steps below.
 
-## Section 3 How to use
-Air Sticker can be used by importing the Assets/AirSticker folder into your own project.<br/>
-The following two cmponents are the most important of these.
+1. Open the Package Manager from `Window > Package Manager`
+2. `"+" button > Add package from git URL`
+3. Enter the following
+   * https://github.com/CyberAgentGameEntertainment/AirSticker.git?path=/Assets/AirSticker
+
+<p align="center">
+  <img width="60%" src="https://user-images.githubusercontent.com/47441314/143533003-177a51fc-3d11-4784-b9d2-d343cc622841.png" alt="Package Manager">
+</p>
+
+Or, open `Packages/manifest.json` and add the following to the dependencies block.
+
+```json
+{
+    "dependencies": {
+        "jp.co.cyberagent.air-sticker": "https://github.com/CyberAgentGameEntertainment/AirSticker.git?path=/Assets/AirSticker"
+    }
+}
+```
+
+If you want to set the target version, write as follows.
+
+* https://github.com/CyberAgentGameEntertainment/AirSticker.git?path=/Assets/AirSticker#1.0.0
+
+Note that if you get a message like `No 'git' executable was found. Please install Git on your system and restart Unity`, you will need to set up Git on your machine.
+
+To update the version, rewrite the version as described above.  
+If you don't want to specify a version, you can also update the version by editing the hash of this library in the package-lock.json file.
+
+```json
+{
+  "dependencies": {
+      "jp.co.cyberagent.nova": {
+      "version": "https://github.com/CyberAgentGameEntertainment/AirSticker.git?path=/Assets/AirSticker",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {},
+      "hash": "..."
+    }
+  }
+}
+```
+
+## Section 4 How to use
+The following two classes are important for using Air Sticker.
 1. AirStickerSystem
 2. AirStickerProjector 
 
-### 3.1 AirStickerSystem
+### 4.1 AirStickerSystem
 To use Air Sticker, you must have one game object attached to this component in your scene.
 
 <p align="center">
@@ -107,7 +150,7 @@ To use Air Sticker, you must have one game object attached to this component in 
 <font color="grey">AirStickerSystem</font>
 </p>
 
-### 3.2 AirStickerProjector
+### 4.2 AirStickerProjector
 This component is used to project decals. Add this component to the game object that you want to use as a decal projector.
 
 <p align="center">
@@ -136,7 +179,7 @@ The following video shows how to use AirStickerProjector in a scene.
 </p>
 
 
-### 3.3 How to generate AirStickerProjector in-game
+### 4.3 How to generate AirStickerProjector in-game
 An example of an in-game use of decals is the process of applying bullet holes to a background, such as in a FPS. <br/>
 Such a process can be accomplished by determining the collision between the background and the bullet, generating a AirStickerProjector component based on the collision point information, and constructing a decal mesh.<br/><br/>
 AirStickerProjector components can be created by calling the AirStickerProjector.CreateAndLaunch() method.</br>

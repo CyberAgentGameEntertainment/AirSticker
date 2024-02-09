@@ -88,14 +88,57 @@ Air Stickerはメッシュ生成に数フレームかかりますが、描画パ
 <font color="grey">パフォーマンス計測結果</font>
 </p>
 
+## Section 3 インストール
+インストールは以下の手順で行います。
 
-## Section 3 使用方法
-Air StickerはAssets/AirStickerフォルダーを自身のプロジェクトに取り込むことで利用できます。<br/>
-その中でも次の２つのクラスが重要になってきます。
+1. Window > Package Manager を選択
+2. 「+」ボタン > Add package from git URL を選択
+3. 以下を入力してインストール
+   * https://github.com/CyberAgentGameEntertainment/AirSticker.git?path=/Assets/AirSticker
+
+<p align="center">
+  <img width="60%" src="https://user-images.githubusercontent.com/47441314/143533003-177a51fc-3d11-4784-b9d2-d343cc622841.png" alt="Package Manager">
+</p>
+
+あるいはPackages/manifest.jsonを開き、dependenciesブロックに以下を追記します。
+
+```json
+{
+    "dependencies": {
+        "jp.co.cyberagent.air-sticker": "https://github.com/CyberAgentGameEntertainment/AirSticker.git?path=/Assets/AirSticker"
+    }
+}
+```
+
+バージョンを指定したい場合には以下のように記述します。
+
+* https://github.com/CyberAgentGameEntertainment/AirSticker.git?path=/Assets/AirSticker#1.0.0
+
+なお`No 'git' executable was found. Please install Git on your system and restart Unity`のようなメッセージが出た場合、マシンにGitをセットアップする必要がある点にご注意ください。
+
+バージョンを更新するには上述の手順でバージョンを書き換えてください。  
+バージョンを指定しない場合には、package-lock.jsonファイルを開いて本ライブラリの箇所のハッシュを書き換えることで更新できます。
+
+```json
+{
+  "dependencies": {
+      "jp.co.cyberagent.nova": {
+      "version": "https://github.com/CyberAgentGameEntertainment/AirSticker.git?path=/Assets/AirSticker",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {},
+      "hash": "..."
+    }
+  }
+}
+```
+
+## Section 4 使用方法
+Air Stickerを使用するには次の２つのクラスが重要になってきます。
 1. AirStickerSystemクラス
 2. AirStickerProjectorクラス
 
-### 3.1 AirStickerSystemクラス
+### 4.1 AirStickerSystemクラス
 Air Stickerを利用するためには、必ず、このコンポーネントが貼られたゲームオブジェクトを一つ設置する必要があります。
 
 <p align="center">
@@ -103,7 +146,7 @@ Air Stickerを利用するためには、必ず、このコンポーネントが
 <font color="grey">AirStickerSystem</font>
 </p>
 
-### 3.2 AirStickerProjectorクラス
+### 4.2 AirStickerProjectorクラス
 デカールを投影するためのコンポーネントです。デカールプロジェクタとして設置するゲームオブジェクトにこのコンポーネントを追加してください。
 
 <p align="center">
@@ -131,7 +174,7 @@ AirStickerProjectorコンポーネントには5つのパラメータを設定す
 </p>
 
 
-### 3.3 ランタイムでのAirStickerProjectorの生成
+### 4.3 ランタイムでのAirStickerProjectorの生成
 デカールのランタイムでの使用例として、FPSなどの弾痕を背景に貼り付ける処理があります。このような処理をAir Stickerで行うためには、背景と銃弾との衝突判定を行い、衝突点の情報を元にAirStickerProjectorコンポーネントを生成して、デカールメッシュを構築することで実現できます。<br/><br/>
 AirStickerProjectorコンポーネントはAirStickerProjector.CreateAndLaunch()メソッドを呼び出すことで生成できます。</br>
 CreateAndLaunch()メソッドのlaunchAwake引数にtrueを指定すると、コンポーネントの生成と同時にデカールメッシュの構築処理が開始されます。<br/><br/>
