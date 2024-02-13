@@ -126,7 +126,7 @@ If you don't want to specify a version, you can also update the version by editi
 ```json
 {
   "dependencies": {
-      "jp.co.cyberagent.nova": {
+      "jp.co.cyberagent.air-sticker": {
       "version": "https://github.com/CyberAgentGameEntertainment/AirSticker.git?path=/Assets/AirSticker",
       "depth": 0,
       "source": "git",
