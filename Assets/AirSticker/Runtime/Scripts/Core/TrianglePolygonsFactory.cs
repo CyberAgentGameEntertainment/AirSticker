@@ -74,6 +74,12 @@ namespace AirSticker.Runtime.Scripts.Core
             {
                 if (!renderer || renderer.sharedMesh == null) return -1;
                 var mesh = renderer.sharedMesh;
+                if (mesh.isReadable == false)
+                {
+                    Debug.LogError($"The mesh of the skinned mesh renderer named {renderer.name} is not readable. Please set the Read/Write Enabled flag in the model import settings.");
+                    return -1;
+                }
+
                 numPolygon += mesh.triangles.Length / 3;
             }
 
@@ -106,6 +112,11 @@ namespace AirSticker.Runtime.Scripts.Core
             {
                 if (!meshFilter || meshFilter.sharedMesh == null) return -1;
                 var mesh = meshFilter.sharedMesh;
+                if(mesh.isReadable == false)
+                {
+                    Debug.LogError($"The mesh of the mesh filter named {meshFilter.name} is not readable. Please set the Read/Write Enabled flag in the model import settings.");
+                    return -1;
+                }
                 var numPoly = mesh.triangles.Length / 3;
                 numPolygon += numPoly;
             }
@@ -118,8 +129,12 @@ namespace AirSticker.Runtime.Scripts.Core
             float terrainMehResolutionScale)
         {
             var capacity = 0;
-            capacity += GetNumPolygonsFromMeshFilters(meshFilters);
-            capacity += GetNumPolygonsFromSkinModelRenderers(skinnedMeshRenderers);
+            var numPolygonsFromMeshFilters = GetNumPolygonsFromMeshFilters(meshFilters);
+            var numPolygonsFromSkinModelRenderers = GetNumPolygonsFromSkinModelRenderers(skinnedMeshRenderers);
+            // GetNumPolygonsFromMeshFilters and GetNumPolygonsFromSkinModelRenderers may return -1 if they cannot obtain the polygon count.
+            if (numPolygonsFromMeshFilters > 0) capacity += numPolygonsFromMeshFilters;
+            if( numPolygonsFromSkinModelRenderers > 0) capacity += numPolygonsFromSkinModelRenderers;
+            
             capacity += GetNumPolygonsFromTerrains(terrains, terrainMehResolutionScale);
             if (capacity > 0) convexPolygonInfos.Capacity = capacity;
         }
@@ -281,6 +296,10 @@ namespace AirSticker.Runtime.Scripts.Core
                     // The skinned mesh renderer is deleted, so process is terminated.
                     yield break;
                 var mesh = skinnedMeshRenderer.sharedMesh;
+                if (mesh.isReadable == false)
+                {
+                    yield break;
+                }
 
                 using var meshDataArray = Mesh.AcquireReadOnlyMeshData(mesh);
                 var meshData = meshDataArray[0];
