@@ -218,5 +218,12 @@ void LaunchProjector(
 </p>
 
 
+### 4.4 Important Note
+Please note that the receiver model must have `Read/Write` enabled in its `Import Settings`.
+<p align="center">
+<img width="50%" src="Documentation/fig-016.png" alt="Model Import Settings"><br>
+<font color="grey">Model Import Settings</font>
+</p>
+
 
 
