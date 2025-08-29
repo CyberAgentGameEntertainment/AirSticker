@@ -4,8 +4,7 @@ namespace AirSticker.Runtime.Scripts.Core
 {
     internal sealed class DecalMeshRenderer
     {
-        private readonly Component _receiverComponent;
-
+        private readonly Renderer _renderer;
         public DecalMeshRenderer(Component receiverComponent, Material decalMaterial, Mesh mesh)
         {
             Owner = new GameObject("AirStickerRenderer");
@@ -15,6 +14,7 @@ namespace AirSticker.Runtime.Scripts.Core
                 meshRenderer.material = decalMaterial;
                 var meshFilter = Owner.AddComponent<MeshFilter>();
                 meshFilter.mesh = mesh;
+                _renderer = meshRenderer;
             }
             else if (receiverComponent is SkinnedMeshRenderer s)
             {
@@ -23,10 +23,10 @@ namespace AirSticker.Runtime.Scripts.Core
                 skinnedMeshRenderer.material = decalMaterial;
                 skinnedMeshRenderer.rootBone = s.rootBone;
                 skinnedMeshRenderer.bones = s.bones;
+                _renderer = skinnedMeshRenderer;
             }
-
-            _receiverComponent = receiverComponent;
-            Owner.transform.parent = _receiverComponent.transform;
+            
+            Owner.transform.parent = receiverComponent.transform;
             Owner.transform.localPosition = Vector3.zero;
             Owner.transform.localRotation = Quaternion.identity;
             Owner.transform.localScale = Vector3.one;
@@ -36,12 +36,12 @@ namespace AirSticker.Runtime.Scripts.Core
 
         public void DisableDecalMeshRenderer()
         {
-            _receiverComponent.gameObject.SetActive(false);
+            _renderer.gameObject.SetActive(false);
         }
 
         public void EnableDecalMeshRenderer()
         {
-            _receiverComponent.gameObject.SetActive(true);
+            _renderer.gameObject.SetActive(true);
         }
 
         public void Destroy()
