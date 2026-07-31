@@ -70,6 +70,9 @@ namespace AirSticker.Runtime.Scripts.Core
 
             if (_numVertex <= 0) return;
 
+            System.Diagnostics.Stopwatch swUpload = null;
+            if (AirStickerPerformanceLog.Enabled) swUpload = System.Diagnostics.Stopwatch.StartNew();
+
             _mesh.SetVertices(_positionBuffer);
             _mesh.SetIndices(_indexBuffer, MeshTopology.Triangles, 0);
             _mesh.SetNormals(_normalBuffer, 0, _numVertex);
@@ -83,6 +86,12 @@ namespace AirSticker.Runtime.Scripts.Core
             _mesh.SetUVs(0, _uvBuffer);
             _mesh.Optimize();
             _mesh.RecalculateBounds();
+
+            if (swUpload != null)
+            {
+                swUpload.Stop();
+                Debug.Log($"[AirSticker][Perf] ExecutePostProcessingAfterWorkerThread (mesh upload): {swUpload.Elapsed.TotalMilliseconds:F2} ms (vertices={_numVertex})");
+            }
 
             _decalMeshRenderer = new DecalMeshRenderer(
                 _receiverComponent,

@@ -8,6 +8,26 @@ namespace AirSticker.Runtime.Scripts.Core
     /// </summary>
     internal static class BroadPhaseConvexPolygonsDetection
     {
+        // Buffers below are reused across Execute() calls instead of being reallocated every time.
+        // This is safe because DecalProjectorLauncher only ever runs one launch (and therefore one
+        // Execute() call) at a time — it waits for AirStickerProjector.IsWorkerThreadRunning to become
+        // false even if the projector is destroyed in the middle of launching — and the buffers are
+        // fully consumed (copied out into DecalMesh) before the next Execute() call can start.
+        // Buffers only grow, they never shrink.
+        private static Vector3[] _pooledPositionBuffer;
+        private static Vector3[] _pooledNormalBuffer;
+        private static Vector3[] _pooledLocalPositionBuffer;
+        private static Vector3[] _pooledLocalNormalBuffer;
+        private static BoneWeight[] _pooledBoneWeightBuffer;
+        private static Line[] _pooledLineBuffer;
+
+        private static void EnsureCapacity<T>(ref T[] buffer, int requiredLength)
+        {
+            if (buffer != null && buffer.Length >= requiredLength) return;
+            var newLength = buffer == null ? requiredLength : Mathf.Max(requiredLength, buffer.Length * 2);
+            buffer = new T[newLength];
+        }
+
         /// <summary>
         ///     Execute broad phase.
         /// </summary>
@@ -69,14 +89,30 @@ namespace AirSticker.Runtime.Scripts.Core
                 broadPhaseConvexPolygonCount++;
             }
 
+            System.Diagnostics.Stopwatch swAlloc = null;
+            if (AirStickerPerformanceLog.Enabled) swAlloc = System.Diagnostics.Stopwatch.StartNew();
+
             var broadPhaseConvexPolygonInfos = new List<ConvexPolygonInfo>(broadPhaseConvexPolygonCount);
-            var positionBuffer = new Vector3[ConvexPolygon.DefaultMaxVertex * broadPhaseConvexPolygonCount];
-            var normalBuffer = new Vector3[ConvexPolygon.DefaultMaxVertex * broadPhaseConvexPolygonCount];
-            var localPositionBuffer = new Vector3[ConvexPolygon.DefaultMaxVertex * broadPhaseConvexPolygonCount];
-            var localNormalBuffer = new Vector3[ConvexPolygon.DefaultMaxVertex * broadPhaseConvexPolygonCount];
-            var boneWeightBuffer = new BoneWeight[ConvexPolygon.DefaultMaxVertex * broadPhaseConvexPolygonCount];
-            var lineBuffer = new Line[ConvexPolygon.DefaultMaxVertex * broadPhaseConvexPolygonCount];
+            var requiredBufferLength = ConvexPolygon.DefaultMaxVertex * broadPhaseConvexPolygonCount;
+            EnsureCapacity(ref _pooledPositionBuffer, requiredBufferLength);
+            EnsureCapacity(ref _pooledNormalBuffer, requiredBufferLength);
+            EnsureCapacity(ref _pooledLocalPositionBuffer, requiredBufferLength);
+            EnsureCapacity(ref _pooledLocalNormalBuffer, requiredBufferLength);
+            EnsureCapacity(ref _pooledBoneWeightBuffer, requiredBufferLength);
+            EnsureCapacity(ref _pooledLineBuffer, requiredBufferLength);
+            var positionBuffer = _pooledPositionBuffer;
+            var normalBuffer = _pooledNormalBuffer;
+            var localPositionBuffer = _pooledLocalPositionBuffer;
+            var localNormalBuffer = _pooledLocalNormalBuffer;
+            var boneWeightBuffer = _pooledBoneWeightBuffer;
+            var lineBuffer = _pooledLineBuffer;
             var startOffsetInBuffer = 0;
+
+            if (swAlloc != null)
+            {
+                swAlloc.Stop();
+                Debug.Log($"[AirSticker][Perf] BroadPhase buffer alloc: {swAlloc.Elapsed.TotalMilliseconds:F2} ms (survivors={broadPhaseConvexPolygonCount})");
+            }
 
             for (var i = 0; i < convexPolygonInfos.Count; i++)
             {

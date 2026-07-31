@@ -61,6 +61,15 @@ namespace AirSticker.Runtime.Scripts
         private volatile bool _workerThreadFailed;
 
         /// <summary>
+        ///     True while the worker thread of this projector is running.
+        /// </summary>
+        /// <remarks>
+        ///     Destroying this projector stops its coroutine but not the queued ThreadPool work item,
+        ///     so DecalProjectorLauncher must not start the next launch while this flag is true.
+        /// </remarks>
+        internal bool IsWorkerThreadRunning => _executeLaunchingOnWorkerThread;
+
+        /// <summary>
         ///     State of decal projector.
         /// </summary>
         public State NowState { get; private set; } = State.NotLaunch;
@@ -207,8 +216,14 @@ namespace AirSticker.Runtime.Scripts
                 // basePosition is center of the decal box.
                 var centerPositionOfDecalBox = projectorPosition + transform1.forward * (depth * 0.5f);
 
+                System.Diagnostics.Stopwatch swPrepare = null;
+                if (AirStickerPerformanceLog.Enabled) swPrepare = System.Diagnostics.Stopwatch.StartNew();
+
                 for (var polyNo = 0; polyNo < _convexPolygonInfos.Count; polyNo++)
                     _convexPolygonInfos[polyNo].ConvexPolygon.PrepareToRunOnWorkerThread();
+
+                if (swPrepare != null)
+                    Debug.Log($"[AirSticker][Perf] PrepareToRunOnWorkerThread: {swPrepare.Elapsed.TotalMilliseconds:F2} ms ({_convexPolygonInfos.Count} polygons)");
 
                 #endregion // Prepare to run on worker threads.
 
@@ -220,11 +235,21 @@ namespace AirSticker.Runtime.Scripts
                 {
                     try
                     {
+                        System.Diagnostics.Stopwatch swSkinning = null;
+                        if (AirStickerPerformanceLog.Enabled) swSkinning = System.Diagnostics.Stopwatch.StartNew();
+
                         var localToWorldMatrices = new Matrix4x4[3];
                         var boneWeights = new BoneWeight[3];
                         for (var polyNo = 0; polyNo < _convexPolygonInfos.Count; polyNo++)
                             _convexPolygonInfos[polyNo].ConvexPolygon.CalculatePositionsAndNormalsInWorldSpace(
                                 boneMatricesPallet, localToWorldMatrices, boneWeights);
+
+                        System.Diagnostics.Stopwatch swBroadPhase = null;
+                        if (swSkinning != null)
+                        {
+                            swSkinning.Stop();
+                            swBroadPhase = System.Diagnostics.Stopwatch.StartNew();
+                        }
 
                         _broadPhaseConvexPolygonInfos = BroadPhaseConvexPolygonsDetection.Execute(
                             centerPositionOfDecalBox,
@@ -235,9 +260,26 @@ namespace AirSticker.Runtime.Scripts
                             _convexPolygonInfos,
                             projectionBackside);
 
+                        System.Diagnostics.Stopwatch swClip = null;
+                        if (swBroadPhase != null)
+                        {
+                            swBroadPhase.Stop();
+                            swClip = System.Diagnostics.Stopwatch.StartNew();
+                        }
+
                         BuildClipPlanes(centerPositionOfDecalBox);
                         SplitConvexPolygonsByPlanes();
                         AddTrianglePolygonsToDecalMeshFromConvexPolygons(centerPositionOfDecalBox);
+
+                        if (swClip != null)
+                        {
+                            swClip.Stop();
+                            Debug.Log("[AirSticker][Perf] WorkerThread: "
+                                + $"skinning={swSkinning.Elapsed.TotalMilliseconds:F2}ms, "
+                                + $"broadPhase={swBroadPhase.Elapsed.TotalMilliseconds:F2}ms, "
+                                + $"clip+build={swClip.Elapsed.TotalMilliseconds:F2}ms "
+                                + $"(input={_convexPolygonInfos.Count}, survived={_broadPhaseConvexPolygonInfos.Count})");
+                        }
                     }
                     catch (Exception e)
                     {
