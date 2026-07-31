@@ -6,7 +6,7 @@
 # Air Sticker
 [![license](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE.md)
 [![license](https://img.shields.io/badge/PR-welcome-green.svg)](hogehoge)
-[![license](https://img.shields.io/badge/Unity-2020.3-green.svg)](#Requirements)
+[![license](https://img.shields.io/badge/Unity-6000.0-green.svg)](#Requirements)
 
 
 **ドキュメント** ([English](README.md), [日本語](README_JA.md)) <br/>
@@ -14,7 +14,7 @@
 
 ## Section 1 概要
 Air StickerはURPのデカールのデメリットを補完するものとなっており、非常に軽量に動作するデカール処理です。<br/>
-また、URPデカールはUnity2021以降でしか使えませんが、Air StickerはUnity2020からの動作をサポートします。<br/>
+Air Sticker 2.0はUnity 6.0以降が必要です。それより古いUnityバージョンをお使いの場合は、Air Sticker 1.x(Unity 2020.3以降)をご利用ください。<br/>
 
 <br/>
 <p align="center">
@@ -112,7 +112,7 @@ Air Stickerはメッシュ生成に数フレームかかりますが、描画パ
 
 バージョンを指定したい場合には以下のように記述します。
 
-* https://github.com/CyberAgentGameEntertainment/AirSticker.git?path=/Assets/AirSticker#1.0.0
+* https://github.com/CyberAgentGameEntertainment/AirSticker.git?path=/Assets/AirSticker#2.0.0
 
 なお`No 'git' executable was found. Please install Git on your system and restart Unity`のようなメッセージが出た場合、マシンにGitをセットアップする必要がある点にご注意ください。
 

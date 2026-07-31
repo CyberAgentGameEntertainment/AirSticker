@@ -6,14 +6,14 @@
 # Air Sticker
 [![license](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE.md)
 [![license](https://img.shields.io/badge/PR-welcome-green.svg)](hogehoge)
-[![license](https://img.shields.io/badge/Unity-2020.3-green.svg)](#Requirements)
+[![license](https://img.shields.io/badge/Unity-6000.0-green.svg)](#Requirements)
 
 **Documents** ([English](README.md), [日本語](README_JA.md)) <br/>
 **Technical Documents** ([English](README_DEVELOPERS.md), [日本語](README_DEVELOPERS_JA.md)) <br/>
 
 ## Section 1 Summary
 Air Sticker is a decal system that addresses the limitations of URP decals and has a low impact on performance.<br/>
-Also, URP decals can only be used with Unity2021 or higher, while Air Sticker supports operation with Unity2020 or higher.<br/>
+Air Sticker 2.0 requires Unity 6.0 or higher. If you are on an older Unity version, use Air Sticker 1.x (Unity 2020.3 or higher).<br/>
 
 <br/>
 <p align="center">
@@ -116,7 +116,7 @@ Or, open `Packages/manifest.json` and add the following to the dependencies bloc
 
 If you want to set the target version, write as follows.
 
-* https://github.com/CyberAgentGameEntertainment/AirSticker.git?path=/Assets/AirSticker#1.0.0
+* https://github.com/CyberAgentGameEntertainment/AirSticker.git?path=/Assets/AirSticker#2.0.0
 
 Note that if you get a message like `No 'git' executable was found. Please install Git on your system and restart Unity`, you will need to set up Git on your machine.
 
