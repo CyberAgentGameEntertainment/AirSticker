@@ -3,7 +3,7 @@
 Air Sticker のデカール貼り付け処理(ポリゴン分割)を Worker Thread (ThreadPool) から Unity Job System + Burst へ移行するかの評価と、段階的な実装計画。
 
 - 作成日: 2026-07-31
-- ステータス: **Step 3a + 3c 完了・コミット済み(2026-07-31、`feature/job-system-step3`: f1ea701=3a / adcac77=3c / b05068f=ベンチマーク)**。実装・テスト・見た目・計測(エディタ + 実機 probe 付き有効 A/B)すべて確認済み。効果: 旧 ThreadPool 単一スレッド → Job 並列(Step 3a) → + Burst(Step 3c、実機 worker さらに ~1.58x)。残: 3d(メジャーリリース準備)、Step 0 の残計測(静的メッシュ/テレイン/連続 Launch)
+- ステータス: **Step 3a–3c 完了・main マージ済み(PR #32–#35、最新コミット 60b516e)。Step 3d(リリース準備)実装済み・human 検証待ち(2026-07-31、ブランチ `feature/job-system-step3d`)**。実装・テスト・見た目・計測(エディタ + 実機 probe 付き有効 A/B)すべて確認済み。効果: 旧 ThreadPool 単一スレッド → Job 並列(Step 3a) → + Burst(Step 3c、実機 worker さらに ~1.58x)。残: Step 0 の残計測(静的メッシュ/テレイン/連続 Launch。Job 化で優先度低下)
 
 ## 運用ルール
 
@@ -352,9 +352,16 @@ Air Sticker のデカール貼り付け処理(ポリゴン分割)を Worker Thre
 2. **(major) 部分フィルで未初期化 SoA が登録される** — フレーム分割中に受けメッシュが消えると `FillFrom*` が `yield break` するが外側は結果を登録し、`SkinningBroadPhaseJob` が未初期化領域(`UninitializedMemory`)を読む。修正: `BuildFromReceiverObject` 末尾で `_writeTriangleCursor == triangleCount` を検証、不一致なら `result.Dispose()` してキャンセル。
 3. **(major) componentIndex 不整合** — `FillFromMeshFilters` が meshFilter index を componentIndex にするが `ComponentByIndex` は meshRenderer 基準。両配列がずれると Burst ジョブで範囲外/別コンポーネント参照。修正: メッシュ経路をレンダラ駆動化(`FillFromMeshRenderers` / `GetNumPolygonsFromMeshRenderers`)し count/fill を一致、`meshFilters` 引数を除去。
 
-補足: Codex は clip 移植 / fan 展開 / index delta / ジョブ内マネージド参照については問題なしと確認。残る軽微事項として「projector が build コルーチン実行中に破棄されると in-flight の `result` NativeArray がリークし得る(境界的・稀)」は今回見送り(3d 以降で検討)。
+補足: Codex は clip 移植 / fan 展開 / index delta / ジョブ内マネージド参照については問題なしと確認。残る軽微事項として「projector が破棄されると in-flight の `result` NativeArray がリークし得る(境界的・稀)」を当初見送っていた(3d 以降で検討)が、**3d で修正済み**。正確なリーク窓は「新規受けオブジェクトのフレーム分割抽出(`TrianglePolygonsFactory.BuildFromReceiverObject`)中に projector が破棄されると、確保済み・プール未登録の `ReceiverConvexPolygonsMesh`(Persistent NativeArray)が誰にも Dispose されない」。修正: factory が確保直後に `resultHolder[0]` へ結果を公開、projector は `_pendingSourceHolder` で追跡し、プール登録直後にクリア、`OnDestroy` で未登録なら Dispose(抽出中はジョブ未スケジュールなので破棄は安全)。100k ポリゴン超の新規受けを抽出途中で破棄した場合のみ発生する境界ケース。
 
-- [ ] **3d**: メジャーバージョンアップ(`package.json` を 2.0.0 へ)としてリリース。残課題(下記 4 件)もこのタイミングで解消。
+- [x] **3d(リリース準備)**: メジャーバージョンアップ(`package.json` 1.1.1 → 2.0.0)。実装済み・human 検証待ち(2026-07-31、ブランチ `feature/job-system-step3d`)。内訳:
+  - `package.json` を 2.0.0 へ。最小 Unity 6.0 / burst・mathematics 依存追加 / 公開 API 削除(`ConvexPolygon`・`Line`・`BroadPhaseConvexPolygonsDetection`)という破壊的変更に対応するメジャーバンプ(既存タグ最新は 1.2.0、package.json は 1.1.1 のまま放置されていた)。
+  - 残課題 #2(Demo03 の計測ログ常時 ON)解消: `Demo03.Start()` の `AirStickerPerformanceLog.Enabled = true;` を削除。計測は専用の `Demo_Benchmark` シーンで行う(そちらの `Enabled = true` は意図的に残す)。
+  - 残課題 #3(`AirStickerPerformanceLog` の公開 API 扱い)解消: **削除ではなくサポートされた診断スイッチとして整備**(ユーザー決定: 残す)。XML コメントを「一時的な Step0 基盤 + 未配布の JobSystemMigrationPlan.md 参照」から「診断スイッチ + 有効時は同期 Complete でメインスレッドをブロックする副作用」の説明へ書き換え。
+  - README(EN/JA)の要件更新: バッジ Unity-2020.3 → Unity-6000.0、「URP デカールは 2021+ だが Air Sticker は 2020+」の一文を「2.0 は Unity 6.0 必須、旧 Unity は 1.x」へ、インストール例のバージョンを #2.0.0 へ。
+  - `Assets/AirSticker/CHANGELOG.md` を新規作成(Keep a Changelog 形式、2.0.0 エントリ。破壊的変更 + Job System 移行の要約)。
+  - Codex レビューで見送っていた in-flight `result` NativeArray リーク(下記)を修正。
+  - 検証: `AirSticker.csproj` / `Assembly-CSharp.csproj` とも MSBuild グリーン。リーク修正の破棄タイミング・見た目・ジョブセーフティは human のエディタ実行が必要。計測は不要(パフォーマンス変更なし)。
 
 **着手判断(記録)**: Step 1-2 だけで既にワーカー計算は 65.7ms → 8.65ms(目標 1/10 近く)に到達済みで、単発デカール用途では体感差は出ない。Step 3 の主効果は「多数同時 / 大規模スキンメッシュ」でのコア数スケールと IL2CPP での Burst SIMD。段階式にしたのは、この効果を計測で確かめてから破壊的な Burst 依存を判断するため。
 
@@ -371,7 +378,7 @@ Air Sticker のデカール貼り付け処理(ポリゴン分割)を Worker Thre
 
 2026-07-31 のブランチレビュー(Step 0/1 実装後)で挙がった指摘のうち未対応のもの。**Step 3 完了後にまとめて対応する。**
 
-**Step 3a/3c 完了時点の状況(2026-07-31)**: 下記のうち **#1(静的プール保持)と #4(`_broadPhaseConvexPolygonInfos` クリア)は Step 3 の再設計で自然解消**した。#1 は `BroadPhaseConvexPolygonsDetection` の静的プール自体を廃止し、`DecalMeshJobBuffers` / `DecalMeshJobPipeline` を `AirStickerSystem` が所有・`OnDestroy` で Dispose、`ReceiverConvexPolygonsMesh` も GC 時 Dispose(受け消滅時の use-after-free は `InUse` ピンで対処)。#4 は該当フィールドを持つ旧 `AirStickerProjector` を全面書き換えたため消滅。残るは **#2(Demo03 の計測ログ常時 ON)と #3(`AirStickerPerformanceLog` の公開 API 扱い)で、3d(リリース準備)で対応**。
+**状況(3d 完了時点、2026-07-31)**: 4 件すべて解消済み。**#1(静的プール保持)と #4(`_broadPhaseConvexPolygonInfos` クリア)は Step 3 の再設計で自然解消**した。#1 は `BroadPhaseConvexPolygonsDetection` の静的プール自体を廃止し、`DecalMeshJobBuffers` / `DecalMeshJobPipeline` を `AirStickerSystem` が所有・`OnDestroy` で Dispose、`ReceiverConvexPolygonsMesh` も GC 時 Dispose(受け消滅時の use-after-free は `InUse` ピンで対処)。#4 は該当フィールドを持つ旧 `AirStickerProjector` を全面書き換えたため消滅。**#2(Demo03 の計測ログ常時 ON)と #3(`AirStickerPerformanceLog` の公開 API 扱い)は 3d で対応**(#2: 常時 ON を削除。#3: 削除せず診断スイッチとして整備 — 上記 3d 参照)。
 
 1. **静的プールの恒久的メモリ保持** — `BroadPhaseConvexPolygonsDetection` の静的プールバッファは一度成長すると解放されない(実機ビルドではアプリ終了まで、エディタはドメインリロードまで)。計測シナリオ(生存 4849 ポリゴン)で `64 スロット × 4849 × 約 252B ≈ 78MB`、倍々成長のため最悪その約 2 倍。`AirStickerSystem.OnDestroy()` から呼ぶ `ReleaseBuffers()` のような明示解放フック、またはしきい値超過時のトリムを追加する。Step 3 の `NativeArray` 化でバッファ設計自体を見直すため、そのタイミングで一緒に解決するのが効率的
 2. **Demo03 の計測ログ常時 ON** — `Demo03.Start()` の `AirStickerPerformanceLog.Enabled = true;` はエージングテストでコンソールを埋め、`Debug.Log` のコスト(特にワーカースレッド内)が「連続 Launch(キュー詰まり再現)」の計測値を歪める。Step 0 の計測がすべて完了したら削除するか UI トグル化する

@@ -60,6 +60,11 @@ namespace AirSticker.Runtime.Scripts
         // The pooled source mesh the current launch's jobs are reading, pinned so the pool does not dispose
         // its NativeArrays while the jobs run.
         private ReceiverConvexPolygonsMesh _currentSource;
+        // Holds a source mesh built by the frame-sliced extraction but not yet registered into the pool.
+        // Destroying the projector mid-extraction stops the coroutine before registration, so OnDestroy
+        // disposes it from here to avoid leaking its Persistent NativeArrays. Only one extraction is in flight
+        // at a time, and the holder is cleared as soon as the source is registered.
+        private readonly ReceiverConvexPolygonsMesh[] _pendingSourceHolder = new ReceiverConvexPolygonsMesh[1];
 
         /// <summary>
         ///     True while this projector's jobs are scheduled and not yet completed.
@@ -102,6 +107,16 @@ namespace AirSticker.Runtime.Scripts
             {
                 _currentSource.InUse = false;
                 _currentSource = null;
+            }
+
+            // Dispose a source built by the frame-sliced extraction but not yet registered into the pool.
+            // Destroying the projector during extraction stops the coroutine before registration, so this is
+            // the only owner. No jobs read it yet (they are scheduled only after registration), so disposing
+            // here is safe; once registered the holder is cleared, so this never disposes a pooled source.
+            if (_pendingSourceHolder[0] != null)
+            {
+                _pendingSourceHolder[0].Dispose();
+                _pendingSourceHolder[0] = null;
             }
 
             // It may be deleted without completing the projection, so we finish it here too.
@@ -173,23 +188,28 @@ namespace AirSticker.Runtime.Scripts
 
                 if (AirStickerSystem.ReceiverObjectTrianglePolygonsPool.Contains(receiverObject) == false)
                 {
-                    // New receiver object: extract its source triangle polygons (frame-sliced).
-                    var resultHolder = new ReceiverConvexPolygonsMesh[1];
+                    // New receiver object: extract its source triangle polygons (frame-sliced). The result is
+                    // tracked in _pendingSourceHolder so OnDestroy can dispose it if this projector is destroyed
+                    // mid-extraction, before it is registered into the pool below.
+                    _pendingSourceHolder[0] = null;
                     yield return AirStickerSystem.BuildTrianglePolygonsFromReceiverObject(
                         receiverObject.GetComponentsInChildren<MeshRenderer>(),
                         skinnedMeshRenderers,
                         terrains,
-                        resultHolder);
+                        _pendingSourceHolder);
 
-                    if (resultHolder[0] == null)
+                    if (_pendingSourceHolder[0] == null)
                     {
                         // A receiver mesh is not Read/Write enabled, so there is nothing to build.
                         OnFinished(State.LaunchingCanceled);
                         yield break;
                     }
 
+                    // The pool takes ownership of the source; stop tracking it here so OnDestroy never disposes
+                    // a mesh that is pooled (and may be pinned/in use by a later launch).
                     AirStickerSystem.ReceiverObjectTrianglePolygonsPool.RegisterTrianglePolygons(
-                        receiverObject, resultHolder[0]);
+                        receiverObject, _pendingSourceHolder[0]);
+                    _pendingSourceHolder[0] = null;
                 }
 
                 if (!receiverObject)

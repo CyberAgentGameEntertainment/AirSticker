@@ -37,7 +37,6 @@ namespace Demo.Demo_03.Scripts
             _agingTest = new AgingTest(this);
             var text = _collectPolyInputFieldTextObject.GetComponent<Text>();
             TrianglePolygonsFactory.MaxGeneratedPolygonPerFrame = int.Parse(text.text);
-            AirStickerPerformanceLog.Enabled = true;
         }
 
         // Update is called once per frame

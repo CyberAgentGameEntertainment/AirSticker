@@ -84,6 +84,10 @@ namespace AirSticker.Runtime.Scripts.Core
             var componentCount = meshRenderers.Length + skinnedMeshRenderers.Length + terrains.Length;
 
             var result = new ReceiverConvexPolygonsMesh(triangleCount, componentCount, Allocator.Persistent);
+            // Expose the freshly allocated result to the caller immediately so its OnDestroy can dispose it if
+            // the projector is destroyed during the frame-sliced fill below (which stops this coroutine before
+            // it can hand off or dispose the result itself).
+            resultHolder[0] = result;
 
             // Unify the receiver components into one global index space: mesh renderers, then skinned mesh
             // renderers, then terrains.
@@ -107,11 +111,13 @@ namespace AirSticker.Runtime.Scripts.Core
             {
                 // A source was destroyed during the frame-sliced fill, so the SoA is only partially written.
                 // Discard it instead of registering a mesh whose uninitialized regions the jobs would read.
+                // Clear the holder first so the caller cancels and never double-disposes this result.
+                resultHolder[0] = null;
                 result.Dispose();
                 yield break;
             }
 
-            resultHolder[0] = result;
+            // resultHolder[0] already references result (set at allocation); leave it for the caller to register.
         }
 
         // Driven by the mesh renderers (not the mesh filter array) so componentIndex == rendererNo always
