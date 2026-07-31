@@ -85,14 +85,12 @@ namespace AirSticker.Runtime.Scripts
         }
 
         internal static IEnumerator BuildTrianglePolygonsFromReceiverObject(
-            MeshFilter[] meshFilters,
             MeshRenderer[] meshRenderers,
             SkinnedMeshRenderer[] skinnedMeshRenderers,
             Terrain[] terrains,
             ReceiverConvexPolygonsMesh[] resultHolder)
         {
             yield return Instance._trianglePolygonsFactory.BuildFromReceiverObject(
-                meshFilters,
                 meshRenderers,
                 skinnedMeshRenderers,
                 terrains,

@@ -344,6 +344,16 @@ Air Sticker のデカール貼り付け処理(ポリゴン分割)を Worker Thre
 
 **判断**: 実機で **Burst ≈ 1.5x の実利を probe 付き有効 A/B で確認**。パフォーマンスライブラリとして意味のある差で、`com.unity.burst` は Unity 標準・広く使われる依存(本プロジェクトも元々推移的に保持)。依存ゼロは Step 3a の mathematics で既に外れている。→ **3c をコミットする方針**(最終判断はユーザー)。
 
+#### Codex レビュー記録(2026-07-31、Step 3a/3c に対して実施・指摘 3 件すべて修正)
+
+`feature/job-system-step2-meshdata..feature/job-system-step3` の差分を Codex CLI にレビューさせ、検証のうえ 3 件とも修正した(再レビューで「指摘なし」を確認)。
+
+1. **(blocker) `AirStickerSystem.OnDestroy` がジョブ実行中に NativeArray を破棄** — シーンアンロード/終了が Launch 中に起きると、Unity の破棄順非保証により System が先に破棄されジョブ実行中のバッファ/source を解放し use-after-free。修正: `DecalMeshJobPipeline._lastScheduledHandle` を追加し `Dispose()` 先頭で `Complete()`(`OnDestroy` は pipeline.Dispose → pool.DisposeAll の順)。
+2. **(major) 部分フィルで未初期化 SoA が登録される** — フレーム分割中に受けメッシュが消えると `FillFrom*` が `yield break` するが外側は結果を登録し、`SkinningBroadPhaseJob` が未初期化領域(`UninitializedMemory`)を読む。修正: `BuildFromReceiverObject` 末尾で `_writeTriangleCursor == triangleCount` を検証、不一致なら `result.Dispose()` してキャンセル。
+3. **(major) componentIndex 不整合** — `FillFromMeshFilters` が meshFilter index を componentIndex にするが `ComponentByIndex` は meshRenderer 基準。両配列がずれると Burst ジョブで範囲外/別コンポーネント参照。修正: メッシュ経路をレンダラ駆動化(`FillFromMeshRenderers` / `GetNumPolygonsFromMeshRenderers`)し count/fill を一致、`meshFilters` 引数を除去。
+
+補足: Codex は clip 移植 / fan 展開 / index delta / ジョブ内マネージド参照については問題なしと確認。残る軽微事項として「projector が build コルーチン実行中に破棄されると in-flight の `result` NativeArray がリークし得る(境界的・稀)」は今回見送り(3d 以降で検討)。
+
 - [ ] **3d**: メジャーバージョンアップ(`package.json` を 2.0.0 へ)としてリリース。残課題(下記 4 件)もこのタイミングで解消。
 
 **着手判断(記録)**: Step 1-2 だけで既にワーカー計算は 65.7ms → 8.65ms(目標 1/10 近く)に到達済みで、単発デカール用途では体感差は出ない。Step 3 の主効果は「多数同時 / 大規模スキンメッシュ」でのコア数スケールと IL2CPP での Burst SIMD。段階式にしたのは、この効果を計測で確かめてから破壊的な Burst 依存を判断するため。

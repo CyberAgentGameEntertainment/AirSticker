@@ -59,7 +59,6 @@ namespace AirSticker.Runtime.Scripts.Core
         ///     resultHolder[0]; it is left null if a mesh is not Read/Write enabled (nothing to build).
         /// </summary>
         internal IEnumerator BuildFromReceiverObject(
-            MeshFilter[] meshFilters,
             MeshRenderer[] meshRenderers,
             SkinnedMeshRenderer[] skinnedMeshRenderers,
             Terrain[] terrains,
@@ -70,7 +69,7 @@ namespace AirSticker.Runtime.Scripts.Core
                 ? Mathf.Sqrt(MaxWorkingVertexCountForTerrain / (float)numTerrainMeshPolygon)
                 : 1.0f;
 
-            var meshTriangleCount = GetNumPolygonsFromMeshFilters(meshFilters);
+            var meshTriangleCount = GetNumPolygonsFromMeshRenderers(meshRenderers);
             var skinTriangleCount = GetNumPolygonsFromSkinModelRenderers(skinnedMeshRenderers);
             var terrainTriangleCount = GetNumPolygonsFromTerrains(terrains, terrainMeshResolutionScale);
 
@@ -100,20 +99,34 @@ namespace AirSticker.Runtime.Scripts.Core
             for (var k = 0; k < terrains.Length; k++) result.ComponentByIndex[terrainBase + k] = terrains[k];
 
             _writeTriangleCursor = 0;
-            if (buildMesh) yield return FillFromMeshFilters(meshFilters, result);
+            if (buildMesh) yield return FillFromMeshRenderers(meshRenderers, result);
             if (buildSkin) yield return FillFromSkinnedMeshRenderers(skinnedMeshRenderers, skinnedBase, result);
             yield return FillFromTerrains(terrains, terrainBase, terrainMeshResolutionScale, result);
+
+            if (_writeTriangleCursor != triangleCount)
+            {
+                // A source was destroyed during the frame-sliced fill, so the SoA is only partially written.
+                // Discard it instead of registering a mesh whose uninitialized regions the jobs would read.
+                result.Dispose();
+                yield break;
+            }
 
             resultHolder[0] = result;
         }
 
-        private IEnumerator FillFromMeshFilters(MeshFilter[] meshFilters, ReceiverConvexPolygonsMesh result)
+        // Driven by the mesh renderers (not the mesh filter array) so componentIndex == rendererNo always
+        // matches the mesh-renderer region of ComponentByIndex, even when a child has a MeshFilter without a
+        // MeshRenderer or vice versa. The polygon count (GetNumPolygonsFromMeshRenderers) is driven the same
+        // way, so the total stays consistent with BuildFromReceiverObject's completeness check.
+        private IEnumerator FillFromMeshRenderers(MeshRenderer[] meshRenderers, ReceiverConvexPolygonsMesh result)
         {
             var polygonNoInFill = 0;
-            for (var rendererNo = 0; rendererNo < meshFilters.Length; rendererNo++)
+            for (var rendererNo = 0; rendererNo < meshRenderers.Length; rendererNo++)
             {
-                var meshFilter = meshFilters[rendererNo];
-                if (!meshFilter || meshFilter.sharedMesh == null) yield break;
+                var meshRenderer = meshRenderers[rendererNo];
+                if (!meshRenderer) continue;
+                var meshFilter = meshRenderer.GetComponent<MeshFilter>();
+                if (!meshFilter || meshFilter.sharedMesh == null) continue;
                 var mesh = meshFilter.sharedMesh;
                 // The mesh renderers are the first components, so componentIndex == rendererNo.
                 var componentIndex = rendererNo;
@@ -132,7 +145,7 @@ namespace AirSticker.Runtime.Scripts.Core
                         if (polygonNoInFill != 0 && polygonNoInFill % MaxGeneratedPolygonPerFrame == 0)
                         {
                             yield return null;
-                            if (!meshFilter || meshFilter.sharedMesh == null) yield break;
+                            if (!meshRenderer || !meshFilter || meshFilter.sharedMesh == null) yield break;
                         }
 
                         polygonNoInFill++;
@@ -306,12 +319,16 @@ namespace AirSticker.Runtime.Scripts.Core
             return numPolygon;
         }
 
-        private static int GetNumPolygonsFromMeshFilters(MeshFilter[] meshFilters)
+        // Renderer-driven so it stays consistent with FillFromMeshRenderers: a renderer without a MeshFilter
+        // (or without a mesh) contributes nothing, and only a non-readable mesh aborts the whole mesh path.
+        private static int GetNumPolygonsFromMeshRenderers(MeshRenderer[] meshRenderers)
         {
             var numPolygon = 0;
-            foreach (var meshFilter in meshFilters)
+            foreach (var meshRenderer in meshRenderers)
             {
-                if (!meshFilter || meshFilter.sharedMesh == null) return -1;
+                if (!meshRenderer) continue;
+                var meshFilter = meshRenderer.GetComponent<MeshFilter>();
+                if (!meshFilter || meshFilter.sharedMesh == null) continue;
                 var mesh = meshFilter.sharedMesh;
                 if (mesh.isReadable == false)
                 {

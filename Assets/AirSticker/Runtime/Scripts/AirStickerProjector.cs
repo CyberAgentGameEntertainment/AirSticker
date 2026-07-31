@@ -176,7 +176,6 @@ namespace AirSticker.Runtime.Scripts
                     // New receiver object: extract its source triangle polygons (frame-sliced).
                     var resultHolder = new ReceiverConvexPolygonsMesh[1];
                     yield return AirStickerSystem.BuildTrianglePolygonsFromReceiverObject(
-                        receiverObject.GetComponentsInChildren<MeshFilter>(),
                         receiverObject.GetComponentsInChildren<MeshRenderer>(),
                         skinnedMeshRenderers,
                         terrains,

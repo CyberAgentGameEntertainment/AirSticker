@@ -48,12 +48,19 @@ namespace AirSticker.Runtime.Scripts.Core.Jobs
         private NativeArray<float3> _bitangentAccumulation;
 
         private int _decalMeshCount;
+        // The handle of the most recently scheduled stage. Completed before disposing so a job that is still
+        // running (e.g. when the scene is unloaded mid-launch) never reads freed NativeArrays.
+        private JobHandle _lastScheduledHandle;
         private bool _disposed;
 
         public void Dispose()
         {
             if (_disposed) return;
             _disposed = true;
+            // Ensure no scheduled job is still reading/writing the buffers before they are freed. Unity does
+            // not guarantee that AirStickerProjector.OnDestroy (which completes its own handle) runs before
+            // AirStickerSystem.OnDestroy (which calls this).
+            _lastScheduledHandle.Complete();
             _buffers.Dispose();
             DisposeIfCreated(ref _clipPlanes);
             DisposeIfCreated(ref _decalMeshComponentIndices);
@@ -172,7 +179,8 @@ namespace AirSticker.Runtime.Scripts.Core.Jobs
                 ClipBoneWeights = _buffers.ClipBoneWeights,
                 ClipVertexCounts = _buffers.ClipVertexCounts
             };
-            return clipJob.Schedule(triangleCount, ClipBatch, skinningHandle);
+            _lastScheduledHandle = clipJob.Schedule(triangleCount, ClipBatch, skinningHandle);
+            return _lastScheduledHandle;
         }
 
         /// <summary>
@@ -258,7 +266,8 @@ namespace AirSticker.Runtime.Scripts.Core.Jobs
                 TangentAccumulation = _tangentAccumulation,
                 BitangentAccumulation = _bitangentAccumulation
             };
-            return job.Schedule();
+            _lastScheduledHandle = job.Schedule();
+            return _lastScheduledHandle;
         }
 
         /// <summary>
