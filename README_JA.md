@@ -154,7 +154,7 @@ Air Stickerを利用するためには、必ず、このコンポーネントが
 <font color="grey">AirStickerProjectorのインスペクタ</font>
 </p>
 
-AirStickerProjectorコンポーネントには5つのパラメータを設定することができます。
+AirStickerProjectorコンポーネントには次のパラメータを設定することができます。
 |パラメータ名|説明|
 |---|---|
 |Width|Projector バウンディングボックスの幅です。URPのデカールプロジェクタの仕様に準拠しています。<br/>詳細は[URPデカールのマニュアル](https://docs.unity3d.com/ja/Packages/com.unity.render-pipelines.universal@14.0/manual/renderer-feature-decal.html)を参照してください。 |
@@ -163,6 +163,7 @@ AirStickerProjectorコンポーネントには5つのパラメータを設定す
 |Receiver Objects| デカールテクスチャの貼り付け対象となるオブジェクト。<br/>AirStickerProjectorは設定されているレシーバーオブジェクトの子供(自身を含む)に貼られている全てのレンダラーを貼り付け対象とします。<br/><br/>そのため、レシーバーオブジェクトはMeshRendererやSkinMeshRendererなどのコンポーネントが貼られているオブジェクトを直接指定もできますし、レンダラーが貼られているオブジェクトを子供に含んでいるオブジェクトの指定でも構いません。<br/>処理するレンダラーの数が多いほど、デカールメッシュ生成の時間がかかるようになるため、貼り付ける範囲を限定できるときは、レンダラーが貼り付けられているオブジェクトの直接指定が推奨されます。<br/><br/>例えば、キャラエディットなどでキャラクターの顔にステッカーを貼り付けたい場合、キャラのルートオブジェクトを指定するよりも顔のレンダラーが貼られているオブジェクトを指定するとメッシュ生成の時間を短縮できます。<br/>|
 |Z Offset In Decal Space|デカールを貼り付けるサーフェイスの空間でのZオフセットです。この値を調整することで、Zファイティングを軽減することができます。|
 |Decal Material| デカールマテリアル。<br/>URPのデカールマテリアルとは意味あいが違うので注意してください。<br/>URPデカールではShader Graphs/Decalシェーダーが割り当てられたマテリアルしか使えません。<br/>しかし、Air Stickerでは通常のマテリアルが使えます。<br/>つまり、ビルトインのLitシェーダー、Unlitシェーダー、そして、ユーザーカスタムの独自シェーダーも利用できます。|
+|Group ID|デカールメッシュのグループID。<br/>デカールメッシュは同一グループ内でのみ結合(共有)されます。グループを分けることで、AirStickerProjector.RemoveDecalMeshes()メソッドを使ってグループ単位でデカールを削除できます(4.4参照)。<br/>グループを分けた分だけドローコールは増えるため、個別に削除する必要がない場合は0のままにしてください。|
 |Projection Backside|このチェックボックスにチェックが入っていると、裏面のメッシュにもデカールメッシュが投影されます。|
 |Launch On Awake|このチェックボックスにチェックが入っていると、インスタンスの生成と同時にデカールの投影処理が開始されます。|
 |On Finished Launch|デカールの投影終了時に呼び出されるコールバックを指定できます。|
@@ -212,7 +213,36 @@ void LaunchProjector(
 © Unity Technologies Japan/UC
 </p>
 
-### 4.4 注意実行
+### 4.4 グループ単位でのデカールの削除
+Air Stickerが生成するデカールメッシュは、レシーバーオブジェクト・レンダラー・デカールマテリアル・グループIDが同一の場合に結合(共有)されます。<br/>
+デフォルトでは全てのデカールがグループ0に属するため、可能な限り結合されてドローコールが削減されます。<br/><br/>
+一部のデカールを個別に削除したい場合は、CreateAndLaunch()メソッドのgroupId引数(またはAirStickerProjectorコンポーネントのGroup IDパラメータ)で異なるグループIDを指定してください。<br/>
+異なるグループに属するデカールは別々のデカールメッシュとして構築されるため、グループを分けた分だけドローコールは増えます。個別に削除したいデカールのみグループを分けることを推奨します。<br/><br/>
+デカールはAirStickerProjector.RemoveDecalMeshes()メソッドを使ってグループ単位で削除できます。<br/>
+```C#
+// グループ1としてステッカーを貼り付ける。
+AirStickerProjector.CreateAndLaunch(
+                projectorObj,
+                receiverObject,
+                decalMaterial,
+                /*width=*/0.05f,
+                /*height=*/0.05f,
+                /*depth=*/0.2f,
+                /*launchOnAwake*/true,
+                /*onCompletedLaunch*/result => { Destroy(projectorObj); },
+                /*zOffsetInDecalSpace*/0.005f,
+                /*groupId*/1);
+
+// グループ1に属する全てのデカールメッシュを削除する。
+AirStickerProjector.RemoveDecalMeshes(1);
+
+// レシーバーオブジェクトやデカールマテリアルを指定して、
+// 削除対象を絞り込むこともできます。
+AirStickerProjector.RemoveDecalMeshes(1, receiverObject, decalMaterial);
+```
+なお、RemoveDecalMeshes()メソッドは対象グループのプロジェクタの投影完了後(LaunchingCompleted)に呼び出してください。<br/>
+
+### 4.5 注意実行
 レシーバとなるモデルは`Import Settings`の`Read/Write`が有効になっている必要があるので注意してください。
 <p align="center">
 <img width="50%" src="Documentation/fig-016.png" alt="モデルのインポート設定"><br>

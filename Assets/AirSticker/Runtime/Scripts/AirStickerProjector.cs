@@ -37,6 +37,10 @@ namespace AirSticker.Runtime.Scripts
         [SerializeField]
         private Material decalMaterial; // The decal material that will be pasted to the receiver object.
 
+        [Tooltip("Decal meshes are shared within the same group. Split groups to remove decals separately.")]
+        [SerializeField]
+        private int groupId; // The group ID that is used as the unit of the decal mesh sharing and removing.
+
         [SerializeField]
         private bool projectionBackside; // This flag indicates whether it is possible to project onto the backside.
 
@@ -159,7 +163,7 @@ namespace AirSticker.Runtime.Scripts
                     continue;
                 }
 
-                AirStickerSystem.CollectEditDecalMeshes(DecalMeshes, receiverObject, decalMaterial);
+                AirStickerSystem.CollectEditDecalMeshes(DecalMeshes, receiverObject, decalMaterial, groupId);
 
                 var skinnedMeshRenderers = receiverObject.GetComponentsInChildren<SkinnedMeshRenderer>();
                 skinnedMeshRenderers = skinnedMeshRenderers.Where(s => s.name != "AirStickerRenderer").ToArray();
@@ -219,7 +223,7 @@ namespace AirSticker.Runtime.Scripts
                             boneMatricesPallet, localToWorldMatrices, boneWeights);
 
                     _broadPhaseConvexPolygonInfos = BroadPhaseConvexPolygonsDetection.Execute(
-                        projectorPosition,
+                        centerPositionOfDecalBox,
                         _decalSpace.Ez,
                         width,
                         height,
@@ -271,6 +275,12 @@ namespace AirSticker.Runtime.Scripts
         /// </param>
         /// <param name="onCompletedLaunch">Callback function called when decal projection is complete.</param>
         /// <param name="zOffsetInDecalSpace">The Z offset of the decal space from the receiver surface.</param>
+        /// <param name="groupId">
+        ///     The group ID of the decal mesh. <br />
+        ///     Decal meshes are shared only within the same group,
+        ///     so decals can be removed by group using the RemoveDecalMeshes method. <br />
+        ///     If it is not specified, the decal belongs to the group 0.
+        /// </param>
         public static AirStickerProjector CreateAndLaunch(
             GameObject owner,
             GameObject receiverObject,
@@ -280,7 +290,8 @@ namespace AirSticker.Runtime.Scripts
             float depth,
             bool launchOnAwake,
             UnityAction<State> onCompletedLaunch,
-            float zOffsetInDecalSpace = 0.005f)
+            float zOffsetInDecalSpace = 0.005f,
+            int groupId = 0)
         {
             var projector = owner.AddComponent<AirStickerProjector>();
             projector.width = width;
@@ -290,6 +301,7 @@ namespace AirSticker.Runtime.Scripts
             projector.receiverObjects = new GameObject[1];
             projector.receiverObjects[0] = receiverObject;
             projector.decalMaterial = decalMaterial;
+            projector.groupId = groupId;
             projector.launchOnAwake = false;
             projector.onFinishedLaunch = new UnityEvent<State>();
 
@@ -298,6 +310,31 @@ namespace AirSticker.Runtime.Scripts
             else if (onCompletedLaunch != null) projector.onFinishedLaunch.AddListener(onCompletedLaunch);
 
             return projector;
+        }
+
+        /// <summary>
+        ///     Remove the decal meshes that belong to the specified group.
+        /// </summary>
+        /// <remarks>
+        ///     The decal meshes are removed from the pool and their renderers are destroyed. <br />
+        ///     This method should be called after the projectors of the target group
+        ///     have finished launching (LaunchingCompleted). <br />
+        ///     If it is called while a projector of the target group is launching,
+        ///     the launching result is undefined.
+        /// </remarks>
+        /// <param name="groupId">The group ID of the decal meshes to be removed.</param>
+        /// <param name="receiverObject">
+        ///     If it is not null, only the decal meshes projected to this receiver object are removed.
+        /// </param>
+        /// <param name="decalMaterial">
+        ///     If it is not null, only the decal meshes using this decal material are removed.
+        /// </param>
+        public static void RemoveDecalMeshes(
+            int groupId,
+            GameObject receiverObject = null,
+            Material decalMaterial = null)
+        {
+            AirStickerSystem.DecalMeshPool?.RemoveDecalMeshes(groupId, receiverObject, decalMaterial);
         }
 
         /// <summary>

@@ -30,16 +30,26 @@ namespace AirSticker.Runtime.Scripts.Core
         public DecalMesh(
             GameObject receiverObject,
             Material decalMaterial,
-            Component receiverComponent)
+            Component receiverComponent,
+            int groupId = 0)
         {
             _mesh = new Mesh();
             _receiverComponent = receiverComponent;
             _decalMaterial = decalMaterial;
             _receiverObject = receiverObject;
+            GroupId = groupId;
 
             if (_receiverComponent is SkinnedMeshRenderer skinnedMeshRenderer)
                 _bindPoses = skinnedMeshRenderer.sharedMesh.bindposes;
         }
+
+        /// <summary>
+        ///     The group ID that was specified when the decal was projected.
+        /// </summary>
+        public int GroupId { get; }
+
+        internal GameObject ReceiverObject => _receiverObject;
+        internal Material DecalMaterial => _decalMaterial;
 
         public void Dispose()
         {
@@ -108,6 +118,15 @@ namespace AirSticker.Runtime.Scripts.Core
             Object.Destroy(_mesh);
             _decalMeshRenderer = null;
             _mesh = new Mesh();
+        }
+
+        /// <summary>
+        ///     Destroy the decal mesh renderer that was spawned under the receiver object.
+        /// </summary>
+        internal void DestroyDecalMeshRenderer()
+        {
+            _decalMeshRenderer?.Destroy();
+            _decalMeshRenderer = null;
         }
 
         public void DisableDecalMeshRenderer()
