@@ -23,7 +23,9 @@ namespace AirSticker.Runtime.Scripts.Core
         private Mesh _mesh;
         private Vector3[] _normalBuffer;
         private int _numIndex;
+        private int _numIndexOnSnapshot;
         private int _numVertex;
+        private int _numVertexOnSnapshot;
         private Vector3[] _positionBuffer;
         private Vector2[] _uvBuffer;
 
@@ -127,9 +129,48 @@ namespace AirSticker.Runtime.Scripts.Core
             _decalMeshRenderer?.Destroy();
             _numIndex = 0;
             _numVertex = 0;
+            _numIndexOnSnapshot = 0;
+            _numVertexOnSnapshot = 0;
             Object.Destroy(_mesh);
             _decalMeshRenderer = null;
             _mesh = new Mesh();
+        }
+
+        /// <summary>
+        ///     Snapshot the sizes of the CPU-side buffers.
+        ///     Taken just before the worker thread appends geometry,
+        ///     so that a canceled launch can be rolled back (see RollbackAppendedGeometry).
+        /// </summary>
+        internal void SnapshotBufferSizes()
+        {
+            _numVertexOnSnapshot = _numVertex;
+            _numIndexOnSnapshot = _numIndex;
+        }
+
+        /// <summary>
+        ///     Roll back the CPU-side buffers to the last snapshot.
+        /// </summary>
+        /// <remarks>
+        ///     A launch that is canceled after its worker thread ran (the projector was destroyed,
+        ///     or the worker thread failed) leaves the appended geometry in the buffers without
+        ///     uploading it. Because the decal mesh is pooled and shared, that geometry would be
+        ///     uploaded by the next launch unless it is discarded here.
+        ///     Must be called on the main thread after the worker thread has finished.
+        /// </remarks>
+        internal void RollbackAppendedGeometry()
+        {
+            // Nothing was appended after the snapshot (or the mesh was cleared), so nothing to roll back.
+            if (_numVertex <= _numVertexOnSnapshot) return;
+
+            _numVertex = _numVertexOnSnapshot;
+            _numIndex = _numIndexOnSnapshot;
+            // Keep the invariant that the buffer lengths equal the vertex/index counts,
+            // because the upload passes the whole arrays to the Unity Mesh API.
+            Array.Resize(ref _positionBuffer, _numVertex);
+            Array.Resize(ref _normalBuffer, _numVertex);
+            Array.Resize(ref _boneWeightsBuffer, _numVertex);
+            Array.Resize(ref _uvBuffer, _numVertex);
+            Array.Resize(ref _indexBuffer, _numIndex);
         }
 
         /// <summary>

@@ -143,6 +143,10 @@ Air Sticker のデカール貼り付け処理(ポリゴン分割)を Worker Thre
   - `DecalProjectorLauncher` が常に1 Launch(=1 Execute呼び出し)しか同時実行しないこと、かつ結果が同じワーカースレッド呼び出し内で `DecalMesh` へコピーされ切ってから次の `Execute` が呼ばれることを前提に、静的プールの使い回しを安全と判断
   - `Execute` の公開シグネチャは変更なし。EditMode テスト(`TestBroadPhaseConvexPolygonsDetection`)はそのまま通る想定
   - **効果測定済み(2026-07-31、エディタ Mono、大きめスキンメッシュ・入力8191/生存4849ポリゴンの2回目 Launch)**: BroadPhase バッファ確保 55.23ms → **0.01ms**。ワーカー合計(skinning+broadPhase+clip+build)も 65.70ms → **8.65ms**(約7.6倍)に短縮。プール化のみで Step 3 の目標値(1/10以下)にほぼ到達しており、期待通りの効果を確認
+- [x] Launch 中に破棄されたプロジェクタのゴーストデカール修正(Codex レビュー指摘、2026-07-31)
+  - プロジェクタが Launch 中に破棄されるとコルーチン(アップロード)は止まるがワーカースレッドの追記は完走するため、キャンセル済みデカールの頂点がプール共有の `DecalMesh` の CPU バッファに残り、同じ (receiver, renderer, material) への次の Launch で一緒にアップロードされて出現する既存バグがあった
+  - 修正: ワーカー起動直前に各 `DecalMesh` の頂点/インデックス数をスナップショット(`SnapshotBufferSizes`)し、`DecalProjectorLauncher` が「プロジェクタ終了+ワーカー完了」を検知した時点で未アップロードの追記分を巻き戻す(`AirStickerProjector.RollbackAppendedGeometryIfPending`)。巻き戻しはワーカー完了後にメインスレッドで行うためスレッド競合はない
+  - ワーカー失敗(`_workerThreadFailed`)時も同様に巻き戻すようにし、例外時の中途半端な追記が次の Launch で出現する問題も解消
 - [x] プロジェクタ破棄時のワーカースレッド並走の修正(プール化レビューでの指摘、2026-07-31)
   - プロジェクタが Launch 中に破棄されるとコルーチンは止まるが ThreadPool のワークアイテムは走り続ける。一方 `DecalProjectorLauncher.IsCurrentRequestFinished` は「プロジェクタが死んだ/Canceled」で終了扱いにして次の Launch を開始するため、前の Launch のワーカーと次の Launch のワーカーが並走し、静的プールバッファを同時に読み書きするデータ競合があった(プール化以前は Execute ごとに新規確保していたため無害だった)
   - 修正: `AirStickerProjector.IsWorkerThreadRunning`(internal、volatile な `_executeLaunchingOnWorkerThread` を公開)を追加し、`IsCurrentRequestFinished` が「プロジェクタが死んでいてもワーカースレッドのフラグが下りるまで false を返す」よう変更。Unity オブジェクト破棄後も C# インスタンスのフィールドは読めることを利用

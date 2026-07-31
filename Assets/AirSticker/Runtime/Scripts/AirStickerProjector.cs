@@ -59,6 +59,8 @@ namespace AirSticker.Runtime.Scripts
         // volatile is required because the worker thread writes these flags and the main thread polls them.
         private volatile bool _executeLaunchingOnWorkerThread;
         private volatile bool _workerThreadFailed;
+        // Main thread only: true while the worker thread's appended geometry has not been uploaded yet.
+        private bool _hasPendingAppendedGeometry;
 
         /// <summary>
         ///     True while the worker thread of this projector is running.
@@ -68,6 +70,24 @@ namespace AirSticker.Runtime.Scripts
         ///     so DecalProjectorLauncher must not start the next launch while this flag is true.
         /// </remarks>
         internal bool IsWorkerThreadRunning => _executeLaunchingOnWorkerThread;
+
+        /// <summary>
+        ///     Discard the geometry that the worker thread appended to the pooled decal meshes
+        ///     if the launch was canceled before the geometry was uploaded.
+        /// </summary>
+        /// <remarks>
+        ///     Destroying the projector stops its coroutine but not the ThreadPool work item,
+        ///     so without this rollback the canceled geometry would stay in the pooled DecalMesh
+        ///     buffers and be uploaded by the next launch that shares the same decal mesh.
+        ///     Must be called on the main thread after the worker thread has finished.
+        /// </remarks>
+        internal void RollbackAppendedGeometryIfPending()
+        {
+            if (!_hasPendingAppendedGeometry) return;
+
+            foreach (var decalMesh in DecalMeshes) decalMesh.RollbackAppendedGeometry();
+            _hasPendingAppendedGeometry = false;
+        }
 
         /// <summary>
         ///     State of decal projector.
@@ -249,6 +269,11 @@ namespace AirSticker.Runtime.Scripts
 
                 #region Run worker thread.
 
+                // Snapshot the decal mesh buffers so that the geometry appended by the worker
+                // thread can be discarded if this launch is canceled before the upload.
+                foreach (var decalMesh in DecalMeshes) decalMesh.SnapshotBufferSizes();
+                _hasPendingAppendedGeometry = true;
+
                 // Split Convex Polygon.
                 _executeLaunchingOnWorkerThread = true;
                 ThreadPool.QueueUserWorkItem(RunActionByWorkerThread, new Action(() =>
@@ -322,13 +347,15 @@ namespace AirSticker.Runtime.Scripts
 
                 if (_workerThreadFailed)
                 {
-                    // The worker thread failed, so cancel the launching
-                    // without post-processing the possibly inconsistent results.
+                    // The worker thread failed, so discard the possibly inconsistent geometry
+                    // that was appended to the decal meshes and cancel the launching.
+                    RollbackAppendedGeometryIfPending();
                     OnFinished(State.LaunchingCanceled);
                     yield break;
                 }
 
                 foreach (var decalMesh in DecalMeshes) decalMesh.ExecutePostProcessingAfterWorkerThread();
+                _hasPendingAppendedGeometry = false;
             }
 
             OnFinished(State.LaunchingCompleted);
