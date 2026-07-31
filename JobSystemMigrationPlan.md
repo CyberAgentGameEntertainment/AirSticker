@@ -299,7 +299,51 @@ Air Sticker のデカール貼り付け処理(ポリゴン分割)を Worker Thre
 4. 旧パイプライン削除済みで同一シナリオの実機旧値は取得不可。計画 Step 0 の実機ログ(アロケ除去後の単一スレッド推定 ~20–28ms)との対比では、実機の多コア(Tensor G3)で並列化効果がエディタ(4.9x)以上に出ている見込み。
 
 **判断**: Step 3a の目的(SoA + Job 化・Burst 無効の並列化効果の確認)をエディタ・実機の両方で達成、リグレッションなし・見た目差分なし。**コミット可**。
-- [ ] **3c**: `com.unity.burst` 依存追加 + ジョブに `[BurstCompile]` 付与 + asmdef に `Unity.Burst` 参照。Burst 有効/無効の A/B を計測。効果を確認してコミット。
+- [~] **3c**: `com.unity.burst` 依存追加 + 3 ジョブに `[BurstCompile]` 付与 + asmdef に `Unity.Burst` 参照。**実装・全 3 プロジェクト MSBuild グリーン(2026-07-31)**。計測待ち。
+  - A/B の取り方: `[BurstCompile]` を付けたまま **Jobs > Burst > Enable Compilation を OFF にすると Step 3a(Burst 無効)と同一挙動**になるので、エディタではトグルで A/B 可。実機は AOT なのでビルド時に焼き込み(Step 3a コミット f1ea701 = Burst 無効ベースライン、本 3c = Burst 有効を実機で比較)。
+  - **要確認**: MSBuild は属性/using の解決までしか検証できない。Burst 本体の厳密コンパイル(マネージド参照・例外・未対応構文の不許可)は Unity ビルド時に走るため、**human のエディタ/実機ビルドで Burst コンパイルエラーが出ないか要確認**(コンソール or Burst インスペクタ)。ジョブは blittable + math 組み込み + マネージド参照なしで設計済みなので通る見込み。
+  - 計測後にコミット。
+
+#### 計測結果: Step 3c Burst A/B(2026-07-31、エディタ Mono、2回目 Launch = steady)
+
+| stage | Burst OFF | Burst ON | Burst 倍率 |
+|---|---|---|---|
+| clip stage(skinning+broadphase+clip・並列) | 1.61 ms | 0.21 ms | 7.7x |
+| build stage(fan+uv+tangent・serial) | 0.41 ms | 0.11 ms | 3.7x |
+| **ワーカー計算合計** | **2.02 ms** | **0.32 ms** | **6.3x** |
+| アップロード(main・非 Burst) | 0.07 ms | 0.08 ms | 不変 |
+
+**分かったこと**:
+
+1. **Burst で worker 計算 2.02ms → 0.32ms(約 6.3x)。** 数学中心ループ(スキニング行列ブレンド・クリップ平面演算・タンジェント)に SIMD が効いた。
+2. **累積効果**: 旧 ThreadPool 単一スレッド(Step 2: 9.63ms)→ Job 並列 Burst 無効(2.02ms, 4.9x)→ **Job 並列 Burst 有効(0.32ms)= 旧比 約 30x**(エディタ Mono)。
+3. **Burst コンパイル成功の確認**: Burst ON の数値が出た = 3 ジョブが Burst コンパイル・実行できている(エラーなし)。`FloatMode.Fast` 未指定で IEEE 厳密のため結果は Burst 無効と一致(見た目不変)。
+4. Burst ON 1回目(clip 1.08ms)はエディタの Burst オンデマンドコンパイル込みで比較対象外。
+5. **残: 実機(Pixel 8a / IL2CPP)の Burst ON 計測**(Step 3a の Burst 無効実機ベースライン 約 2.3ms との比較)。実機 ARM NEON + AOT では Burst 効果がエディタ以上に出る見込み。
+
+#### 計測結果: Step 3c Burst A/B(2026-07-31、**実機 Pixel 8a / IL2CPP、クリーンベンチマーク** Demo_Benchmark)
+
+`Demo_Benchmark` シーン(同一受け・バインドポーズ固定・同一デカール・各 Launch 前にリセット)で計測。両ランで各 DecalMesh の頂点数が完全一致(1821/4976/678/132/3382)= **同一ワークロードを確認**。
+
+**Burst 稼働は probe(`[BurstDiscard]` トリック)で確定**: ON ビルド=`Burst active: YES`、OFF ビルド=`NO (managed fallback)`。**Burst AOT 無効化は Project Settings > Burst AOT Settings で行う**(Jobs メニューのトグルはエディタ JIT のみで AOT ビルドに効かない)。steady-state(#2–5):
+
+| stage | Burst OFF(NO) | Burst ON(YES) | Burst 倍率 |
+|---|---|---|---|
+| clip stage(skinning+broadphase+clip) | ~3.14 ms | ~2.13 ms | **1.48x** |
+| build stage(fan+uv+tangent) | ~4.42 ms | ~2.67 ms | **1.65x** |
+| **ワーカー計算合計** | **~7.56 ms** | **~4.80 ms** | **~1.58x** |
+
+(ノイズは大きめ。box=1.01³ で survivor が多く clip/build が重いシナリオ。)
+
+**分かったこと(重要・前回訂正)**:
+
+1. **実機(IL2CPP)で Burst は約 1.5x の実利がある**(clip 1.48x / build 1.65x / worker 1.58x)。数学中心の skinning はよく効き、分岐主体の broadphase/clip でも IL2CPP 比で 1.5x 程度は出る(計画の「IL2CPP 比 2〜6x」の下限寄り)。
+2. **前回(probe 前)の「実機 Burst ≈ 1x・無益」は誤り**だった。前回の "OFF" ビルドは Burst AOT が有効なまま(Jobs メニューのトグルはエディタ JIT のみ)で、ON≈OFF は「両方 Burst 有効」だったため。probe 導入で `OFF=NO` を確認し、有効な A/B で 1.5x を検出。
+3. **累積**: 旧 ThreadPool 単一スレッド → Job 並列(Step 3a、大幅短縮)→ + Burst(Step 3c、実機 worker さらに ~1.58x)。エディタ Mono 比の 7.7x は Mono が遅いための過大評価だが、実機でも 1.5x は実利。
+4. 計測手法(同期 Complete・1 Launch 1 サンプル)はノイズあり。厳密化するなら多サンプル平均が望ましいが、ON/OFF の分布は分離しており 1.5x の定性は堅い。
+
+**判断**: 実機で **Burst ≈ 1.5x の実利を probe 付き有効 A/B で確認**。パフォーマンスライブラリとして意味のある差で、`com.unity.burst` は Unity 標準・広く使われる依存(本プロジェクトも元々推移的に保持)。依存ゼロは Step 3a の mathematics で既に外れている。→ **3c をコミットする方針**(最終判断はユーザー)。
+
 - [ ] **3d**: メジャーバージョンアップ(`package.json` を 2.0.0 へ)としてリリース。残課題(下記 4 件)もこのタイミングで解消。
 
 **着手判断(記録)**: Step 1-2 だけで既にワーカー計算は 65.7ms → 8.65ms(目標 1/10 近く)に到達済みで、単発デカール用途では体感差は出ない。Step 3 の主効果は「多数同時 / 大規模スキンメッシュ」でのコア数スケールと IL2CPP での Burst SIMD。段階式にしたのは、この効果を計測で確かめてから破壊的な Burst 依存を判断するため。

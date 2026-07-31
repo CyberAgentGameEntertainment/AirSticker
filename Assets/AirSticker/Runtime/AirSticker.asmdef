@@ -1,6 +1,7 @@
 {
     "name": "AirSticker",
     "references": [
+        "Unity.Burst",
         "Unity.Mathematics"
     ]
 }

@@ -1,3 +1,4 @@
+using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
@@ -20,9 +21,8 @@ namespace AirSticker.Runtime.Scripts.Core.Jobs
     ///     calculation can run on the output arrays. When the main thread merges the output into a decal
     ///     mesh's persistent buffer it shifts the indices by (existing vertex count - VertexOffsets[dm]).
     ///
-    ///     [BurstCompile] is added in the final sub-step.
     /// </remarks>
-    // [BurstCompile]
+    [BurstCompile]
     internal struct DecalMeshBuildJob : IJob
     {
         public int TriangleCount;

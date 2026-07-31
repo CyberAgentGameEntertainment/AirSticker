@@ -1,3 +1,4 @@
+using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
@@ -16,10 +17,8 @@ namespace AirSticker.Runtime.Scripts.Core.Jobs
     ///     computed: it is never used by the output mesh (which uses the model-space normal) nor by any later
     ///     stage, so computing it would only waste bandwidth.
     ///
-    ///     [BurstCompile] is added in the final sub-step of the migration, after the no-Burst parallelization
-    ///     has been measured.
     /// </remarks>
-    // [BurstCompile]
+    [BurstCompile]
     internal struct SkinningBroadPhaseJob : IJobParallelFor
     {
         // --- Source geometry (per triangle vertex / per triangle) ---

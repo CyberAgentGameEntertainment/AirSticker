@@ -1,3 +1,4 @@
+using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
@@ -18,9 +19,8 @@ namespace AirSticker.Runtime.Scripts.Core.Jobs
     ///     Each iteration only touches its own stride slot in the clip buffers, so the parallel-for
     ///     restriction is disabled on them; the slots are disjoint across iterations.
     ///
-    ///     [BurstCompile] is added in the final sub-step, after the no-Burst parallelization is measured.
     /// </remarks>
-    // [BurstCompile]
+    [BurstCompile]
     internal struct ConvexPolygonClipJob : IJobParallelFor
     {
         [ReadOnly] public NativeArray<int> SurviveFlags;
