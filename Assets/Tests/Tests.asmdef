@@ -4,7 +4,9 @@
     "references": [
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
-        "AirSticker"
+        "AirSticker",
+        "Unity.Mathematics",
+        "Unity.Collections"
     ],
     "includePlatforms": [
         "Editor"
