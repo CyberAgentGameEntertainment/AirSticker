@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using AirSticker.Runtime.Scripts.Core;
+using AirSticker.Runtime.Scripts.Core.Jobs;
 using UnityEngine;
 
 namespace AirSticker.Runtime.Scripts
@@ -22,6 +23,12 @@ namespace AirSticker.Runtime.Scripts
             new ReceiverObjectTrianglePolygonsPool();
 
         private TrianglePolygonsFactory _trianglePolygonsFactory;
+        private DecalMeshJobPipeline _jobPipeline;
+
+        /// <summary>
+        ///     The job pipeline that runs skinning / broad phase / clip / build for a launch.
+        /// </summary>
+        internal static DecalMeshJobPipeline JobPipeline => Instance ? Instance._jobPipeline : null;
 
         public static DecalProjectorLauncher DecalProjectorLauncher
         {
@@ -58,6 +65,7 @@ namespace AirSticker.Runtime.Scripts
                 "AirStickerSystem can't be instantiated multiply, but but it has already been instantiated.");
             Instance = this;
             _trianglePolygonsFactory = new TrianglePolygonsFactory();
+            _jobPipeline = new DecalMeshJobPipeline();
         }
 
         private void Update()
@@ -71,6 +79,8 @@ namespace AirSticker.Runtime.Scripts
         {
             _decalMeshPool.Dispose();
             _trianglePolygonsFactory.Dispose();
+            _jobPipeline.Dispose();
+            _receiverObjectTrianglePolygonsPool.DisposeAll();
             Instance = null;
         }
 
@@ -79,23 +89,21 @@ namespace AirSticker.Runtime.Scripts
             MeshRenderer[] meshRenderers,
             SkinnedMeshRenderer[] skinnedMeshRenderers,
             Terrain[] terrains,
-            List<ConvexPolygonInfo> convexPolygonInfos)
+            ReceiverConvexPolygonsMesh[] resultHolder)
         {
             yield return Instance._trianglePolygonsFactory.BuildFromReceiverObject(
                 meshFilters,
                 meshRenderers,
                 skinnedMeshRenderers,
                 terrains,
-                convexPolygonInfos);
+                resultHolder);
         }
 
-        internal static List<ConvexPolygonInfo> GetTrianglePolygonsFromPool(GameObject receiverObject)
+        internal static ReceiverConvexPolygonsMesh GetTrianglePolygonsFromPool(GameObject receiverObject)
         {
             if (Instance == null) return null;
 
-            var convexPolygonInfos = Instance._receiverObjectTrianglePolygonsPool.ConvexPolygonsPool[receiverObject];
-            foreach (var info in convexPolygonInfos) info.IsOutsideClipSpace = false;
-            return convexPolygonInfos;
+            return ReceiverObjectTrianglePolygonsPool.Get(receiverObject);
         }
 
         internal static void CollectEditDecalMeshes(

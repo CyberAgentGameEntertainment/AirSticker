@@ -1,40 +1,35 @@
 using System.Collections.Generic;
 using System.Linq;
+using AirSticker.Runtime.Scripts.Core.Jobs;
 using UnityEngine;
 
 namespace AirSticker.Runtime.Scripts.Core
 {
-    /// <summary>
-    ///     The information of convex polygon.
-    /// </summary>
-    public class ConvexPolygonInfo
-    {
-        public ConvexPolygon ConvexPolygon { get; set; }
-        /// <summary>
-        ///     This flag indicates whether the convex polygon is outside the clip space defined by the decal box.
-        /// </summary>
-        public bool IsOutsideClipSpace { get; set; } 
-    }
-
     internal interface IReceiverObjectTrianglePolygonsPool
     {
-        IReadOnlyDictionary<GameObject, List<ConvexPolygonInfo>> ConvexPolygonsPool { get; }
+        IReadOnlyDictionary<GameObject, ReceiverConvexPolygonsMesh> Pool { get; }
 
         bool Contains(GameObject receiverObject);
         void GarbageCollect();
+        void DisposeAll();
     }
 
     /// <summary>
-    ///     Triangle polygon pool of receiver object.<br />
-    ///     Triangle polygons are registered in the pool with the receiver object as the key.<br />
+    ///     Triangle polygon pool of receiver objects.<br />
+    ///     The source triangle polygons (<see cref="ReceiverConvexPolygonsMesh" />) are registered with the
+    ///     receiver object as the key so repeat projections skip the mesh extraction.
     /// </summary>
+    /// <remarks>
+    ///     The pooled meshes own NativeArrays, so a dead entry (its receiver was destroyed) is disposed when
+    ///     it is garbage collected, and everything is disposed when the AirStickerSystem is destroyed.
+    /// </remarks>
     public sealed class ReceiverObjectTrianglePolygonsPool : IReceiverObjectTrianglePolygonsPool
     {
-        private readonly Dictionary<GameObject, List<ConvexPolygonInfo>> _trianglePolygonsPool =
-            new Dictionary<GameObject, List<ConvexPolygonInfo>>();
+        private readonly Dictionary<GameObject, ReceiverConvexPolygonsMesh> _trianglePolygonsPool =
+            new Dictionary<GameObject, ReceiverConvexPolygonsMesh>();
 
-        IReadOnlyDictionary<GameObject, List<ConvexPolygonInfo>> IReceiverObjectTrianglePolygonsPool.
-            ConvexPolygonsPool => _trianglePolygonsPool;
+        IReadOnlyDictionary<GameObject, ReceiverConvexPolygonsMesh> IReceiverObjectTrianglePolygonsPool.Pool =>
+            _trianglePolygonsPool;
 
         /// <summary>
         ///     Check to the triangle polygons of the receiver object is already registered.
@@ -46,21 +41,38 @@ namespace AirSticker.Runtime.Scripts.Core
         }
 
         /// <summary>
-        ///     If the receiver object that is registered is dead, it is removed from pool.  
+        ///     If the receiver object that is registered is dead, it is removed from the pool and disposed.
         /// </summary>
         void IReceiverObjectTrianglePolygonsPool.GarbageCollect()
         {
-            var deleteList = _trianglePolygonsPool.Where(item => item.Key == null).ToList();
-            foreach (var item in deleteList) _trianglePolygonsPool.Remove(item.Key);
+            // A mesh whose jobs are still running (InUse) is kept even if its receiver died, so the jobs
+            // never read freed NativeArrays; a later GarbageCollect disposes it once InUse is cleared.
+            var deleteList = _trianglePolygonsPool
+                .Where(item => item.Key == null && (item.Value == null || !item.Value.InUse)).ToList();
+            foreach (var item in deleteList)
+            {
+                item.Value?.Dispose();
+                _trianglePolygonsPool.Remove(item.Key);
+            }
         }
-        
-        public void RegisterTrianglePolygons(GameObject receiverObject, List<ConvexPolygonInfo> trianglePolygonInfos)
+
+        void IReceiverObjectTrianglePolygonsPool.DisposeAll()
         {
-            if (receiverObject
-                && !this.Contains(receiverObject)) 
-                _trianglePolygonsPool.Add(receiverObject, trianglePolygonInfos);
+            foreach (var item in _trianglePolygonsPool) item.Value?.Dispose();
+            _trianglePolygonsPool.Clear();
         }
-        
+
+        internal void RegisterTrianglePolygons(GameObject receiverObject, ReceiverConvexPolygonsMesh trianglePolygons)
+        {
+            if (receiverObject && !Contains(receiverObject))
+                _trianglePolygonsPool.Add(receiverObject, trianglePolygons);
+        }
+
+        internal ReceiverConvexPolygonsMesh Get(GameObject receiverObject)
+        {
+            return _trianglePolygonsPool.TryGetValue(receiverObject, out var mesh) ? mesh : null;
+        }
+
         public int GetPoolSize()
         {
             return _trianglePolygonsPool.Count;

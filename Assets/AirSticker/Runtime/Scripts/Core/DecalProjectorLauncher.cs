@@ -42,27 +42,16 @@ namespace AirSticker.Runtime.Scripts.Core
             if (_currentRequest == null) return true; // The request is empty.
 
             var projector = _currentRequest.Projector;
-            // Even if the projector is dead or the launching is canceled, the worker thread may still be
-            // running, because destroying the projector stops its coroutine but not the queued ThreadPool
-            // work item. Starting the next launch in that state corrupts the buffers shared between
-            // launches (e.g. the pooled buffers of BroadPhaseConvexPolygonsDetection), so the next
-            // request must wait until the worker thread finishes.
+            // Even if the projector is dead or the launching is canceled, its scheduled jobs may still be
+            // running, because destroying the projector stops its coroutine but not the jobs. Starting the
+            // next launch in that state corrupts the buffers the pipeline shares between launches, so the
+            // next request must wait until the jobs finish.
             // The C# instance is still readable after the Unity object is destroyed.
             if (projector.IsWorkerThreadRunning) return false;
 
-            var isFinished = !projector // Projector that threw the request is dead.
-                             || projector.NowState ==
-                             AirStickerProjector.State.LaunchingCompleted // Launching is completed.
-                             || projector.NowState ==
-                             AirStickerProjector.State.LaunchingCanceled; // Launching is canceled.
-            if (isFinished)
-                // If the projector died mid-launch, the geometry its worker thread appended to the
-                // pooled decal meshes has not been uploaded and must be discarded here, so that it
-                // doesn't show up in the next launch that shares the same decal meshes.
-                // (No-op when the launch completed normally or nothing was appended.)
-                projector.RollbackAppendedGeometryIfPending();
-
-            return isFinished;
+            return !projector // Projector that threw the request is dead.
+                   || projector.NowState == AirStickerProjector.State.LaunchingCompleted
+                   || projector.NowState == AirStickerProjector.State.LaunchingCanceled;
         }
 
         private void ProcessNextRequest()

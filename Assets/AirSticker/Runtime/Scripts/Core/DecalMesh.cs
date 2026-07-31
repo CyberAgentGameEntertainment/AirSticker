@@ -1,6 +1,7 @@
 using System;
-using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using Unity.Collections;
+using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
 using Object = UnityEngine.Object;
@@ -50,9 +51,7 @@ namespace AirSticker.Runtime.Scripts.Core
         private Mesh _mesh;
         private Vector3[] _normalBuffer;
         private int _numIndex;
-        private int _numIndexOnSnapshot;
         private int _numVertex;
-        private int _numVertexOnSnapshot;
         private Vector3[] _positionBuffer;
         private Vector4[] _tangentBuffer;
         private Vector2[] _uvBuffer;
@@ -80,6 +79,7 @@ namespace AirSticker.Runtime.Scripts.Core
 
         internal GameObject ReceiverObject => _receiverObject;
         internal Material DecalMaterial => _decalMaterial;
+        internal Component ReceiverComponent => _receiverComponent;
 
         public void Dispose()
         {
@@ -219,49 +219,9 @@ namespace AirSticker.Runtime.Scripts.Core
             _decalMeshRenderer?.Destroy();
             _numIndex = 0;
             _numVertex = 0;
-            _numIndexOnSnapshot = 0;
-            _numVertexOnSnapshot = 0;
             Object.Destroy(_mesh);
             _decalMeshRenderer = null;
             _mesh = new Mesh();
-        }
-
-        /// <summary>
-        ///     Snapshot the sizes of the CPU-side buffers.
-        ///     Taken just before the worker thread appends geometry,
-        ///     so that a canceled launch can be rolled back (see RollbackAppendedGeometry).
-        /// </summary>
-        internal void SnapshotBufferSizes()
-        {
-            _numVertexOnSnapshot = _numVertex;
-            _numIndexOnSnapshot = _numIndex;
-        }
-
-        /// <summary>
-        ///     Roll back the CPU-side buffers to the last snapshot.
-        /// </summary>
-        /// <remarks>
-        ///     A launch that is canceled after its worker thread ran (the projector was destroyed,
-        ///     or the worker thread failed) leaves the appended geometry in the buffers without
-        ///     uploading it. Because the decal mesh is pooled and shared, that geometry would be
-        ///     uploaded by the next launch unless it is discarded here.
-        ///     Must be called on the main thread after the worker thread has finished.
-        /// </remarks>
-        internal void RollbackAppendedGeometry()
-        {
-            // Nothing was appended after the snapshot (or the mesh was cleared), so nothing to roll back.
-            if (_numVertex <= _numVertexOnSnapshot) return;
-
-            _numVertex = _numVertexOnSnapshot;
-            _numIndex = _numIndexOnSnapshot;
-            // Keep the invariant that the buffer lengths equal the vertex/index counts,
-            // because the upload passes the whole arrays to the Unity Mesh API.
-            Array.Resize(ref _positionBuffer, _numVertex);
-            Array.Resize(ref _normalBuffer, _numVertex);
-            Array.Resize(ref _boneWeightsBuffer, _numVertex);
-            Array.Resize(ref _uvBuffer, _numVertex);
-            Array.Resize(ref _tangentBuffer, _numVertex);
-            Array.Resize(ref _indexBuffer, _numIndex);
         }
 
         /// <summary>
@@ -284,111 +244,51 @@ namespace AirSticker.Runtime.Scripts.Core
         }
 
         /// <summary>
-        ///     Add triangle polygons to decal mesh from convex polygons.
+        ///     Append this launch's built geometry (produced by <see cref="DecalMeshBuildJob" />) to the
+        ///     CPU-side buffers. Called on the main thread after the build job has completed.
         /// </summary>
-        public void AddTrianglePolygonsToDecalMesh(
-            List<ConvexPolygon> convexPolygons,
-            Vector3 decalSpaceOriginPosInWorldSpace,
-            Vector3 decalSpaceTangentInWorldSpace,
-            Vector3 decalSpaceBiNormalInWorldSpace,
-            float decalSpaceWidth,
-            float decalSpaceHeight,
-            float zOffsetInDecalSpace
-        )
+        /// <remarks>
+        ///     The indices in the job output are in the output array's space (they index Out* directly), so
+        ///     they are shifted by (existing vertex count - vertexOffset) to reference this mesh's full vertex
+        ///     buffer, which accumulates across launches.
+        /// </remarks>
+        internal void AppendFromJobOutput(
+            NativeArray<float3> positions,
+            NativeArray<float3> normals,
+            NativeArray<float2> uvs,
+            NativeArray<float4> tangents,
+            NativeArray<BoneWeight> boneWeights,
+            NativeArray<int> indices,
+            int vertexOffset,
+            int vertexCount,
+            int indexOffset,
+            int indexCount)
         {
-            if (!_receiverComponent) return;
+            if (!_receiverComponent || vertexCount <= 0) return;
 
-            var uv = new Vector2();
-            // Calculate the vertex count and the index count to be added.
-            var deltaVertex = 0;
-            var deltaIndex = 0;
-            foreach (var convexPolygon in convexPolygons)
-            {
-                if (convexPolygon.ReceiverComponent != _receiverComponent) continue;
-                deltaVertex += convexPolygon.VertexCount;
-                // Index count increases with the number of triangles*3
-                deltaIndex += (convexPolygon.VertexCount - 2) * 3;
-            }
-
+            var indexDelta = _numVertex - vertexOffset;
             var addVertNo = _numVertex;
             var addIndexNo = _numIndex;
-            var indexBase = addVertNo;
-            var appendedVertexStart = _numVertex;
-            var appendedIndexStart = _numIndex;
-            // Expand the vertex buffer.
-            _numVertex += deltaVertex;
+
+            _numVertex += vertexCount;
             Array.Resize(ref _positionBuffer, _numVertex);
             Array.Resize(ref _normalBuffer, _numVertex);
             Array.Resize(ref _boneWeightsBuffer, _numVertex);
             Array.Resize(ref _uvBuffer, _numVertex);
             Array.Resize(ref _tangentBuffer, _numVertex);
+            for (var k = 0; k < vertexCount; k++)
+            {
+                _positionBuffer[addVertNo + k] = positions[vertexOffset + k];
+                _normalBuffer[addVertNo + k] = normals[vertexOffset + k];
+                _uvBuffer[addVertNo + k] = uvs[vertexOffset + k];
+                _tangentBuffer[addVertNo + k] = tangents[vertexOffset + k];
+                _boneWeightsBuffer[addVertNo + k] = boneWeights[vertexOffset + k];
+            }
 
-            // Expand the index buffer.
-            _numIndex += deltaIndex;
+            _numIndex += indexCount;
             Array.Resize(ref _indexBuffer, _numIndex);
-
-            foreach (var convexPolygon in convexPolygons)
-            {
-                if (convexPolygon.ReceiverComponent != _receiverComponent) continue;
-
-                var numVertex = convexPolygon.VertexCount;
-                for (var localVertNo = 0; localVertNo < numVertex; localVertNo++)
-                {
-                    var vertNo = convexPolygon.GetRealVertexNo(localVertNo);
-                    var vertPos = convexPolygon.GetVertexPositionInWorldSpace(vertNo);
-
-                    var decalSpaceToVertPos = vertPos - decalSpaceOriginPosInWorldSpace;
-
-                    uv.x = Vector3.Dot(decalSpaceTangentInWorldSpace, decalSpaceToVertPos) / decalSpaceWidth + 0.5f;
-                    uv.y = Vector3.Dot(decalSpaceBiNormalInWorldSpace, decalSpaceToVertPos) / decalSpaceHeight +
-                           0.5f;
-                    _uvBuffer[addVertNo] = uv;
-                    // Convert position and rotation to parent space.
-                    vertPos = convexPolygon.GetVertexPositionInModelSpace(vertNo);
-                    var normal = convexPolygon.GetVertexNormalInModelSpace(vertNo);
-
-                    // Add a slight offset in the opposite direction of the decal projection to avoid Z-fighting.
-                    // TODO: This number can be adjusted later.
-                    vertPos += normal * zOffsetInDecalSpace;
-                    _positionBuffer[addVertNo] = vertPos;
-                    _normalBuffer[addVertNo] = normal;
-                    _boneWeightsBuffer[addVertNo] = convexPolygon.GetVertexBoneWeight(vertNo);
-                    addVertNo++;
-                }
-
-                // The convex polygon is constructed by the number of vertices - 2 triangles.
-                var numTriangle = numVertex - 2;
-                for (var triNo = 0; triNo < numTriangle; triNo++)
-                {
-                    _indexBuffer[addIndexNo++] = indexBase;
-                    _indexBuffer[addIndexNo++] = indexBase + triNo + 1;
-                    _indexBuffer[addIndexNo++] = indexBase + triNo + 2;
-                }
-
-                indexBase += numVertex;
-            }
-
-            // Calculate the tangents of the appended geometry here on the worker thread,
-            // instead of calling Mesh.RecalculateTangents() on the main thread at upload time.
-            System.Diagnostics.Stopwatch swTangent = null;
-            if (AirStickerPerformanceLog.Enabled) swTangent = System.Diagnostics.Stopwatch.StartNew();
-
-            DecalMeshTangentCalculator.CalculateTangents(
-                _positionBuffer,
-                _normalBuffer,
-                _uvBuffer,
-                _indexBuffer,
-                _tangentBuffer,
-                appendedVertexStart,
-                deltaVertex,
-                appendedIndexStart,
-                deltaIndex);
-
-            if (swTangent != null)
-            {
-                swTangent.Stop();
-                Debug.Log($"[AirSticker][Perf] CalculateTangents (worker): {swTangent.Elapsed.TotalMilliseconds:F2} ms (vertices={deltaVertex})");
-            }
+            for (var k = 0; k < indexCount; k++)
+                _indexBuffer[addIndexNo + k] = indices[indexOffset + k] + indexDelta;
         }
 
         [StructLayout(LayoutKind.Sequential)]
