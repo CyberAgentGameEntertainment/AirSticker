@@ -158,8 +158,12 @@ private IEnumerator BuildFromMeshFilter(MeshFilter[] meshFilters, MeshRenderer[]
 [Assets/AirSticker/Runtime/Scripts/Core/ConvexPolygon.cs](Assets/AirSticker/Runtime/Scripts/Core/ConvexPolygon.cs)
 
 ### 3.3 Conduct an early branch cut (broad phase) on triangle polygons before applying decal textures
-In this step, the distance between the starting coordinates of the decal box and the vertex of each polygon is used to remove the triangle polygons.<br/>
+In this step, the triangle polygons are removed early by the intersection test between the sphere encompassing the decal box and each triangle polygon.<br/>
 This inexpensive computational branch cutting lowers the computational complexity of the subsequent steps, resulting in a significant speedup.<br/>
+The intersection test consists of two steps.<br/>
+First, the distance between the plane of the polygon and the center of the sphere is used to reject cheaply the polygons whose plane doesn't intersect the sphere.<br/>
+Then, for the remaining polygons, the distance from the center of the sphere to the closest point on the triangle is compared with the radius of the sphere.<br/>
+Because the intersection is determined by the closest point on the triangle instead of the vertex positions, the polygons that are much larger than the decal box are not culled wrongly.<br/>
 
 Also, a decal box is a box that represents a space for attaching decals.<br/>
 <p align="center">
@@ -169,37 +173,48 @@ Also, a decal box is a box that represents a space for attaching decals.<br/>
 
 [**Codes with early branch cutting**]
 ```C#
+// Calculate the radius of the sphere that encompasses the decal box.
+var radius = Mathf.Sqrt(decalBoxWidth * decalBoxWidth
+                        + decalBoxHeight * decalBoxHeight
+                        + decalBoxDepth * decalBoxDepth) * 0.5f;
+var sqrRadius = radius * radius;
+
 // Loop by triangle polygons data.
 foreach (var convexPolygonInfo in convexPolygonInfos)
 {
-    if (Vector3.Dot(decalSpaceNormalWs, convexPolygonInfo.ConvexPolygon.FaceNormal) < 0)
+    var convexPolygon = convexPolygonInfo.ConvexPolygon;
+    if (!projectionBackside && Vector3.Dot(decalSpaceNormalWs, convexPolygon.FaceNormal) < 0)
     {
         // Set the flag of outside the clip space.
         convexPolygonInfo.IsOutsideClipSpace = true;
         continue;
     }
 
-    var vertNo_0 = convexPolygonInfo.ConvexPolygon.GetRealVertexNo(0);
-    var v0 = convexPolygonInfo.ConvexPolygon.GetVertexPositionInWorldSpace(vertNo_0);
-    v0 -= centerPosInDecalBox;
-    if (v0.sqrMagnitude > threshold)
+    var v0 = convexPolygon.GetVertexPositionInWorldSpace(convexPolygon.GetRealVertexNo(0));
+
+    // If the plane of the polygon doesn't intersect the sphere,
+    // the polygon doesn't intersect the sphere either, so it can be rejected cheaply.
+    var distToPlane = Vector3.Dot(convexPolygon.FaceNormal, centerPosOfDecalBox - v0);
+    if (distToPlane > radius || distToPlane < -radius)
     {
-        var vertNo_1 = convexPolygonInfo.ConvexPolygon.GetRealVertexNo(1);
-        var v1 = convexPolygonInfo.ConvexPolygon.GetVertexPositionInWorldSpace(vertNo_1);
-        v1 -= centerPosInDecalBox;
-        if (v1.sqrMagnitude > threshold)
-        {
-            var vertNo_2 = convexPolygonInfo.ConvexPolygon.GetRealVertexNo(2);
-            var v2 = convexPolygonInfo.ConvexPolygon.GetVertexPositionInWorldSpace(vertNo_2);
-            v2 -= centerPosInDecalBox;
-            if (v2.sqrMagnitude > threshold)
-            {
-                // Set the flag of outside the clip space.
-                convexPolygonInfo.IsOutsideClipSpace = true;
-                continue;
-            }
-        }
+        // Set the flag of outside the clip space.
+        convexPolygonInfo.IsOutsideClipSpace = true;
+        continue;
     }
+
+    var v1 = convexPolygon.GetVertexPositionInWorldSpace(convexPolygon.GetRealVertexNo(1));
+    var v2 = convexPolygon.GetVertexPositionInWorldSpace(convexPolygon.GetRealVertexNo(2));
+
+    // The intersection test between the sphere and the triangle.
+    // CalculateSqrDistancePointToTriangle() calculates the squared distance
+    // from the point to the closest point on the triangle.
+    if (CalculateSqrDistancePointToTriangle(centerPosOfDecalBox, v0, v1, v2) > sqrRadius)
+    {
+        // Set the flag of outside the clip space.
+        convexPolygonInfo.IsOutsideClipSpace = true;
+        continue;
+    }
+
     broadPhaseConvexPolygonCount++;
 }
 ```

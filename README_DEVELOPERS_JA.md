@@ -161,8 +161,12 @@ private IEnumerator BuildFromMeshFilter(MeshFilter[] meshFilters, MeshRenderer[]
 [Assets/AirSticker/Runtime/Scripts/Core/ConvexPolygon.cs](Assets/AirSticker/Runtime/Scripts/Core/ConvexPolygon.cs)
 
 ### 3.3 デカールを貼り付ける三角形ポリゴンの早期枝切り(ブロードフェーズ)
-このステップでは、デカールボックスの起点となる座標と各ポリゴンの頂点との距離の計算により、このステップ以降に処理する三角形ポリゴンを早期枝切りするためのブロードフェーズが実行されます。<br/>
-ブロードフェーズによる安価な計算による早期枝切りが行われることによって、後のステップの複雑な処理の計算量を下げることができるため、大幅な高速化が期待できます。
+このステップでは、デカールボックスを包む球と各三角形ポリゴンとの交差判定により、このステップ以降に処理する三角形ポリゴンを早期枝切りするためのブロードフェーズが実行されます。<br/>
+ブロードフェーズによる安価な計算による早期枝切りが行われることによって、後のステップの複雑な処理の計算量を下げることができるため、大幅な高速化が期待できます。<br/>
+交差判定は2段階で行われます。<br/>
+まず、ポリゴンの平面と球の中心との距離により、平面が球と交差しないポリゴンを安価に枝切りします。<br/>
+続いて、残ったポリゴンに対して、球の中心から三角形上の最近接点までの距離と球の半径を比較します。<br/>
+頂点位置ではなく三角形上の最近接点で交差を判定するため、デカールボックスより大幅に大きいポリゴンが誤って枝切りされることはありません。
 
 また、デカールボックスとは、デカールを貼り付ける空間を現わすボックスです。<br/>
 <p align="center">
@@ -172,10 +176,17 @@ private IEnumerator BuildFromMeshFilter(MeshFilter[] meshFilters, MeshRenderer[]
 
 [**早期枝切を行っているコード**]
 ```C#
+// デカールボックスを包む球の半径を計算。
+var radius = Mathf.Sqrt(decalBoxWidth * decalBoxWidth
+                        + decalBoxHeight * decalBoxHeight
+                        + decalBoxDepth * decalBoxDepth) * 0.5f;
+var sqrRadius = radius * radius;
+
 // 三角形ポリゴン情報でのループ
 foreach (var convexPolygonInfo in convexPolygonInfos)
 {
-    if (Vector3.Dot(decalSpaceNormalWs, convexPolygonInfo.ConvexPolygon.FaceNormal) < 0)
+    var convexPolygon = convexPolygonInfo.ConvexPolygon;
+    if (!projectionBackside && Vector3.Dot(decalSpaceNormalWs, convexPolygon.FaceNormal) < 0)
     {
         // デカールボックスの向きと真逆を向いているポリゴン。
         // 枝切りの印をつける。
@@ -183,21 +194,31 @@ foreach (var convexPolygonInfo in convexPolygonInfos)
         continue;
     }
 
-    var v0 = convexPolygonInfo.ConvexPolygon.GetVertexPosition(0);
-    v0 -= originPosInDecalSpace;
-    if (v0.sqrMagnitude > threshold)
+    var v0 = convexPolygon.GetVertexPositionInWorldSpace(convexPolygon.GetRealVertexNo(0));
+
+    // ポリゴンの平面が球と交差していなければ、ポリゴンも球と交差しないので、
+    // 平面との距離で安価に枝切りできる。
+    var distToPlane = Vector3.Dot(convexPolygon.FaceNormal, centerPosOfDecalBox - v0);
+    if (distToPlane > radius || distToPlane < -radius)
     {
-        var v1 = convexPolygonInfo.ConvexPolygon.GetVertexPosition(1);
-        v1 -= originPosInDecalSpace;
-        if (v1.sqrMagnitude > threshold)
-        {
-            var v2 = convexPolygonInfo.ConvexPolygon.GetVertexPosition(2);
-            v2 -= originPosInDecalSpace;
-            if (v2.sqrMagnitude > threshold)
-                // 全ての頂点が範囲外。
-                convexPolygonInfo.IsOutsideClipSpace = true;
-        }
+        // 枝切りの印をつける。
+        convexPolygonInfo.IsOutsideClipSpace = true;
+        continue;
     }
+
+    var v1 = convexPolygon.GetVertexPositionInWorldSpace(convexPolygon.GetRealVertexNo(1));
+    var v2 = convexPolygon.GetVertexPositionInWorldSpace(convexPolygon.GetRealVertexNo(2));
+
+    // 球と三角形の交差判定。
+    // CalculateSqrDistancePointToTriangle()は点から三角形上の最近接点までの距離の2乗を計算する。
+    if (CalculateSqrDistancePointToTriangle(centerPosOfDecalBox, v0, v1, v2) > sqrRadius)
+    {
+        // 枝切りの印をつける。
+        convexPolygonInfo.IsOutsideClipSpace = true;
+        continue;
+    }
+
+    broadPhaseConvexPolygonCount++;
 }
 ```
 ### 3.4 デカールボックスの情報から分割平面を定義

@@ -96,12 +96,46 @@ namespace AirSticker.Runtime.Scripts.Core
         }
 
         /// <summary>
+        ///     Remove the decal meshes that belong to the specified group from the pool.
+        /// </summary>
+        /// <remarks>
+        ///     The removed decal meshes are disposed and their renderers are destroyed. <br />
+        ///     Call this method after the projectors of the target group have finished launching.
+        /// </remarks>
+        /// <param name="groupId">The group ID of the decal meshes to be removed.</param>
+        /// <param name="receiverObject">
+        ///     If it is not null, only the decal meshes projected to this receiver object are removed.
+        /// </param>
+        /// <param name="decalMaterial">
+        ///     If it is not null, only the decal meshes using this decal material are removed.
+        /// </param>
+        public void RemoveDecalMeshes(
+            int groupId,
+            GameObject receiverObject = null,
+            Material decalMaterial = null)
+        {
+            var removeList = _decalMeshes.Where(item =>
+                item.Value.GroupId == groupId
+                && (receiverObject == null || item.Value.ReceiverObject == receiverObject)
+                && (decalMaterial == null || item.Value.DecalMaterial == decalMaterial)).ToList();
+            foreach (var item in removeList)
+            {
+                item.Value.DestroyDecalMeshRenderer();
+                item.Value.Dispose();
+                _decalMeshes.Remove(item.Key);
+            }
+        }
+
+        /// <summary>
         ///     Calculate the hash value to be registered in the pool
         /// </summary>
-        public static int CalculateHash(GameObject receiverObject, Component component, Material decalMaterial)
+        public static int CalculateHash(GameObject receiverObject, Component component, Material decalMaterial,
+            int groupId = 0)
         {
-            var nameKey = $"{receiverObject.name}_{decalMaterial.name}_{component.name}";
-            return nameKey.GetHashCode();
+            // Use instance IDs instead of names, because different objects can have the same name
+            // (e.g. clones of the same prefab) and must not share a decal mesh.
+            var key = $"{receiverObject.GetInstanceID()}_{decalMaterial.GetInstanceID()}_{component.GetInstanceID()}_{groupId}";
+            return key.GetHashCode();
         }
     }
 }

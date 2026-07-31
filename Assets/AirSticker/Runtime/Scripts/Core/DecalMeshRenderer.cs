@@ -46,7 +46,7 @@ namespace AirSticker.Runtime.Scripts.Core
 
         public void Destroy()
         {
-            Object.Destroy(Owner);
+            if (Owner) Object.Destroy(Owner);
         }
     }
 }
