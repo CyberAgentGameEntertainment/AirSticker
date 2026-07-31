@@ -3,7 +3,7 @@
 Air Sticker のデカール貼り付け処理(ポリゴン分割)を Worker Thread (ThreadPool) から Unity Job System + Burst へ移行するかの評価と、段階的な実装計画。
 
 - 作成日: 2026-07-31
-- ステータス: 計画(未着手)
+- ステータス: Step 1 完了(2026-07-31)。Step 0 の残計測(静的メッシュ/テレイン/連続 Launch)と Step 2 以降が未着手
 
 ## 背景と結論
 
@@ -28,7 +28,7 @@ Air Sticker のデカール貼り付け処理(ポリゴン分割)を Worker Thre
 | 3 | スキニング + ワールド変換 | ワーカー(1 本) | **全ポリゴン**対象。頂点ごとに 4x4 行列 4 本のブレンド。`ConvexPolygon.CalculatePositionsAndNormalsInWorldSpace` |
 | 4 | ブロードフェーズ + バッファ複製 | ワーカー | 毎回巨大なマネージド確保(下記) |
 | 5 | 6 平面クリップ (`SplitAndRemoveByPlane`) | ワーカー | ブロードフェーズ生存ポリゴンのみ |
-| 6 | メッシュアップロード (`ExecutePostProcessingAfterWorkerThread`) | メイン(**分割なし**) | `SetVertices` + `RecalculateTangents` + `Optimize`。`DecalMesh.cs:67-91` |
+| 6 | メッシュアップロード (`ExecutePostProcessingAfterWorkerThread`) | メイン(**分割なし**) | `SetVertices` + `RecalculateTangents`(`Optimize` は Step 1 で削除)。`DecalMesh.cs` |
 
 ### ボトルネック候補
 
@@ -147,8 +147,14 @@ Air Sticker のデカール貼り付け処理(ポリゴン分割)を Worker Thre
   - プロジェクタが Launch 中に破棄されるとコルーチンは止まるが ThreadPool のワークアイテムは走り続ける。一方 `DecalProjectorLauncher.IsCurrentRequestFinished` は「プロジェクタが死んだ/Canceled」で終了扱いにして次の Launch を開始するため、前の Launch のワーカーと次の Launch のワーカーが並走し、静的プールバッファを同時に読み書きするデータ競合があった(プール化以前は Execute ごとに新規確保していたため無害だった)
   - 修正: `AirStickerProjector.IsWorkerThreadRunning`(internal、volatile な `_executeLaunchingOnWorkerThread` を公開)を追加し、`IsCurrentRequestFinished` が「プロジェクタが死んでいてもワーカースレッドのフラグが下りるまで false を返す」よう変更。Unity オブジェクト破棄後も C# インスタンスのフィールドは読めることを利用
   - 副次効果として、破棄されたプロジェクタのワーカーと次の Launch が同一 `DecalMesh` へ同時 append する既存レースも塞がる
-- [ ] `Mesh.Optimize()` の必要性見直し(頂点キャッシュ最適化の効果 vs 毎回のコスト)
-- [ ] `PrepareToRunOnWorkerThread` ループのフレーム分割(`MaxGeneratedPolygonPerFrame` と同様の方式)
+- [x] `Mesh.Optimize()` の必要性見直し → 削除(2026-07-31)
+  - デカールメッシュのインデックスは `DecalMesh.AddTrianglePolygonsToDecalMesh` が凸多角形ごとのトライアングルファンを `indexBase` 単調増加で先頭から順に emit しており、頂点参照はほぼ逐次。頂点キャッシュ効率は最適化前からほぼ上限にあり `Optimize()` の GPU 側効果は見込めない
+  - 一方コストは毎 Launch 発生し、デカール積み重ねで頂点数が増えるほど悪化する(Unity 公式ドキュメントも「一度生成して何度も描画するメッシュ向け」としている)。効果ほぼゼロ・コスト再発型のため削除した
+  - あわせて `RecalculateTangents()` が `SetUVs()` より**前**に呼ばれていた不具合を修正(タンジェント計算は UV0 依存。初回 Launch では UV 未設定のままタンジェントが計算されていた)。法線マップを使うデカールマテリアルの描画が正しくなる方向の変更
+- [x] `PrepareToRunOnWorkerThread` ループのフレーム分割(2026-07-31)
+  - `TrianglePolygonsFactory.MaxGeneratedPolygonPerFrame`(既定 100,000)ごとに `yield return null` を挟む方式で、既存のポリゴン抽出と同じノブを共有。既定値では計測シナリオ(8,191 ポリゴン)の挙動は変わらず、巨大な受けオブジェクトでのみ分割が発動する
+  - フレームまたぎ中に受けオブジェクトが破棄された場合は `LaunchingCanceled` で中断する
+  - ボーン行列パレットの取得(`CalculateMatricesPallet`)を prepare ループの**後**へ移動し、ワーカースレッド開始と同じフレームでサンプリングされるようにした(ループがフレームをまたいでもスキニング行列が古くならない)
 
 **期待効果**: メインスレッドの体感スパイクの大部分を削減。公開 API 変更なし。
 

@@ -82,9 +82,12 @@ namespace AirSticker.Runtime.Scripts.Core
                 _mesh.bindposes = _bindPoses;
             }
 
-            _mesh.RecalculateTangents();
             _mesh.SetUVs(0, _uvBuffer);
-            _mesh.Optimize();
+            // RecalculateTangents depends on UV0, so it must be called after SetUVs.
+            _mesh.RecalculateTangents();
+            // Mesh.Optimize() is intentionally not called here. The index buffer is already emitted
+            // in sequential triangle-fan order, and the mesh is re-uploaded on every launch,
+            // so Optimize() only adds a per-launch main-thread cost that grows with the vertex count.
             _mesh.RecalculateBounds();
 
             if (swUpload != null)

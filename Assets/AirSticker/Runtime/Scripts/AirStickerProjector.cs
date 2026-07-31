@@ -208,22 +208,42 @@ namespace AirSticker.Runtime.Scripts
 
                 _convexPolygonInfos = AirStickerSystem.GetTrianglePolygonsFromPool(
                     receiverObject);
+
+                System.Diagnostics.Stopwatch swPrepare = null;
+                if (AirStickerPerformanceLog.Enabled) swPrepare = System.Diagnostics.Stopwatch.StartNew();
+
+                for (var polyNo = 0; polyNo < _convexPolygonInfos.Count; polyNo++)
+                {
+                    if (polyNo != 0 && polyNo % TrianglePolygonsFactory.MaxGeneratedPolygonPerFrame == 0)
+                    {
+                        // Maximum number of polygons processed per frame is MaxGeneratedPolygonPerFrame.
+                        swPrepare?.Stop();
+                        yield return null;
+                        if (!receiverObject)
+                        {
+                            // Receiver object died while waiting for the next frame.
+                            OnFinished(State.LaunchingCanceled);
+                            yield break;
+                        }
+
+                        swPrepare?.Start();
+                    }
+
+                    _convexPolygonInfos[polyNo].ConvexPolygon.PrepareToRunOnWorkerThread();
+                }
+
+                if (swPrepare != null)
+                    Debug.Log($"[AirSticker][Perf] PrepareToRunOnWorkerThread: {swPrepare.Elapsed.TotalMilliseconds:F2} ms ({_convexPolygonInfos.Count} polygons)");
+
                 // Calculate bone matrix pallet.
+                // This must be done after the prepare loop so that the bone matrices are sampled
+                // on the same frame that the worker thread starts, even if the loop spans frames.
                 var boneMatricesPallet = CalculateMatricesPallet(skinnedMeshRenderers);
 
                 var transform1 = transform;
                 var projectorPosition = transform1.position;
                 // basePosition is center of the decal box.
                 var centerPositionOfDecalBox = projectorPosition + transform1.forward * (depth * 0.5f);
-
-                System.Diagnostics.Stopwatch swPrepare = null;
-                if (AirStickerPerformanceLog.Enabled) swPrepare = System.Diagnostics.Stopwatch.StartNew();
-
-                for (var polyNo = 0; polyNo < _convexPolygonInfos.Count; polyNo++)
-                    _convexPolygonInfos[polyNo].ConvexPolygon.PrepareToRunOnWorkerThread();
-
-                if (swPrepare != null)
-                    Debug.Log($"[AirSticker][Perf] PrepareToRunOnWorkerThread: {swPrepare.Elapsed.TotalMilliseconds:F2} ms ({_convexPolygonInfos.Count} polygons)");
 
                 #endregion // Prepare to run on worker threads.
 
