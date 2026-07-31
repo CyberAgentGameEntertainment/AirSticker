@@ -39,11 +39,21 @@ namespace AirSticker.Runtime.Scripts.Core
 
         private bool IsCurrentRequestFinished()
         {
-            return _currentRequest == null // The request is empty.
-                   || !_currentRequest.Projector // Projector that threw the request is dead.
-                   || _currentRequest.Projector.NowState ==
+            if (_currentRequest == null) return true; // The request is empty.
+
+            var projector = _currentRequest.Projector;
+            // Even if the projector is dead or the launching is canceled, the worker thread may still be
+            // running, because destroying the projector stops its coroutine but not the queued ThreadPool
+            // work item. Starting the next launch in that state corrupts the buffers shared between
+            // launches (e.g. the pooled buffers of BroadPhaseConvexPolygonsDetection), so the next
+            // request must wait until the worker thread finishes.
+            // The C# instance is still readable after the Unity object is destroyed.
+            if (projector.IsWorkerThreadRunning) return false;
+
+            return !projector // Projector that threw the request is dead.
+                   || projector.NowState ==
                    AirStickerProjector.State.LaunchingCompleted // Launching is completed.
-                   || _currentRequest.Projector.NowState ==
+                   || projector.NowState ==
                    AirStickerProjector.State.LaunchingCanceled; // Launching is canceled.
         }
 

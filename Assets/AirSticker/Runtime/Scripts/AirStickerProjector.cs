@@ -61,6 +61,15 @@ namespace AirSticker.Runtime.Scripts
         private volatile bool _workerThreadFailed;
 
         /// <summary>
+        ///     True while the worker thread of this projector is running.
+        /// </summary>
+        /// <remarks>
+        ///     Destroying this projector stops its coroutine but not the queued ThreadPool work item,
+        ///     so DecalProjectorLauncher must not start the next launch while this flag is true.
+        /// </remarks>
+        internal bool IsWorkerThreadRunning => _executeLaunchingOnWorkerThread;
+
+        /// <summary>
         ///     State of decal projector.
         /// </summary>
         public State NowState { get; private set; } = State.NotLaunch;

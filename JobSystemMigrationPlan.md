@@ -143,6 +143,10 @@ Air Sticker のデカール貼り付け処理(ポリゴン分割)を Worker Thre
   - `DecalProjectorLauncher` が常に1 Launch(=1 Execute呼び出し)しか同時実行しないこと、かつ結果が同じワーカースレッド呼び出し内で `DecalMesh` へコピーされ切ってから次の `Execute` が呼ばれることを前提に、静的プールの使い回しを安全と判断
   - `Execute` の公開シグネチャは変更なし。EditMode テスト(`TestBroadPhaseConvexPolygonsDetection`)はそのまま通る想定
   - **効果測定済み(2026-07-31、エディタ Mono、大きめスキンメッシュ・入力8191/生存4849ポリゴンの2回目 Launch)**: BroadPhase バッファ確保 55.23ms → **0.01ms**。ワーカー合計(skinning+broadPhase+clip+build)も 65.70ms → **8.65ms**(約7.6倍)に短縮。プール化のみで Step 3 の目標値(1/10以下)にほぼ到達しており、期待通りの効果を確認
+- [x] プロジェクタ破棄時のワーカースレッド並走の修正(プール化レビューでの指摘、2026-07-31)
+  - プロジェクタが Launch 中に破棄されるとコルーチンは止まるが ThreadPool のワークアイテムは走り続ける。一方 `DecalProjectorLauncher.IsCurrentRequestFinished` は「プロジェクタが死んだ/Canceled」で終了扱いにして次の Launch を開始するため、前の Launch のワーカーと次の Launch のワーカーが並走し、静的プールバッファを同時に読み書きするデータ競合があった(プール化以前は Execute ごとに新規確保していたため無害だった)
+  - 修正: `AirStickerProjector.IsWorkerThreadRunning`(internal、volatile な `_executeLaunchingOnWorkerThread` を公開)を追加し、`IsCurrentRequestFinished` が「プロジェクタが死んでいてもワーカースレッドのフラグが下りるまで false を返す」よう変更。Unity オブジェクト破棄後も C# インスタンスのフィールドは読めることを利用
+  - 副次効果として、破棄されたプロジェクタのワーカーと次の Launch が同一 `DecalMesh` へ同時 append する既存レースも塞がる
 - [ ] `Mesh.Optimize()` の必要性見直し(頂点キャッシュ最適化の効果 vs 毎回のコスト)
 - [ ] `PrepareToRunOnWorkerThread` ループのフレーム分割(`MaxGeneratedPolygonPerFrame` と同様の方式)
 
@@ -173,6 +177,15 @@ Air Sticker のデカール貼り付け処理(ポリゴン分割)を Worker Thre
 
 - Step 1 完了時: 1 Launch あたりのマネージド確保量が 1/10 以下、メインスレッドの最大フレーム時間スパイクが計測可能に減少
 - Step 3 完了時: 代表シナリオ(スキンメッシュ 2 万トライアングル)でワーカー計算 wall-time が 1/10 以下、既存 EditMode テスト全パス、デモシーン 3 種の見た目に差分なし
+
+## レビュー指摘の残課題(Job System 移行完了後に対応)
+
+2026-07-31 のブランチレビュー(Step 0/1 実装後)で挙がった指摘のうち未対応のもの。**Step 3 完了後にまとめて対応する。**
+
+1. **静的プールの恒久的メモリ保持** — `BroadPhaseConvexPolygonsDetection` の静的プールバッファは一度成長すると解放されない(実機ビルドではアプリ終了まで、エディタはドメインリロードまで)。計測シナリオ(生存 4849 ポリゴン)で `64 スロット × 4849 × 約 252B ≈ 78MB`、倍々成長のため最悪その約 2 倍。`AirStickerSystem.OnDestroy()` から呼ぶ `ReleaseBuffers()` のような明示解放フック、またはしきい値超過時のトリムを追加する。Step 3 の `NativeArray` 化でバッファ設計自体を見直すため、そのタイミングで一緒に解決するのが効率的
+2. **Demo03 の計測ログ常時 ON** — `Demo03.Start()` の `AirStickerPerformanceLog.Enabled = true;` はエージングテストでコンソールを埋め、`Debug.Log` のコスト(特にワーカースレッド内)が「連続 Launch(キュー詰まり再現)」の計測値を歪める。Step 0 の計測がすべて完了したら削除するか UI トグル化する
+3. **`AirStickerPerformanceLog` が配布パッケージの公開 API** — `Assets/AirSticker` 配下は UPM パッケージとして配布されるため、public static クラスは一度リリースすると利用者が依存し得る。移行完了後に削除するか、残す場合は一時的な計測基盤である旨を明記する。XML コメントが参照する本ドキュメントはパッケージ利用者(`?path=/Assets/AirSticker`)には配布されない点も直す
+4. **`_broadPhaseConvexPolygonInfos` のクリア** — Launch 完了後もプールバッファを指す `ConvexPolygon` ラッパーを保持し続ける(現状読み手はいないため実害なし)。`_convexPolygonInfos` と同様に Launch 末尾で null クリアし、プール化コメントの前提(消費し切ってから次が走る)と実態を一致させる。Step 3 のデータ構造再設計で自然に消える可能性もある
 
 ## 参照
 

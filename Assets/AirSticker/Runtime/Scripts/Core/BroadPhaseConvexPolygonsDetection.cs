@@ -10,8 +10,10 @@ namespace AirSticker.Runtime.Scripts.Core
     {
         // Buffers below are reused across Execute() calls instead of being reallocated every time.
         // This is safe because DecalProjectorLauncher only ever runs one launch (and therefore one
-        // Execute() call) at a time, and the buffers are fully consumed (copied out into DecalMesh)
-        // before the next Execute() call can start. Buffers only grow, they never shrink.
+        // Execute() call) at a time — it waits for AirStickerProjector.IsWorkerThreadRunning to become
+        // false even if the projector is destroyed in the middle of launching — and the buffers are
+        // fully consumed (copied out into DecalMesh) before the next Execute() call can start.
+        // Buffers only grow, they never shrink.
         private static Vector3[] _pooledPositionBuffer;
         private static Vector3[] _pooledNormalBuffer;
         private static Vector3[] _pooledLocalPositionBuffer;
