@@ -56,7 +56,9 @@ namespace AirSticker.Runtime.Scripts
         private List<ConvexPolygonInfo> _broadPhaseConvexPolygonInfos = new List<ConvexPolygonInfo>();
         private List<ConvexPolygonInfo> _convexPolygonInfos;
         private DecalSpace _decalSpace;
-        private bool _executeLaunchingOnWorkerThread;
+        // volatile is required because the worker thread writes these flags and the main thread polls them.
+        private volatile bool _executeLaunchingOnWorkerThread;
+        private volatile bool _workerThreadFailed;
 
         /// <summary>
         ///     State of decal projector.
@@ -216,31 +218,53 @@ namespace AirSticker.Runtime.Scripts
                 _executeLaunchingOnWorkerThread = true;
                 ThreadPool.QueueUserWorkItem(RunActionByWorkerThread, new Action(() =>
                 {
-                    var localToWorldMatrices = new Matrix4x4[3];
-                    var boneWeights = new BoneWeight[3];
-                    for (var polyNo = 0; polyNo < _convexPolygonInfos.Count; polyNo++)
-                        _convexPolygonInfos[polyNo].ConvexPolygon.CalculatePositionsAndNormalsInWorldSpace(
-                            boneMatricesPallet, localToWorldMatrices, boneWeights);
+                    try
+                    {
+                        var localToWorldMatrices = new Matrix4x4[3];
+                        var boneWeights = new BoneWeight[3];
+                        for (var polyNo = 0; polyNo < _convexPolygonInfos.Count; polyNo++)
+                            _convexPolygonInfos[polyNo].ConvexPolygon.CalculatePositionsAndNormalsInWorldSpace(
+                                boneMatricesPallet, localToWorldMatrices, boneWeights);
 
-                    _broadPhaseConvexPolygonInfos = BroadPhaseConvexPolygonsDetection.Execute(
-                        centerPositionOfDecalBox,
-                        _decalSpace.Ez,
-                        width,
-                        height,
-                        depth,
-                        _convexPolygonInfos,
-                        projectionBackside);
+                        _broadPhaseConvexPolygonInfos = BroadPhaseConvexPolygonsDetection.Execute(
+                            centerPositionOfDecalBox,
+                            _decalSpace.Ez,
+                            width,
+                            height,
+                            depth,
+                            _convexPolygonInfos,
+                            projectionBackside);
 
-                    BuildClipPlanes(centerPositionOfDecalBox);
-                    SplitConvexPolygonsByPlanes();
-                    AddTrianglePolygonsToDecalMeshFromConvexPolygons(centerPositionOfDecalBox);
-                    _executeLaunchingOnWorkerThread = false;
+                        BuildClipPlanes(centerPositionOfDecalBox);
+                        SplitConvexPolygonsByPlanes();
+                        AddTrianglePolygonsToDecalMeshFromConvexPolygons(centerPositionOfDecalBox);
+                    }
+                    catch (Exception e)
+                    {
+                        // Exceptions on the thread pool are swallowed silently, so log them here.
+                        Debug.LogException(e);
+                        _workerThreadFailed = true;
+                    }
+                    finally
+                    {
+                        // The flag must be reset even if an exception is thrown.
+                        // Otherwise the coroutine and the launcher queue will be stalled forever.
+                        _executeLaunchingOnWorkerThread = false;
+                    }
                 }));
 
                 #endregion // Run worker thread. 
 
                 // Waiting to worker thread.
                 while (_executeLaunchingOnWorkerThread) yield return null;
+
+                if (_workerThreadFailed)
+                {
+                    // The worker thread failed, so cancel the launching
+                    // without post-processing the possibly inconsistent results.
+                    OnFinished(State.LaunchingCanceled);
+                    yield break;
+                }
 
                 foreach (var decalMesh in DecalMeshes) decalMesh.ExecutePostProcessingAfterWorkerThread();
             }

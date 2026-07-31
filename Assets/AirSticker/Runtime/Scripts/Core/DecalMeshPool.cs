@@ -132,8 +132,10 @@ namespace AirSticker.Runtime.Scripts.Core
         public static int CalculateHash(GameObject receiverObject, Component component, Material decalMaterial,
             int groupId = 0)
         {
-            var nameKey = $"{receiverObject.name}_{decalMaterial.name}_{component.name}_{groupId}";
-            return nameKey.GetHashCode();
+            // Use instance IDs instead of names, because different objects can have the same name
+            // (e.g. clones of the same prefab) and must not share a decal mesh.
+            var key = $"{receiverObject.GetInstanceID()}_{decalMaterial.GetInstanceID()}_{component.GetInstanceID()}_{groupId}";
+            return key.GetHashCode();
         }
     }
 }

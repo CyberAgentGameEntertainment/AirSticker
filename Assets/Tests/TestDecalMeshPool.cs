@@ -35,5 +35,31 @@ namespace Tests
                 Object.DestroyImmediate(receiverObject);
             }
         }
+
+        [Test]
+        public void TestCalculateHashWithSameNameObjects()
+        {
+            // Different objects that have the same name (e.g. clones of the same prefab)
+            // must not share a decal mesh.
+            var receiverObjectA = new GameObject("ReceiverObject");
+            var receiverObjectB = new GameObject("ReceiverObject");
+            var rendererA = receiverObjectA.AddComponent<MeshRenderer>();
+            var rendererB = receiverObjectB.AddComponent<MeshRenderer>();
+            var decalMaterial = new Material(Shader.Find("Hidden/InternalErrorShader"));
+            decalMaterial.name = "DecalMaterial";
+
+            try
+            {
+                var hashA = DecalMeshPool.CalculateHash(receiverObjectA, rendererA, decalMaterial);
+                var hashB = DecalMeshPool.CalculateHash(receiverObjectB, rendererB, decalMaterial);
+                Assert.AreNotEqual(hashA, hashB);
+            }
+            finally
+            {
+                Object.DestroyImmediate(decalMaterial);
+                Object.DestroyImmediate(receiverObjectA);
+                Object.DestroyImmediate(receiverObjectB);
+            }
+        }
     }
 }

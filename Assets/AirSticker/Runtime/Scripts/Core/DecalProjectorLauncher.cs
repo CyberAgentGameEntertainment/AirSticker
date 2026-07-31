@@ -42,7 +42,9 @@ namespace AirSticker.Runtime.Scripts.Core
             return _currentRequest == null // The request is empty.
                    || !_currentRequest.Projector // Projector that threw the request is dead.
                    || _currentRequest.Projector.NowState ==
-                   AirStickerProjector.State.LaunchingCompleted; // Launching is completed.
+                   AirStickerProjector.State.LaunchingCompleted // Launching is completed.
+                   || _currentRequest.Projector.NowState ==
+                   AirStickerProjector.State.LaunchingCanceled; // Launching is canceled.
         }
 
         private void ProcessNextRequest()
