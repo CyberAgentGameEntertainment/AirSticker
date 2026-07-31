@@ -3,7 +3,11 @@
 Air Sticker のデカール貼り付け処理(ポリゴン分割)を Worker Thread (ThreadPool) から Unity Job System + Burst へ移行するかの評価と、段階的な実装計画。
 
 - 作成日: 2026-07-31
-- ステータス: Step 1 完了(2026-07-31)。Step 0 の残計測(静的メッシュ/テレイン/連続 Launch)と Step 2 以降が未着手
+- ステータス: Step 2 完了(2026-07-31、計測・見た目確認済み)。Step 0 の残計測(静的メッシュ/テレイン/連続 Launch)と Step 3 が未着手
+
+## 運用ルール
+
+- **コミットは計測後に行う。** 各 Step の実装が完了したら、まず計測基盤(`AirStickerPerformanceLog.Enabled = true`)で代表シナリオを計測し、効果とリグレッションの有無を確認してからコミットする(2026-07-31 ユーザー指示)。実装直後の未計測状態ではコミットしない。
 
 ## 背景と結論
 
@@ -28,7 +32,7 @@ Air Sticker のデカール貼り付け処理(ポリゴン分割)を Worker Thre
 | 3 | スキニング + ワールド変換 | ワーカー(1 本) | **全ポリゴン**対象。頂点ごとに 4x4 行列 4 本のブレンド。`ConvexPolygon.CalculatePositionsAndNormalsInWorldSpace` |
 | 4 | ブロードフェーズ + バッファ複製 | ワーカー | 毎回巨大なマネージド確保(下記) |
 | 5 | 6 平面クリップ (`SplitAndRemoveByPlane`) | ワーカー | ブロードフェーズ生存ポリゴンのみ |
-| 6 | メッシュアップロード (`ExecutePostProcessingAfterWorkerThread`) | メイン(**分割なし**) | `SetVertices` + `RecalculateTangents`(`Optimize` は Step 1 で削除)。`DecalMesh.cs` |
+| 6 | メッシュアップロード (`ExecutePostProcessingAfterWorkerThread`) | メイン(**分割なし**) | Step 2 で MeshData 化(単一 Apply)。タンジェント計算はワーカーの 5 へ移動(`Optimize` は Step 1 で削除)。`DecalMesh.cs` |
 
 ### ボトルネック候補
 
@@ -166,10 +170,43 @@ Air Sticker のデカール貼り付け処理(ポリゴン分割)を Worker Thre
 
 ### Step 2: アップロードの MeshData API 化
 
-- [ ] `DecalMesh` の頂点バッファ構築を `Mesh.AllocateWritableMeshData` / `ApplyAndDisposeWritableMeshData` へ移行
-- [ ] タンジェント計算を自前実装しジョブ化可能な形に(`RecalculateTangents` の置き換え)
+- [x] `DecalMesh` の頂点バッファ構築を `Mesh.AllocateWritableMeshData` / `ApplyAndDisposeWritableMeshData` へ移行(2026-07-31 実装・計測済み)
+  - 頂点バッファを MeshData 上で直接構築し、`SetVertices`/`SetIndices`/`SetNormals`/`SetUVs`/`boneWeights` の複数回の Set 呼び出しを 1 回の Apply に置き換えた。静的メッシュは単一インターリーブストリーム(Position / Normal / Tangent / TexCoord0)
+  - スキニングウェイトは `Mesh.boneWeights` プロパティではなく頂点属性(BlendWeight Float32x4 / BlendIndices UInt32x4)として頂点バッファへ直接格納し、`boneWeights` 代入時の頂点バッファ再レイアウトを排除。`bindposes` は Apply 後に従来どおり設定
+  - **スキンメッシュのストリーム制約(実装時に発覚したバグと修正、2026-07-31)**: スキンメッシュでは全属性の単一ストリーム化を Unity が拒否し(エラー `Skinned mesh attributes use wrong streams`)、レイアウト不成立でメッシュが大きく崩壊した。スキニングで変形される属性(Position / Normal / Tangent)= stream 0、TexCoord0 = stream 1、スキンデータ(BlendWeight / BlendIndices)= stream 2 の 3 ストリーム分割が必須。修正済み。Step 3 で `MeshData` 構築をジョブ化する際もこのストリーム分割を維持すること
+  - インデックスフォーマットは頂点数に応じて UInt16 / UInt32 を自動選択。旧実装は `Mesh` 既定の UInt16 のままだったため頂点数が 65,535 を超えると壊れていた(デカール積み重ねで到達し得る)潜在バグも解消
+  - `RecalculateBounds()` は従来どおり Apply 後にメインスレッドで実行(バウンディングボックス計算のジョブ化は Step 3 で行う)
+- [x] タンジェント計算を自前実装しジョブ化可能な形に(`RecalculateTangents` の置き換え)(2026-07-31 実装・計測済み)
+  - `Core/DecalMeshTangentCalculator.cs`(internal static)を新設。三角形ごとの接空間累積 + Gram-Schmidt 直交化(Lengyel 法)で、Unity 組み込みの `RecalculateTangents()` と同系のアルゴリズム
+  - 純粋な配列演算のみ(Unity API 不使用)なのでワーカースレッドで実行でき、Step 3 で `IJobParallelFor` へ素直に移植できる
+  - 追記ジオメトリは自己完結(追記範囲外の頂点を参照する三角形がない)なので**追記分のみの差分計算**とし、`AddTrianglePolygonsToDecalMesh` の末尾(ワーカースレッド内)で実行。メインスレッドからタンジェント計算コストが消え、旧実装と異なりデカール積み重ね時も計算量が頂点総数に比例しない
+  - 累積用一時バッファはブロードフェーズプールと同じ前提(同時実行は 1 Launch のみ)で static プール化し、毎 Launch の GC 確保なし
+  - 縮退 UV(デカール平面にほぼ垂直なポリゴン)は累積をスキップし、法線に直交する任意軸へフォールバック
 
 **期待効果**: アップロードスパイク縮小。Step 3 のジョブチェーンの受け皿になる。ジョブ移行と独立に着手可能。
+
+#### 計測結果: Step 2(2026-07-31、エディタ Mono、大きめスキンメッシュ・入力 8191/生存 4849 ポリゴン、2回連続 Launch)
+
+| 項目 | 1回目 Launch | 2回目 Launch | ベースライン(Step 1 完了時 1回目/2回目) |
+|---|---|---|---|
+| `PrepareToRunOnWorkerThread` | 1.42 ms | 0.90 ms | 1.35 / 0.97 ms |
+| BroadPhase バッファ確保 | 7.86 ms(プール初回成長) | 0.01 ms | 38.22 / 0.01 ms |
+| ワーカー: スキニング | 4.94 ms | 3.66 ms | ― |
+| ワーカー: ブロードフェーズ | 13.44 ms | 2.80 ms | ― |
+| ワーカー: クリップ+構築(タンジェント込み) | 8.68 ms | 3.17 ms | ― |
+| うちタンジェント計算(全 DecalMesh 合計) | 0.78 ms | 0.08 ms | ―(旧実装はメインスレッドの `RecalculateTangents`) |
+| ワーカー合計 | 27.06 ms | 9.63 ms | 65.70(プール化前)/ 8.65 ms |
+| メッシュアップロード(DecalMesh 毎の最大値) | 1.92 ms | **0.09 ms**(1,168 頂点) | 0.84 / **0.11 ms** |
+
+**分かったこと**:
+
+1. **アップロード(2回目)は 0.11 → 0.09 ms。** タンジェント計算をメインスレッドから排除した上での微減。このシナリオは頂点数が小さいため絶対値の差は小さいが、旧実装で頂点総数に比例していた `RecalculateTangents` コストが消えたため、デカール積み重ね時の伸びが構造的に抑えられる。
+2. **タンジェント計算のワーカー追加分は 2回目 0.08 ms と誤差レベル。** 差分計算(追記分のみ)のため、積み重ねで頂点総数が増えても増加しない。
+3. **ワーカー合計 9.63 ms は Step 1 完了時(8.65 ms)と同水準。** 差分はブロードフェーズ純計算の実行ごとの揺らぎ範囲内で、リグレッションなし。
+4. **1回目のアップロード増(0.84 → 1.92 ms)は MeshData 新パスの初回 JIT ウォームアップ。** Step 0 の知見どおり1回目 Launch の数値は比較に使わない。IL2CPP(AOT)では発生しない想定で、実機は Step 0 の残計測と合わせて確認する。
+5. **見た目確認済み。** スキンメッシュのストリーム修正後、デモシーンの表示は正常(スキニング追従含む)。
+
+**判断**: リグレッションなし・Step 2 の目的(メインスレッドからのタンジェント計算排除、単一 Apply 化、Step 3 の受け皿)を達成したためコミットする。
 
 ### Step 3: 本丸の Job + Burst 化
 

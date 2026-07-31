@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using UnityEngine;
+using UnityEngine.Rendering;
 using Object = UnityEngine.Object;
 
 namespace AirSticker.Runtime.Scripts.Core
@@ -11,6 +13,31 @@ namespace AirSticker.Runtime.Scripts.Core
     /// </summary>
     public sealed class DecalMesh : IDisposable
     {
+        // Interleaved vertex layouts for the writable MeshData API.
+        // The attributes must be declared in ascending order of the VertexAttribute enum.
+        private static readonly VertexAttributeDescriptor[] StaticMeshVertexLayout =
+        {
+            new VertexAttributeDescriptor(VertexAttribute.Position, VertexAttributeFormat.Float32, 3),
+            new VertexAttributeDescriptor(VertexAttribute.Normal, VertexAttributeFormat.Float32, 3),
+            new VertexAttributeDescriptor(VertexAttribute.Tangent, VertexAttributeFormat.Float32, 4),
+            new VertexAttributeDescriptor(VertexAttribute.TexCoord0, VertexAttributeFormat.Float32, 2)
+        };
+
+        // A skinned mesh is not allowed to interleave all attributes into one stream. Unity
+        // requires the attributes that are deformed by skinning (Position/Normal/Tangent) in
+        // stream 0, the static attributes (TexCoord0) in stream 1, and the skinning data
+        // (BlendWeight/BlendIndices) in stream 2, and rejects other layouts with the error
+        // "Skinned mesh attributes use wrong streams".
+        private static readonly VertexAttributeDescriptor[] SkinnedMeshVertexLayout =
+        {
+            new VertexAttributeDescriptor(VertexAttribute.Position, VertexAttributeFormat.Float32, 3, 0),
+            new VertexAttributeDescriptor(VertexAttribute.Normal, VertexAttributeFormat.Float32, 3, 0),
+            new VertexAttributeDescriptor(VertexAttribute.Tangent, VertexAttributeFormat.Float32, 4, 0),
+            new VertexAttributeDescriptor(VertexAttribute.TexCoord0, VertexAttributeFormat.Float32, 2, 1),
+            new VertexAttributeDescriptor(VertexAttribute.BlendWeight, VertexAttributeFormat.Float32, 4, 2),
+            new VertexAttributeDescriptor(VertexAttribute.BlendIndices, VertexAttributeFormat.UInt32, 4, 2)
+        };
+
         private readonly Matrix4x4[] _bindPoses;
         private readonly Material _decalMaterial;
         private readonly Component _receiverComponent;
@@ -27,6 +54,7 @@ namespace AirSticker.Runtime.Scripts.Core
         private int _numVertex;
         private int _numVertexOnSnapshot;
         private Vector3[] _positionBuffer;
+        private Vector4[] _tangentBuffer;
         private Vector2[] _uvBuffer;
 
         public DecalMesh(
@@ -75,21 +103,83 @@ namespace AirSticker.Runtime.Scripts.Core
             System.Diagnostics.Stopwatch swUpload = null;
             if (AirStickerPerformanceLog.Enabled) swUpload = System.Diagnostics.Stopwatch.StartNew();
 
-            _mesh.SetVertices(_positionBuffer);
-            _mesh.SetIndices(_indexBuffer, MeshTopology.Triangles, 0);
-            _mesh.SetNormals(_normalBuffer, 0, _numVertex);
-            if (_bindPoses != null && _bindPoses.Length > 0)
-            {
-                _mesh.boneWeights = _boneWeightsBuffer;
-                _mesh.bindposes = _bindPoses;
-            }
-
-            _mesh.SetUVs(0, _uvBuffer);
-            // RecalculateTangents depends on UV0, so it must be called after SetUVs.
-            _mesh.RecalculateTangents();
+            // Build the vertex/index buffers through the writable MeshData API so that they are
+            // constructed in one pass and uploaded with a single Apply call. Tangents are computed
+            // on the worker thread (see AddTrianglePolygonsToDecalMesh), so no Recalculate* call is
+            // needed here except for the bounds. Step 3 of the Job System migration will move this
+            // buffer construction into the job chain.
             // Mesh.Optimize() is intentionally not called here. The index buffer is already emitted
             // in sequential triangle-fan order, and the mesh is re-uploaded on every launch,
             // so Optimize() only adds a per-launch main-thread cost that grows with the vertex count.
+            var isSkinned = _bindPoses != null && _bindPoses.Length > 0;
+            var meshDataArray = Mesh.AllocateWritableMeshData(1);
+            var meshData = meshDataArray[0];
+
+            // Set both buffer sizes before acquiring any data view, as the official samples do,
+            // because changing the buffer params can invalidate previously acquired views.
+            meshData.SetVertexBufferParams(_numVertex, isSkinned ? SkinnedMeshVertexLayout : StaticMeshVertexLayout);
+            var indexFormat = _numVertex > ushort.MaxValue ? IndexFormat.UInt32 : IndexFormat.UInt16;
+            meshData.SetIndexBufferParams(_numIndex, indexFormat);
+
+            if (isSkinned)
+            {
+                // The skinning weights are stored as vertex attributes (BlendWeight/BlendIndices)
+                // instead of the Mesh.boneWeights property, so that the whole vertex buffer is
+                // built in one pass without a re-layout on assignment.
+                var deformedVertices = meshData.GetVertexData<SkinnedMeshDeformedVertex>();
+                var uvs = meshData.GetVertexData<Vector2>(1);
+                var blendVertices = meshData.GetVertexData<SkinnedMeshBlendVertex>(2);
+                for (var i = 0; i < _numVertex; i++)
+                {
+                    deformedVertices[i] = new SkinnedMeshDeformedVertex
+                    {
+                        Position = _positionBuffer[i],
+                        Normal = _normalBuffer[i],
+                        Tangent = _tangentBuffer[i]
+                    };
+                    uvs[i] = _uvBuffer[i];
+                    var boneWeight = _boneWeightsBuffer[i];
+                    blendVertices[i] = new SkinnedMeshBlendVertex
+                    {
+                        BlendWeights = new Vector4(
+                            boneWeight.weight0,
+                            boneWeight.weight1,
+                            boneWeight.weight2,
+                            boneWeight.weight3),
+                        BlendIndex0 = (uint)boneWeight.boneIndex0,
+                        BlendIndex1 = (uint)boneWeight.boneIndex1,
+                        BlendIndex2 = (uint)boneWeight.boneIndex2,
+                        BlendIndex3 = (uint)boneWeight.boneIndex3
+                    };
+                }
+            }
+            else
+            {
+                var vertices = meshData.GetVertexData<StaticMeshVertex>();
+                for (var i = 0; i < _numVertex; i++)
+                    vertices[i] = new StaticMeshVertex
+                    {
+                        Position = _positionBuffer[i],
+                        Normal = _normalBuffer[i],
+                        Tangent = _tangentBuffer[i],
+                        Uv = _uvBuffer[i]
+                    };
+            }
+            if (indexFormat == IndexFormat.UInt16)
+            {
+                var indices = meshData.GetIndexData<ushort>();
+                for (var i = 0; i < _numIndex; i++) indices[i] = (ushort)_indexBuffer[i];
+            }
+            else
+            {
+                meshData.GetIndexData<int>().CopyFrom(_indexBuffer);
+            }
+
+            meshData.subMeshCount = 1;
+            meshData.SetSubMesh(0, new SubMeshDescriptor(0, _numIndex));
+
+            Mesh.ApplyAndDisposeWritableMeshData(meshDataArray, _mesh);
+            if (isSkinned) _mesh.bindposes = _bindPoses;
             _mesh.RecalculateBounds();
 
             if (swUpload != null)
@@ -170,6 +260,7 @@ namespace AirSticker.Runtime.Scripts.Core
             Array.Resize(ref _normalBuffer, _numVertex);
             Array.Resize(ref _boneWeightsBuffer, _numVertex);
             Array.Resize(ref _uvBuffer, _numVertex);
+            Array.Resize(ref _tangentBuffer, _numVertex);
             Array.Resize(ref _indexBuffer, _numIndex);
         }
 
@@ -222,12 +313,15 @@ namespace AirSticker.Runtime.Scripts.Core
             var addVertNo = _numVertex;
             var addIndexNo = _numIndex;
             var indexBase = addVertNo;
+            var appendedVertexStart = _numVertex;
+            var appendedIndexStart = _numIndex;
             // Expand the vertex buffer.
             _numVertex += deltaVertex;
             Array.Resize(ref _positionBuffer, _numVertex);
             Array.Resize(ref _normalBuffer, _numVertex);
             Array.Resize(ref _boneWeightsBuffer, _numVertex);
             Array.Resize(ref _uvBuffer, _numVertex);
+            Array.Resize(ref _tangentBuffer, _numVertex);
 
             // Expand the index buffer.
             _numIndex += deltaIndex;
@@ -273,6 +367,58 @@ namespace AirSticker.Runtime.Scripts.Core
 
                 indexBase += numVertex;
             }
+
+            // Calculate the tangents of the appended geometry here on the worker thread,
+            // instead of calling Mesh.RecalculateTangents() on the main thread at upload time.
+            System.Diagnostics.Stopwatch swTangent = null;
+            if (AirStickerPerformanceLog.Enabled) swTangent = System.Diagnostics.Stopwatch.StartNew();
+
+            DecalMeshTangentCalculator.CalculateTangents(
+                _positionBuffer,
+                _normalBuffer,
+                _uvBuffer,
+                _indexBuffer,
+                _tangentBuffer,
+                appendedVertexStart,
+                deltaVertex,
+                appendedIndexStart,
+                deltaIndex);
+
+            if (swTangent != null)
+            {
+                swTangent.Stop();
+                Debug.Log($"[AirSticker][Perf] CalculateTangents (worker): {swTangent.Elapsed.TotalMilliseconds:F2} ms (vertices={deltaVertex})");
+            }
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct StaticMeshVertex
+        {
+            public Vector3 Position;
+            public Vector3 Normal;
+            public Vector4 Tangent;
+            public Vector2 Uv;
+        }
+
+        // Stream 0 of the skinned mesh layout. The UVs (stream 1) are written as raw Vector2
+        // and the skinning data lives in stream 2 (see SkinnedMeshVertexLayout).
+        [StructLayout(LayoutKind.Sequential)]
+        private struct SkinnedMeshDeformedVertex
+        {
+            public Vector3 Position;
+            public Vector3 Normal;
+            public Vector4 Tangent;
+        }
+
+        // Stream 2 of the skinned mesh layout.
+        [StructLayout(LayoutKind.Sequential)]
+        private struct SkinnedMeshBlendVertex
+        {
+            public Vector4 BlendWeights;
+            public uint BlendIndex0;
+            public uint BlendIndex1;
+            public uint BlendIndex2;
+            public uint BlendIndex3;
         }
     }
 }
