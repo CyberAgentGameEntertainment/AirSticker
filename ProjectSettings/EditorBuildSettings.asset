@@ -17,4 +17,8 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Demo/Demo_04/Demo_04.unity
     guid: 9f43215f0bd64288bd7f7c1091b7b733
+  - enabled: 0
+    path: Assets/Demo/Demo_Benchmark/Demo_Benchmark.unity
+    guid: 718a8c129e144fb580c9069ae5a22c6a
   m_configObjects: {}
+  m_UseUCBPForAssetBundles: 0
