@@ -3,7 +3,7 @@
 Air Sticker のデカール貼り付け処理(ポリゴン分割)を Worker Thread (ThreadPool) から Unity Job System + Burst へ移行するかの評価と、段階的な実装計画。
 
 - 作成日: 2026-07-31
-- ステータス: **Step 3a 完了(2026-07-31、実装・テスト・見た目・計測すべて確認済み。Burst 無効の並列化だけでワーカー計算 9.63ms→1.98ms ≈ 4.9x)**。残: 3c(Burst 有効化)、IL2CPP/実機計測、Step 0 の残計測(静的メッシュ/テレイン/連続 Launch)
+- ステータス: **Step 3a + 3c 完了・コミット済み(2026-07-31、`feature/job-system-step3`: f1ea701=3a / adcac77=3c / b05068f=ベンチマーク)**。実装・テスト・見た目・計測(エディタ + 実機 probe 付き有効 A/B)すべて確認済み。効果: 旧 ThreadPool 単一スレッド → Job 並列(Step 3a) → + Burst(Step 3c、実機 worker さらに ~1.58x)。残: 3d(メジャーリリース準備)、Step 0 の残計測(静的メッシュ/テレイン/連続 Launch)
 
 ## 運用ルール
 
@@ -360,6 +360,8 @@ Air Sticker のデカール貼り付け処理(ポリゴン分割)を Worker Thre
 ## レビュー指摘の残課題(Job System 移行完了後に対応)
 
 2026-07-31 のブランチレビュー(Step 0/1 実装後)で挙がった指摘のうち未対応のもの。**Step 3 完了後にまとめて対応する。**
+
+**Step 3a/3c 完了時点の状況(2026-07-31)**: 下記のうち **#1(静的プール保持)と #4(`_broadPhaseConvexPolygonInfos` クリア)は Step 3 の再設計で自然解消**した。#1 は `BroadPhaseConvexPolygonsDetection` の静的プール自体を廃止し、`DecalMeshJobBuffers` / `DecalMeshJobPipeline` を `AirStickerSystem` が所有・`OnDestroy` で Dispose、`ReceiverConvexPolygonsMesh` も GC 時 Dispose(受け消滅時の use-after-free は `InUse` ピンで対処)。#4 は該当フィールドを持つ旧 `AirStickerProjector` を全面書き換えたため消滅。残るは **#2(Demo03 の計測ログ常時 ON)と #3(`AirStickerPerformanceLog` の公開 API 扱い)で、3d(リリース準備)で対応**。
 
 1. **静的プールの恒久的メモリ保持** — `BroadPhaseConvexPolygonsDetection` の静的プールバッファは一度成長すると解放されない(実機ビルドではアプリ終了まで、エディタはドメインリロードまで)。計測シナリオ(生存 4849 ポリゴン)で `64 スロット × 4849 × 約 252B ≈ 78MB`、倍々成長のため最悪その約 2 倍。`AirStickerSystem.OnDestroy()` から呼ぶ `ReleaseBuffers()` のような明示解放フック、またはしきい値超過時のトリムを追加する。Step 3 の `NativeArray` 化でバッファ設計自体を見直すため、そのタイミングで一緒に解決するのが効率的
 2. **Demo03 の計測ログ常時 ON** — `Demo03.Start()` の `AirStickerPerformanceLog.Enabled = true;` はエージングテストでコンソールを埋め、`Debug.Log` のコスト(特にワーカースレッド内)が「連続 Launch(キュー詰まり再現)」の計測値を歪める。Step 0 の計測がすべて完了したら削除するか UI トグル化する
