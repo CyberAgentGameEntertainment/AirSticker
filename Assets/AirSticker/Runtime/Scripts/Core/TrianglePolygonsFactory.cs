@@ -34,7 +34,17 @@ namespace AirSticker.Runtime.Scripts.Core
             new NativeArray<Vector3>(MaxWorkingVertexCount, Allocator.Persistent);
 
         private bool _disposed;
-        public static int MaxGeneratedPolygonPerFrame { get; set; } = 100000; //
+        private static int _maxGeneratedPolygonPerFrame = 100000;
+
+        /// <summary>
+        ///     Maximum number of polygons processed per frame.
+        ///     Values less than 1 are clamped to 1, because this value is used as a modulo divisor.
+        /// </summary>
+        public static int MaxGeneratedPolygonPerFrame
+        {
+            get => _maxGeneratedPolygonPerFrame;
+            set => _maxGeneratedPolygonPerFrame = Mathf.Max(1, value);
+        }
 #if MEASUREMENT_METHOD_BuildFromSkinMeshRenderer
         public static float[] Time_BuildFromSkinMeshRenderer { get; set; } = new float[3];
 #endif

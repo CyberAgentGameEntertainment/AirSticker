@@ -50,11 +50,19 @@ namespace AirSticker.Runtime.Scripts.Core
             // The C# instance is still readable after the Unity object is destroyed.
             if (projector.IsWorkerThreadRunning) return false;
 
-            return !projector // Projector that threw the request is dead.
-                   || projector.NowState ==
-                   AirStickerProjector.State.LaunchingCompleted // Launching is completed.
-                   || projector.NowState ==
-                   AirStickerProjector.State.LaunchingCanceled; // Launching is canceled.
+            var isFinished = !projector // Projector that threw the request is dead.
+                             || projector.NowState ==
+                             AirStickerProjector.State.LaunchingCompleted // Launching is completed.
+                             || projector.NowState ==
+                             AirStickerProjector.State.LaunchingCanceled; // Launching is canceled.
+            if (isFinished)
+                // If the projector died mid-launch, the geometry its worker thread appended to the
+                // pooled decal meshes has not been uploaded and must be discarded here, so that it
+                // doesn't show up in the next launch that shares the same decal meshes.
+                // (No-op when the launch completed normally or nothing was appended.)
+                projector.RollbackAppendedGeometryIfPending();
+
+            return isFinished;
         }
 
         private void ProcessNextRequest()

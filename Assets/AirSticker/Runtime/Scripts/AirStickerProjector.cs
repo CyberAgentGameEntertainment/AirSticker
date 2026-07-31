@@ -59,6 +59,8 @@ namespace AirSticker.Runtime.Scripts
         // volatile is required because the worker thread writes these flags and the main thread polls them.
         private volatile bool _executeLaunchingOnWorkerThread;
         private volatile bool _workerThreadFailed;
+        // Main thread only: true while the worker thread's appended geometry has not been uploaded yet.
+        private bool _hasPendingAppendedGeometry;
 
         /// <summary>
         ///     True while the worker thread of this projector is running.
@@ -68,6 +70,24 @@ namespace AirSticker.Runtime.Scripts
         ///     so DecalProjectorLauncher must not start the next launch while this flag is true.
         /// </remarks>
         internal bool IsWorkerThreadRunning => _executeLaunchingOnWorkerThread;
+
+        /// <summary>
+        ///     Discard the geometry that the worker thread appended to the pooled decal meshes
+        ///     if the launch was canceled before the geometry was uploaded.
+        /// </summary>
+        /// <remarks>
+        ///     Destroying the projector stops its coroutine but not the ThreadPool work item,
+        ///     so without this rollback the canceled geometry would stay in the pooled DecalMesh
+        ///     buffers and be uploaded by the next launch that shares the same decal mesh.
+        ///     Must be called on the main thread after the worker thread has finished.
+        /// </remarks>
+        internal void RollbackAppendedGeometryIfPending()
+        {
+            if (!_hasPendingAppendedGeometry) return;
+
+            foreach (var decalMesh in DecalMeshes) decalMesh.RollbackAppendedGeometry();
+            _hasPendingAppendedGeometry = false;
+        }
 
         /// <summary>
         ///     State of decal projector.
@@ -208,7 +228,36 @@ namespace AirSticker.Runtime.Scripts
 
                 _convexPolygonInfos = AirStickerSystem.GetTrianglePolygonsFromPool(
                     receiverObject);
+
+                System.Diagnostics.Stopwatch swPrepare = null;
+                if (AirStickerPerformanceLog.Enabled) swPrepare = System.Diagnostics.Stopwatch.StartNew();
+
+                for (var polyNo = 0; polyNo < _convexPolygonInfos.Count; polyNo++)
+                {
+                    if (polyNo != 0 && polyNo % TrianglePolygonsFactory.MaxGeneratedPolygonPerFrame == 0)
+                    {
+                        // Maximum number of polygons processed per frame is MaxGeneratedPolygonPerFrame.
+                        swPrepare?.Stop();
+                        yield return null;
+                        if (!receiverObject)
+                        {
+                            // Receiver object died while waiting for the next frame.
+                            OnFinished(State.LaunchingCanceled);
+                            yield break;
+                        }
+
+                        swPrepare?.Start();
+                    }
+
+                    _convexPolygonInfos[polyNo].ConvexPolygon.PrepareToRunOnWorkerThread();
+                }
+
+                if (swPrepare != null)
+                    Debug.Log($"[AirSticker][Perf] PrepareToRunOnWorkerThread: {swPrepare.Elapsed.TotalMilliseconds:F2} ms ({_convexPolygonInfos.Count} polygons)");
+
                 // Calculate bone matrix pallet.
+                // This must be done after the prepare loop so that the bone matrices are sampled
+                // on the same frame that the worker thread starts, even if the loop spans frames.
                 var boneMatricesPallet = CalculateMatricesPallet(skinnedMeshRenderers);
 
                 var transform1 = transform;
@@ -216,18 +265,14 @@ namespace AirSticker.Runtime.Scripts
                 // basePosition is center of the decal box.
                 var centerPositionOfDecalBox = projectorPosition + transform1.forward * (depth * 0.5f);
 
-                System.Diagnostics.Stopwatch swPrepare = null;
-                if (AirStickerPerformanceLog.Enabled) swPrepare = System.Diagnostics.Stopwatch.StartNew();
-
-                for (var polyNo = 0; polyNo < _convexPolygonInfos.Count; polyNo++)
-                    _convexPolygonInfos[polyNo].ConvexPolygon.PrepareToRunOnWorkerThread();
-
-                if (swPrepare != null)
-                    Debug.Log($"[AirSticker][Perf] PrepareToRunOnWorkerThread: {swPrepare.Elapsed.TotalMilliseconds:F2} ms ({_convexPolygonInfos.Count} polygons)");
-
                 #endregion // Prepare to run on worker threads.
 
                 #region Run worker thread.
+
+                // Snapshot the decal mesh buffers so that the geometry appended by the worker
+                // thread can be discarded if this launch is canceled before the upload.
+                foreach (var decalMesh in DecalMeshes) decalMesh.SnapshotBufferSizes();
+                _hasPendingAppendedGeometry = true;
 
                 // Split Convex Polygon.
                 _executeLaunchingOnWorkerThread = true;
@@ -302,13 +347,15 @@ namespace AirSticker.Runtime.Scripts
 
                 if (_workerThreadFailed)
                 {
-                    // The worker thread failed, so cancel the launching
-                    // without post-processing the possibly inconsistent results.
+                    // The worker thread failed, so discard the possibly inconsistent geometry
+                    // that was appended to the decal meshes and cancel the launching.
+                    RollbackAppendedGeometryIfPending();
                     OnFinished(State.LaunchingCanceled);
                     yield break;
                 }
 
                 foreach (var decalMesh in DecalMeshes) decalMesh.ExecutePostProcessingAfterWorkerThread();
+                _hasPendingAppendedGeometry = false;
             }
 
             OnFinished(State.LaunchingCompleted);

@@ -3,7 +3,7 @@
 Air Sticker のデカール貼り付け処理(ポリゴン分割)を Worker Thread (ThreadPool) から Unity Job System + Burst へ移行するかの評価と、段階的な実装計画。
 
 - 作成日: 2026-07-31
-- ステータス: 計画(未着手)
+- ステータス: Step 1 完了(2026-07-31)。Step 0 の残計測(静的メッシュ/テレイン/連続 Launch)と Step 2 以降が未着手
 
 ## 背景と結論
 
@@ -28,7 +28,7 @@ Air Sticker のデカール貼り付け処理(ポリゴン分割)を Worker Thre
 | 3 | スキニング + ワールド変換 | ワーカー(1 本) | **全ポリゴン**対象。頂点ごとに 4x4 行列 4 本のブレンド。`ConvexPolygon.CalculatePositionsAndNormalsInWorldSpace` |
 | 4 | ブロードフェーズ + バッファ複製 | ワーカー | 毎回巨大なマネージド確保(下記) |
 | 5 | 6 平面クリップ (`SplitAndRemoveByPlane`) | ワーカー | ブロードフェーズ生存ポリゴンのみ |
-| 6 | メッシュアップロード (`ExecutePostProcessingAfterWorkerThread`) | メイン(**分割なし**) | `SetVertices` + `RecalculateTangents` + `Optimize`。`DecalMesh.cs:67-91` |
+| 6 | メッシュアップロード (`ExecutePostProcessingAfterWorkerThread`) | メイン(**分割なし**) | `SetVertices` + `RecalculateTangents`(`Optimize` は Step 1 で削除)。`DecalMesh.cs` |
 
 ### ボトルネック候補
 
@@ -143,12 +143,24 @@ Air Sticker のデカール貼り付け処理(ポリゴン分割)を Worker Thre
   - `DecalProjectorLauncher` が常に1 Launch(=1 Execute呼び出し)しか同時実行しないこと、かつ結果が同じワーカースレッド呼び出し内で `DecalMesh` へコピーされ切ってから次の `Execute` が呼ばれることを前提に、静的プールの使い回しを安全と判断
   - `Execute` の公開シグネチャは変更なし。EditMode テスト(`TestBroadPhaseConvexPolygonsDetection`)はそのまま通る想定
   - **効果測定済み(2026-07-31、エディタ Mono、大きめスキンメッシュ・入力8191/生存4849ポリゴンの2回目 Launch)**: BroadPhase バッファ確保 55.23ms → **0.01ms**。ワーカー合計(skinning+broadPhase+clip+build)も 65.70ms → **8.65ms**(約7.6倍)に短縮。プール化のみで Step 3 の目標値(1/10以下)にほぼ到達しており、期待通りの効果を確認
+- [x] Launch 中に破棄されたプロジェクタのゴーストデカール修正(Codex レビュー指摘、2026-07-31)
+  - プロジェクタが Launch 中に破棄されるとコルーチン(アップロード)は止まるがワーカースレッドの追記は完走するため、キャンセル済みデカールの頂点がプール共有の `DecalMesh` の CPU バッファに残り、同じ (receiver, renderer, material) への次の Launch で一緒にアップロードされて出現する既存バグがあった
+  - 修正: ワーカー起動直前に各 `DecalMesh` の頂点/インデックス数をスナップショット(`SnapshotBufferSizes`)し、`DecalProjectorLauncher` が「プロジェクタ終了+ワーカー完了」を検知した時点で未アップロードの追記分を巻き戻す(`AirStickerProjector.RollbackAppendedGeometryIfPending`)。巻き戻しはワーカー完了後にメインスレッドで行うためスレッド競合はない
+  - ワーカー失敗(`_workerThreadFailed`)時も同様に巻き戻すようにし、例外時の中途半端な追記が次の Launch で出現する問題も解消
 - [x] プロジェクタ破棄時のワーカースレッド並走の修正(プール化レビューでの指摘、2026-07-31)
   - プロジェクタが Launch 中に破棄されるとコルーチンは止まるが ThreadPool のワークアイテムは走り続ける。一方 `DecalProjectorLauncher.IsCurrentRequestFinished` は「プロジェクタが死んだ/Canceled」で終了扱いにして次の Launch を開始するため、前の Launch のワーカーと次の Launch のワーカーが並走し、静的プールバッファを同時に読み書きするデータ競合があった(プール化以前は Execute ごとに新規確保していたため無害だった)
   - 修正: `AirStickerProjector.IsWorkerThreadRunning`(internal、volatile な `_executeLaunchingOnWorkerThread` を公開)を追加し、`IsCurrentRequestFinished` が「プロジェクタが死んでいてもワーカースレッドのフラグが下りるまで false を返す」よう変更。Unity オブジェクト破棄後も C# インスタンスのフィールドは読めることを利用
   - 副次効果として、破棄されたプロジェクタのワーカーと次の Launch が同一 `DecalMesh` へ同時 append する既存レースも塞がる
-- [ ] `Mesh.Optimize()` の必要性見直し(頂点キャッシュ最適化の効果 vs 毎回のコスト)
-- [ ] `PrepareToRunOnWorkerThread` ループのフレーム分割(`MaxGeneratedPolygonPerFrame` と同様の方式)
+- [x] `Mesh.Optimize()` の必要性見直し → 削除(2026-07-31)
+  - デカールメッシュのインデックスは `DecalMesh.AddTrianglePolygonsToDecalMesh` が凸多角形ごとのトライアングルファンを `indexBase` 単調増加で先頭から順に emit しており、頂点参照はほぼ逐次。頂点キャッシュ効率は最適化前からほぼ上限にあり `Optimize()` の GPU 側効果は見込めない
+  - 一方コストは毎 Launch 発生し、デカール積み重ねで頂点数が増えるほど悪化する(Unity 公式ドキュメントも「一度生成して何度も描画するメッシュ向け」としている)。効果ほぼゼロ・コスト再発型のため削除した
+  - あわせて `RecalculateTangents()` が `SetUVs()` より**前**に呼ばれていた不具合を修正(タンジェント計算は UV0 依存。初回 Launch では UV 未設定のままタンジェントが計算されていた)。法線マップを使うデカールマテリアルの描画が正しくなる方向の変更
+  - **効果測定済み(2026-07-31、エディタ Mono、大きめスキンメッシュ・同一シナリオ)**: メッシュアップロード(DecalMesh 毎の最大値)が 2回目 Launch で 0.26ms → **0.11ms**(約58%減)、1回目 Launch で 3.74ms → 0.84ms(初回は JIT ウォームアップ込みのため参考値)。ベースラインは DecalMesh 毎の頂点数を記録していないため厳密な同一メッシュ比較ではないが、シナリオ(入力 8191/生存 4849、2回連続 Launch)は同一
+  - 同じ計測で、prepare ループのフレーム分割が既定値でオーバーヘッドを持たないこと(1.35/0.97ms、分割前の 1.36/0.96ms と同水準)、プールバッファが初回のみ成長(38.22ms)し2回目は 0.01ms になることも確認
+- [x] `PrepareToRunOnWorkerThread` ループのフレーム分割(2026-07-31)
+  - `TrianglePolygonsFactory.MaxGeneratedPolygonPerFrame`(既定 100,000)ごとに `yield return null` を挟む方式で、既存のポリゴン抽出と同じノブを共有。既定値では計測シナリオ(8,191 ポリゴン)の挙動は変わらず、巨大な受けオブジェクトでのみ分割が発動する
+  - フレームまたぎ中に受けオブジェクトが破棄された場合は `LaunchingCanceled` で中断する
+  - ボーン行列パレットの取得(`CalculateMatricesPallet`)を prepare ループの**後**へ移動し、ワーカースレッド開始と同じフレームでサンプリングされるようにした(ループがフレームをまたいでもスキニング行列が古くならない)
 
 **期待効果**: メインスレッドの体感スパイクの大部分を削減。公開 API 変更なし。
 
