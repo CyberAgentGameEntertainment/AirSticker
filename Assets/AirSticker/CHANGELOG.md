@@ -5,6 +5,27 @@ All notable changes to this package are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-08-03
+
+### Added
+
+- `AirStickerProjector.CreateAndLaunch()` overload that takes an array of receiver objects
+  (`GameObject[]`), so a decal created at runtime can span the boundary of multiple receiver
+  objects. All receivers are clipped in the same decal space, so the decal texture is
+  continuous across the boundary. One decal mesh is built per receiver (per renderer and
+  decal material), so the more receivers the decal spans, the more draw calls are made.
+  The single-receiver overload is unchanged and delegates to the new one.
+- Demo_05: click near the boundary of two walls and compare the multiple receivers overload
+  (the sticker spans the boundary) with the single receiver overload (the sticker is cut at
+  the boundary).
+
+### Known limitations
+
+- Call sites passing a `null` literal as the receiver argument of `CreateAndLaunch()` no
+  longer compile because the call is ambiguous between the two overloads. Cast to
+  `(GameObject)null` if needed (such a call pastes nothing); calls passing a
+  `GameObject`-typed variable are unaffected.
+
 ## [2.0.0] - 2026-07-31
 
 Decal mesh generation was rewritten on the Unity Job System + Burst. This is a major
