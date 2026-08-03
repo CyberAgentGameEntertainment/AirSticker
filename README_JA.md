@@ -208,6 +208,22 @@ void LaunchProjector(
 }
 ```
 
+複数のレシーバーオブジェクトに跨って1つのデカールを貼り付けたい場合は、レシーバーオブジェクトの配列を受け取るCreateAndLaunch()メソッドのオーバーロードを使用してください。<br/>
+全てのレシーバーオブジェクトに同一のデカール空間で投影されるため、レシーバーの境目でもデカールのテクスチャは連続します。<br/>
+```C#
+AirStickerProjector.CreateAndLaunch(
+                projectorObj,
+                /*receiverObjects*/new[] { receiverObjectA, receiverObjectB },
+                decalMaterial,
+                /*width=*/0.05f,
+                /*height=*/0.05f,
+                /*depth=*/0.2f,
+                /*launchOnAwake*/true,
+                /*onCompletedLaunch*/result => { Destroy(projectorObj); });
+```
+デカールメッシュはレシーバーオブジェクトごと(さらにレンダラー・デカールマテリアルごと)に構築されるため、跨るレシーバーの数だけドローコールは増えます。<br/>
+また、いずれかのレシーバーのメッシュがRead/Write有効になっていない場合、そのレシーバーの時点で投影はキャンセルされ、残りのレシーバーオブジェクトは処理されません。<br/>
+
 ***
 <p align="right">
 © Unity Technologies Japan/UC

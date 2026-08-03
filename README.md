@@ -213,6 +213,23 @@ void LaunchProjector(
                     /*onCompletedLaunch*/() => { Destroy(projectorObj); });
 }
 ```
+
+If you want to paste a single decal across multiple receiver objects, use the overload of the CreateAndLaunch() method that takes an array of receiver objects.<br/>
+The decal is projected onto all the receiver objects in the same decal space, so the decal texture is continuous across the boundary of the receivers.<br/>
+```C#
+AirStickerProjector.CreateAndLaunch(
+                projectorObj,
+                /*receiverObjects*/new[] { receiverObjectA, receiverObjectB },
+                decalMaterial,
+                /*width=*/0.05f,
+                /*height=*/0.05f,
+                /*depth=*/0.2f,
+                /*launchOnAwake*/true,
+                /*onCompletedLaunch*/result => { Destroy(projectorObj); });
+```
+One decal mesh is built per receiver object (per renderer and decal material), so the more receiver objects the decal spans, the more draw calls are made.<br/>
+Note that if any receiver's mesh is not Read/Write enabled, the launch is canceled at that receiver and the remaining receiver objects are not processed.<br/>
+
 ***
 <p align="right">
 © Unity Technologies Japan/UC

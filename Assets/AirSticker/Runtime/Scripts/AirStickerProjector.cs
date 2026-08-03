@@ -326,13 +326,70 @@ namespace AirSticker.Runtime.Scripts
             float zOffsetInDecalSpace = 0.005f,
             int groupId = 0)
         {
+            return CreateAndLaunch(
+                owner,
+                new[] { receiverObject },
+                decalMaterial,
+                width,
+                height,
+                depth,
+                launchOnAwake,
+                onCompletedLaunch,
+                zOffsetInDecalSpace,
+                groupId);
+        }
+
+        /// <summary>
+        ///     Create and add AirStickerProjector to the GameObject.
+        /// </summary>
+        /// <remarks>
+        ///     This overload projects the decal onto multiple receiver objects at once,
+        ///     so a decal can be pasted across the boundary of the receivers. <br />
+        ///     One decal mesh is built per (receiver object, renderer, decal material, group ID),
+        ///     so the more receivers the decal spans, the more draw calls are made. <br />
+        ///     If any receiver's mesh is not Read/Write enabled, the launch is canceled at that receiver
+        ///     and the remaining receivers are not processed.
+        /// </remarks>
+        /// <param name="owner">Game object to which the component will be added.</param>
+        /// <param name="receiverObjects">Receiver objects to which decal is applied.</param>
+        /// <param name="decalMaterial">Decal material applied to receiver objects.</param>
+        /// <param name="width">Width of projector. It means to projection range.</param>
+        /// <param name="height">Height of projector. It means to projection range.</param>
+        /// <param name="depth">Depth of projector. It means to projection range.</param>
+        /// <param name="launchOnAwake">
+        ///     If it is true, the decal projection is started at same time as additional component.
+        ///     If it is false, the decal projection is started by explicitly calling the Launch method.
+        /// </param>
+        /// <param name="onCompletedLaunch">Callback function called when decal projection is complete.</param>
+        /// <param name="zOffsetInDecalSpace">The Z offset of the decal space from the receiver surface.</param>
+        /// <param name="groupId">
+        ///     The group ID of the decal mesh. <br />
+        ///     Decal meshes are shared only within the same group,
+        ///     so decals can be removed by group using the RemoveDecalMeshes method. <br />
+        ///     If it is not specified, the decal belongs to the group 0.
+        /// </param>
+        public static AirStickerProjector CreateAndLaunch(
+            GameObject owner,
+            GameObject[] receiverObjects,
+            Material decalMaterial,
+            float width,
+            float height,
+            float depth,
+            bool launchOnAwake,
+            UnityAction<State> onCompletedLaunch,
+            float zOffsetInDecalSpace = 0.005f,
+            int groupId = 0)
+        {
             var projector = owner.AddComponent<AirStickerProjector>();
             projector.width = width;
             projector.height = height;
             projector.depth = depth;
             projector.zOffsetInDecalSpace = zOffsetInDecalSpace;
-            projector.receiverObjects = new GameObject[1];
-            projector.receiverObjects[0] = receiverObject;
+            // Copy the array so that the caller mutating it during the multi-frame launch
+            // does not change the projection targets.
+            projector.receiverObjects = receiverObjects != null
+                ? (GameObject[])receiverObjects.Clone()
+                : null;
             projector.decalMaterial = decalMaterial;
             projector.groupId = groupId;
             projector.launchOnAwake = false;
