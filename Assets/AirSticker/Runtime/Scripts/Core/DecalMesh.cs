@@ -43,18 +43,28 @@ namespace AirSticker.Runtime.Scripts.Core
         private readonly Material _decalMaterial;
         private readonly Component _receiverComponent;
         private readonly GameObject _receiverObject;
-        private BoneWeight[] _boneWeightsBuffer;
         private DecalMeshRenderer _decalMeshRenderer;
         private bool _disposed;
-
-        private int[] _indexBuffer;
         private Mesh _mesh;
-        private Vector3[] _normalBuffer;
+
+        // The CPU-side geometry, accumulated across every launch that projects onto this mesh.
+        // They are NativeArrays with doubling capacity rather than managed arrays sized exactly to
+        // _numVertex / _numIndex: Array.Resize allocates a new array of the exact length on every append, so
+        // pasting a second decal onto the same mesh copied the first decal's vertices into fresh garbage, and
+        // the garbage grew quadratically with the number of decals. Native memory is not counted as GC.Alloc,
+        // and doubling makes the reallocations amortized-constant.
+        // Only the main thread touches them (append and upload run after the jobs have completed), so no job
+        // dependency has to be tracked; Dispose is the only owner (see the remarks on Dispose).
+        private NativeArray<float3> _positionBuffer;
+        private NativeArray<float3> _normalBuffer;
+        private NativeArray<float2> _uvBuffer;
+        private NativeArray<float4> _tangentBuffer;
+        private NativeArray<BoneWeight> _boneWeightsBuffer;
+        private NativeArray<int> _indexBuffer;
+
+        // The logical lengths of the buffers above. They are independent of the buffers' capacity.
         private int _numIndex;
         private int _numVertex;
-        private Vector3[] _positionBuffer;
-        private Vector4[] _tangentBuffer;
-        private Vector2[] _uvBuffer;
 
         public DecalMesh(
             GameObject receiverObject,
@@ -81,12 +91,28 @@ namespace AirSticker.Runtime.Scripts.Core
         internal Material DecalMaterial => _decalMaterial;
         internal Component ReceiverComponent => _receiverComponent;
 
+        /// <summary>
+        ///     Destroy the mesh and free the CPU-side buffers.
+        /// </summary>
+        /// <remarks>
+        ///     There is deliberately no finalizer to fall back on. Object.Destroy and NativeArray.Dispose are
+        ///     both unsafe on the finalizer thread (the implementation before the buffers became NativeArrays
+        ///     called Dispose from one), so a finalizer could not release anything here. Every DecalMesh is
+        ///     owned by DecalMeshPool, which disposes it from GarbageCollect / RemoveDecalMeshes / Dispose, so
+        ///     a missed Dispose means the pool was bypassed; the editor's Native Collection leak detection
+        ///     reports the buffers in that case.
+        /// </remarks>
         public void Dispose()
         {
             if (_disposed) return;
-            if (_mesh && _mesh != null) Object.Destroy(_mesh);
-            GC.SuppressFinalize(this);
             _disposed = true;
+            if (_mesh && _mesh != null) Object.Destroy(_mesh);
+            DisposeIfCreated(ref _positionBuffer);
+            DisposeIfCreated(ref _normalBuffer);
+            DisposeIfCreated(ref _uvBuffer);
+            DisposeIfCreated(ref _tangentBuffer);
+            DisposeIfCreated(ref _boneWeightsBuffer);
+            DisposeIfCreated(ref _indexBuffer);
         }
 
         /// <summary>
@@ -172,7 +198,8 @@ namespace AirSticker.Runtime.Scripts.Core
             }
             else
             {
-                meshData.GetIndexData<int>().CopyFrom(_indexBuffer);
+                // Copied by range instead of CopyFrom, because the buffer's capacity is larger than _numIndex.
+                NativeArray<int>.Copy(_indexBuffer, 0, meshData.GetIndexData<int>(), 0, _numIndex);
             }
 
             meshData.subMeshCount = 1;
@@ -194,11 +221,6 @@ namespace AirSticker.Runtime.Scripts.Core
                 _mesh);
         }
 
-        ~DecalMesh()
-        {
-            Dispose();
-        }
-
         /// <summary>
         ///     Check to can the decal mesh remove from the pool.
         ///     If this function return true, it will be removed from the pool.
@@ -217,6 +239,8 @@ namespace AirSticker.Runtime.Scripts.Core
         public void Clear()
         {
             _decalMeshRenderer?.Destroy();
+            // The logical lengths are reset but the buffers keep their capacity, so re-pasting onto this mesh
+            // does not have to grow them again.
             _numIndex = 0;
             _numVertex = 0;
             Object.Destroy(_mesh);
@@ -271,24 +295,55 @@ namespace AirSticker.Runtime.Scripts.Core
             var addIndexNo = _numIndex;
 
             _numVertex += vertexCount;
-            Array.Resize(ref _positionBuffer, _numVertex);
-            Array.Resize(ref _normalBuffer, _numVertex);
-            Array.Resize(ref _boneWeightsBuffer, _numVertex);
-            Array.Resize(ref _uvBuffer, _numVertex);
-            Array.Resize(ref _tangentBuffer, _numVertex);
-            for (var k = 0; k < vertexCount; k++)
-            {
-                _positionBuffer[addVertNo + k] = positions[vertexOffset + k];
-                _normalBuffer[addVertNo + k] = normals[vertexOffset + k];
-                _uvBuffer[addVertNo + k] = uvs[vertexOffset + k];
-                _tangentBuffer[addVertNo + k] = tangents[vertexOffset + k];
-                _boneWeightsBuffer[addVertNo + k] = boneWeights[vertexOffset + k];
-            }
+            EnsureCapacity(ref _positionBuffer, _numVertex, addVertNo);
+            EnsureCapacity(ref _normalBuffer, _numVertex, addVertNo);
+            EnsureCapacity(ref _uvBuffer, _numVertex, addVertNo);
+            EnsureCapacity(ref _tangentBuffer, _numVertex, addVertNo);
+            EnsureCapacity(ref _boneWeightsBuffer, _numVertex, addVertNo);
+            NativeArray<float3>.Copy(positions, vertexOffset, _positionBuffer, addVertNo, vertexCount);
+            NativeArray<float3>.Copy(normals, vertexOffset, _normalBuffer, addVertNo, vertexCount);
+            NativeArray<float2>.Copy(uvs, vertexOffset, _uvBuffer, addVertNo, vertexCount);
+            NativeArray<float4>.Copy(tangents, vertexOffset, _tangentBuffer, addVertNo, vertexCount);
+            NativeArray<BoneWeight>.Copy(boneWeights, vertexOffset, _boneWeightsBuffer, addVertNo, vertexCount);
 
             _numIndex += indexCount;
-            Array.Resize(ref _indexBuffer, _numIndex);
+            EnsureCapacity(ref _indexBuffer, _numIndex, addIndexNo);
+            // Not a bulk copy, because every index has to be shifted into this mesh's vertex space.
             for (var k = 0; k < indexCount; k++)
                 _indexBuffer[addIndexNo + k] = indices[indexOffset + k] + indexDelta;
+        }
+
+        /// <summary>
+        ///     Make sure the buffer can hold <paramref name="requiredLength" /> elements, preserving the first
+        ///     <paramref name="copyLength" /> of them.
+        /// </summary>
+        /// <remarks>
+        ///     The capacity is doubled rather than grown to exactly the required length, so that appending to a
+        ///     mesh that already holds decals stays amortized-constant instead of copying the whole buffer on
+        ///     every append.
+        /// </remarks>
+        private static void EnsureCapacity<T>(ref NativeArray<T> buffer, int requiredLength, int copyLength)
+            where T : struct
+        {
+            if (buffer.IsCreated && buffer.Length >= requiredLength) return;
+
+            var newLength = buffer.IsCreated
+                ? math.max(requiredLength, buffer.Length * 2)
+                : math.max(requiredLength, 1);
+            var newBuffer = new NativeArray<T>(newLength, Allocator.Persistent,
+                NativeArrayOptions.UninitializedMemory);
+            if (buffer.IsCreated)
+            {
+                if (copyLength > 0) NativeArray<T>.Copy(buffer, 0, newBuffer, 0, copyLength);
+                buffer.Dispose();
+            }
+
+            buffer = newBuffer;
+        }
+
+        private static void DisposeIfCreated<T>(ref NativeArray<T> buffer) where T : struct
+        {
+            if (buffer.IsCreated) buffer.Dispose();
         }
 
         [StructLayout(LayoutKind.Sequential)]
