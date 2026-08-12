@@ -1,5 +1,5 @@
-using System.Collections;
 using System.Collections.Generic;
+using System.Threading;
 using AirSticker.Runtime.Scripts.Core;
 using AirSticker.Runtime.Scripts.Core.Jobs;
 using UnityEngine;
@@ -90,17 +90,21 @@ namespace AirSticker.Runtime.Scripts
             Instance = null;
         }
 
-        internal static IEnumerator BuildTrianglePolygonsFromReceiverObject(
+        // Returns the factory's Awaitable directly instead of awaiting it in an async method of its own, so
+        // the call does not build a second state machine per launch.
+        internal static Awaitable BuildTrianglePolygonsFromReceiverObjectAsync(
             IReadOnlyList<MeshRenderer> meshRenderers,
             IReadOnlyList<SkinnedMeshRenderer> skinnedMeshRenderers,
             IReadOnlyList<Terrain> terrains,
-            ReceiverConvexPolygonsMesh[] resultHolder)
+            ReceiverConvexPolygonsMesh[] resultHolder,
+            CancellationToken cancellation)
         {
-            yield return Instance._trianglePolygonsFactory.BuildFromReceiverObject(
+            return Instance._trianglePolygonsFactory.BuildFromReceiverObjectAsync(
                 meshRenderers,
                 skinnedMeshRenderers,
                 terrains,
-                resultHolder);
+                resultHolder,
+                cancellation);
         }
 
         internal static ReceiverConvexPolygonsMesh GetTrianglePolygonsFromPool(GameObject receiverObject)

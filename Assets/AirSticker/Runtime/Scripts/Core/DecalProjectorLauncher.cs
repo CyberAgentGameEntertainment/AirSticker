@@ -56,12 +56,13 @@ namespace AirSticker.Runtime.Scripts.Core
             if (!_hasCurrentRequest) return true; // The request is empty.
 
             var projector = _currentRequest.Projector;
-            // Even if the projector is dead or the launching is canceled, its scheduled jobs may still be
-            // running, because destroying the projector stops its coroutine but not the jobs. Starting the
-            // next launch in that state corrupts the buffers the pipeline shares between launches, so the
-            // next request must wait until the jobs finish.
+            // Even if the projector is dead or the launching is canceled, its launch may still be unwinding:
+            // destroying the projector neither stops the scheduled jobs nor the async launch body, which only
+            // observes the destruction at its next resume point. Starting the next launch in that state
+            // corrupts the state the pipeline and the triangle extraction share between launches, so the next
+            // request must wait for both.
             // The C# instance is still readable after the Unity object is destroyed.
-            if (projector.IsWorkerThreadRunning) return false;
+            if (projector.IsWorkerThreadRunning || projector.IsExecutingLaunch) return false;
 
             return !projector // Projector that threw the request is dead.
                    || projector.NowState == AirStickerProjector.State.LaunchingCompleted

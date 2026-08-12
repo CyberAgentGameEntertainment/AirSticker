@@ -12,13 +12,13 @@ namespace AirSticker.Runtime.Scripts.Core.Jobs
     ///     build. Owned by <c>AirStickerSystem</c> and reused across launches (one launch runs at a time).
     /// </summary>
     /// <remarks>
-    ///     Usage from the projector's coroutine (two async segments with a cheap main-thread step between):
+    ///     Usage from the projector's launch body (two async segments with a cheap main-thread step between):
     ///     <code>
     ///     var h1 = pipeline.ScheduleClipStage(source, ...);   // segment 1
-    ///     while (!h1.IsCompleted) yield return null; h1.Complete();
+    ///     while (!h1.IsCompleted) await Awaitable.NextFrameAsync(); h1.Complete();
     ///     pipeline.CountBuild(source, decalMeshes);           // main thread
     ///     var h2 = pipeline.ScheduleBuildStage(source, decalMeshes, ...); // segment 2
-    ///     while (!h2.IsCompleted) yield return null; h2.Complete();
+    ///     while (!h2.IsCompleted) await Awaitable.NextFrameAsync(); h2.Complete();
     ///     pipeline.ApplyToDecalMeshes(decalMeshes);           // main thread merge + (caller) upload
     ///     </code>
     /// </remarks>

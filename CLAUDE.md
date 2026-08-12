@@ -38,18 +38,22 @@ All runtime code is in `Assets/AirSticker/Runtime/Scripts` (single asmdef `AirSt
 
 ### Projection pipeline (per launch)
 
-`AirStickerProjector.ExecuteLaunch()` is a coroutine that, per receiver object:
+`AirStickerProjector.ExecuteLaunchAsync()` is an `async Awaitable` method (started fire-and-forget by `DecalProjectorLauncher`, not a coroutine) that, per receiver object:
 
 1. Collects/creates target `DecalMesh`es from the pool (`AirStickerSystem.CollectEditDecalMeshes`). Decal renderers already hanging under the receiver are temporarily disabled so they aren't picked up as receivers themselves.
-2. Builds the triangle-polygon list via `TrianglePolygonsFactory` if not pooled — frame-sliced (`MaxGeneratedPolygonPerFrame` polygons per frame, `yield return null` between chunks) to avoid spikes. Handles `MeshFilter`, `SkinnedMeshRenderer`, and `Terrain` sources.
-3. Hands off to a **ThreadPool worker thread**: skinning matrices applied, broad-phase cull (`BroadPhaseConvexPolygonsDetection` — face-normal + distance rejection), six clip planes built from the decal box (width/height/depth in decal space), convex polygons split against them (`ConvexPolygon.SplitAndRemoveByPlane`), and resulting triangle fans appended to the decal meshes. The coroutine polls a flag until the worker finishes.
+2. Builds the triangle-polygon list via `TrianglePolygonsFactory` if not pooled — frame-sliced (`MaxGeneratedPolygonPerFrame` polygons per frame, `await Awaitable.NextFrameAsync()` between chunks) to avoid spikes. Handles `MeshFilter`, `SkinnedMeshRenderer`, and `Terrain` sources.
+3. Hands off to a **ThreadPool worker thread**: skinning matrices applied, broad-phase cull (`BroadPhaseConvexPolygonsDetection` — face-normal + distance rejection), six clip planes built from the decal box (width/height/depth in decal space), convex polygons split against them (`ConvexPolygon.SplitAndRemoveByPlane`), and resulting triangle fans appended to the decal meshes. The launch body awaits the next frame until the jobs finish.
 4. Back on the main thread, `DecalMesh.ExecutePostProcessingAfterWorkerThread()` uploads the results to Unity `Mesh` objects.
 
-`DecalMesh` spawns a child GameObject named **`"AirStickerRenderer"`** under the receiver (`DecalMeshRenderer`), with a `MeshRenderer` or `SkinnedMeshRenderer` (bones copied from the receiver) matching the source. It also carries an internal `DecalMeshRendererMarker` component, which is how `ExecuteLaunch()` filters those renderers out when gathering receiver geometry (the name itself is only for hierarchy readability — `Renderer.name` allocates, so it is not used for the check). `Assets/Demo/Demo_Benchmark` still matches on the literal name, so keep the name stable.
+`DecalMesh` spawns a child GameObject named **`"AirStickerRenderer"`** under the receiver (`DecalMeshRenderer`), with a `MeshRenderer` or `SkinnedMeshRenderer` (bones copied from the receiver) matching the source. It also carries an internal `DecalMeshRendererMarker` component, which is how `ExecuteLaunchAsync()` filters those renderers out when gathering receiver geometry (the name itself is only for hierarchy readability — `Renderer.name` allocates, so it is not used for the check). `Assets/Demo/Demo_Benchmark` still matches on the literal name, so keep the name stable.
 
 ### Constraints to keep in mind
 
 - Anything touched inside the worker-thread action must not call the Unity API — gather Unity-side data (`PrepareToRunOnWorkerThread`, bone matrices, transforms) before queueing the work item.
+- The frame-sliced work uses `UnityEngine.Awaitable`, deliberately **not** UniTask (the package must stay dependency-free) and no longer coroutines. Three rules follow from that, all of them load-bearing:
+  - Never pass a `CancellationToken` to `Awaitable.NextFrameAsync()`. A cancelable await registers a callback on the token's source, so it allocates on every frame the launch waits. Poll `destroyCancellationToken` yourself instead.
+  - An async method is **not** stopped by the projector's destruction, unlike the coroutine it replaced. Every resume point must be followed immediately by a cancellation check, before touching anything shared between launches (`TrianglePolygonsFactory`'s working buffers and write cursor, `DecalMeshJobPipeline`'s buffers) or anything `OnDestroy` has already released.
+  - Nothing awaits the launch body, so an escaping exception would be swallowed and `DecalProjectorLauncher`'s FIFO would wait forever for a state that never arrives. Keep the whole body in try/catch/finally.
 - Receiver models must have **Read/Write enabled** in import settings; the code paths that read mesh data error out otherwise (see commit history for the error-message handling).
 - Z-fighting is inherent to the technique; `zOffsetInDecalSpace` (default 0.005) is the mitigation knob.
 
