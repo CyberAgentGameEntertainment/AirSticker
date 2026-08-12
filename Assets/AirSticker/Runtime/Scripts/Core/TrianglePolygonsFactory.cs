@@ -1,6 +1,6 @@
-using System;
-using System.Collections;
+﻿using System;
 using System.Collections.Generic;
+using System.Threading;
 using AirSticker.Runtime.Scripts.Core.Jobs;
 using Unity.Collections;
 using Unity.Mathematics;
@@ -35,7 +35,9 @@ namespace AirSticker.Runtime.Scripts.Core
         private bool _disposed;
         private static int _maxGeneratedPolygonPerFrame = 100000;
 
-        // The write cursor into the result's per-triangle SoA arrays, shared across the fill coroutines.
+        // The write cursor into the result's per-triangle SoA arrays, shared across the fill methods.
+        // Like the working buffers above it belongs to whichever extraction is running now, which is why a
+        // canceled fill must return before it writes anything (see FillFromMeshRenderersAsync).
         private int _writeTriangleCursor;
 
         /// <summary>
@@ -60,14 +62,24 @@ namespace AirSticker.Runtime.Scripts.Core
 
         /// <summary>
         ///     Build the receiver's source triangle polygons. On success the result is written to
-        ///     resultHolder[0]; it is left null if a mesh is not Read/Write enabled (nothing to build).
+        ///     resultHolder[0]; it is left null if a mesh is not Read/Write enabled (nothing to build) or if
+        ///     <paramref name="cancellation" /> was requested during the frame-sliced fill.
         /// </summary>
-        internal IEnumerator BuildFromReceiverObject(
+        /// <remarks>
+        ///     This method owns the result until it returns: the fill runs across frames and nothing can stop
+        ///     it from the outside, so it publishes the result to the holder only once it is complete and
+        ///     disposes it itself otherwise. The token is only polled, never handed to
+        ///     <c>Awaitable.NextFrameAsync</c>, because a cancelable await registers a callback on the token's
+        ///     source and would allocate on every frame of the fill.
+        /// </remarks>
+        internal async Awaitable BuildFromReceiverObjectAsync(
             IReadOnlyList<MeshRenderer> meshRenderers,
             IReadOnlyList<SkinnedMeshRenderer> skinnedMeshRenderers,
             IReadOnlyList<Terrain> terrains,
-            ReceiverConvexPolygonsMesh[] resultHolder)
+            ReceiverConvexPolygonsMesh[] resultHolder,
+            CancellationToken cancellation)
         {
+            resultHolder[0] = null;
             var numTerrainMeshPolygon = GetNumPolygonsFromTerrains(terrains, 1.0f);
             var terrainMeshResolutionScale = numTerrainMeshPolygon > 0
                 ? Mathf.Sqrt(MaxWorkingVertexCountForTerrain / (float)numTerrainMeshPolygon)
@@ -88,10 +100,6 @@ namespace AirSticker.Runtime.Scripts.Core
             var componentCount = meshRenderers.Count + skinnedMeshRenderers.Count + terrains.Count;
 
             var result = new ReceiverConvexPolygonsMesh(triangleCount, componentCount, Allocator.Persistent);
-            // Expose the freshly allocated result to the caller immediately so its OnDestroy can dispose it if
-            // the projector is destroyed during the frame-sliced fill below (which stops this coroutine before
-            // it can hand off or dispose the result itself).
-            resultHolder[0] = result;
 
             // Unify the receiver components into one global index space: mesh renderers, then skinned mesh
             // renderers, then terrains.
@@ -107,29 +115,31 @@ namespace AirSticker.Runtime.Scripts.Core
             for (var k = 0; k < terrains.Count; k++) result.ComponentByIndex[terrainBase + k] = terrains[k];
 
             _writeTriangleCursor = 0;
-            if (buildMesh) yield return FillFromMeshRenderers(meshRenderers, result);
-            if (buildSkin) yield return FillFromSkinnedMeshRenderers(skinnedMeshRenderers, skinnedBase, result);
-            yield return FillFromTerrains(terrains, terrainBase, terrainMeshResolutionScale, result);
+            if (buildMesh) await FillFromMeshRenderersAsync(meshRenderers, result, cancellation);
+            if (buildSkin && !cancellation.IsCancellationRequested)
+                await FillFromSkinnedMeshRenderersAsync(skinnedMeshRenderers, skinnedBase, result, cancellation);
+            if (!cancellation.IsCancellationRequested)
+                await FillFromTerrainsAsync(terrains, terrainBase, terrainMeshResolutionScale, result, cancellation);
 
             if (_writeTriangleCursor != triangleCount)
             {
-                // A source was destroyed during the frame-sliced fill, so the SoA is only partially written.
-                // Discard it instead of registering a mesh whose uninitialized regions the jobs would read.
-                // Clear the holder first so the caller cancels and never double-disposes this result.
-                resultHolder[0] = null;
+                // The fill was canceled, or a source was destroyed during it, so the SoA is only partially
+                // written. Discard it instead of handing over a mesh whose uninitialized regions the jobs
+                // would read. The holder is still null, so the caller cancels and never sees this result.
                 result.Dispose();
-                yield break;
+                return;
             }
 
-            // resultHolder[0] already references result (set at allocation); leave it for the caller to register.
+            resultHolder[0] = result;
         }
 
         // Driven by the mesh renderers (not the mesh filter array) so componentIndex == rendererNo always
         // matches the mesh-renderer region of ComponentByIndex, even when a child has a MeshFilter without a
         // MeshRenderer or vice versa. The polygon count (GetNumPolygonsFromMeshRenderers) is driven the same
-        // way, so the total stays consistent with BuildFromReceiverObject's completeness check.
-        private IEnumerator FillFromMeshRenderers(
-            IReadOnlyList<MeshRenderer> meshRenderers, ReceiverConvexPolygonsMesh result)
+        // way, so the total stays consistent with BuildFromReceiverObjectAsync's completeness check.
+        private async Awaitable FillFromMeshRenderersAsync(
+            IReadOnlyList<MeshRenderer> meshRenderers, ReceiverConvexPolygonsMesh result,
+            CancellationToken cancellation)
         {
             var polygonNoInFill = 0;
             for (var rendererNo = 0; rendererNo < meshRenderers.Count; rendererNo++)
@@ -155,8 +165,13 @@ namespace AirSticker.Runtime.Scripts.Core
                     {
                         if (polygonNoInFill != 0 && polygonNoInFill % MaxGeneratedPolygonPerFrame == 0)
                         {
-                            yield return null;
-                            if (!meshRenderer || !meshFilter || meshFilter.sharedMesh == null) yield break;
+                            await Awaitable.NextFrameAsync();
+                            // Checked before anything else. Unlike a coroutine this is not stopped by the
+                            // projector's destruction, and the working buffers plus _writeTriangleCursor
+                            // belong to whichever extraction is running now, so a canceled fill must return
+                            // without writing into the next launch's extraction.
+                            if (cancellation.IsCancellationRequested) return;
+                            if (!meshRenderer || !meshFilter || meshFilter.sharedMesh == null) return;
                         }
 
                         polygonNoInFill++;
@@ -172,18 +187,18 @@ namespace AirSticker.Runtime.Scripts.Core
             }
         }
 
-        private IEnumerator FillFromSkinnedMeshRenderers(
+        private async Awaitable FillFromSkinnedMeshRenderersAsync(
             IReadOnlyList<SkinnedMeshRenderer> skinnedMeshRenderers, int componentBase,
-            ReceiverConvexPolygonsMesh result)
+            ReceiverConvexPolygonsMesh result, CancellationToken cancellation)
         {
             var workingBoneWeights = _workingBoneWeights ??= new List<BoneWeight>(MaxWorkingVertexCount);
             var polygonNoInFill = 0;
             for (var rendererNo = 0; rendererNo < skinnedMeshRenderers.Count; rendererNo++)
             {
                 var skinnedMeshRenderer = skinnedMeshRenderers[rendererNo];
-                if (!skinnedMeshRenderer || skinnedMeshRenderer.sharedMesh == null) yield break;
+                if (!skinnedMeshRenderer || skinnedMeshRenderer.sharedMesh == null) return;
                 var mesh = skinnedMeshRenderer.sharedMesh;
-                if (mesh.isReadable == false) yield break;
+                if (mesh.isReadable == false) return;
                 var componentIndex = componentBase + rendererNo;
                 var hasRootBone = skinnedMeshRenderer.rootBone != null;
 
@@ -201,8 +216,9 @@ namespace AirSticker.Runtime.Scripts.Core
                     {
                         if (polygonNoInFill != 0 && polygonNoInFill % MaxGeneratedPolygonPerFrame == 0)
                         {
-                            yield return null;
-                            if (!skinnedMeshRenderer || skinnedMeshRenderer.sharedMesh == null) yield break;
+                            await Awaitable.NextFrameAsync();
+                            if (cancellation.IsCancellationRequested) return;
+                            if (!skinnedMeshRenderer || skinnedMeshRenderer.sharedMesh == null) return;
                         }
 
                         polygonNoInFill++;
@@ -221,14 +237,14 @@ namespace AirSticker.Runtime.Scripts.Core
             }
         }
 
-        private IEnumerator FillFromTerrains(
+        private async Awaitable FillFromTerrainsAsync(
             IReadOnlyList<Terrain> terrains, int componentBase, float terrainMeshResolutionScale,
-            ReceiverConvexPolygonsMesh result)
+            ReceiverConvexPolygonsMesh result, CancellationToken cancellation)
         {
             for (var terrainNo = 0; terrainNo < terrains.Count; terrainNo++)
             {
                 var terrain = terrains[terrainNo];
-                if (!terrain || terrain == null) yield break;
+                if (!terrain || terrain == null) return;
                 var componentIndex = componentBase + terrainNo;
                 var terrainData = terrain.terrainData;
                 var vertexCountW = Math.Max(2, (int)(terrainData.heightmapResolution * terrainMeshResolutionScale));
@@ -256,8 +272,9 @@ namespace AirSticker.Runtime.Scripts.Core
                 {
                     if (polygonNoInFill != 0 && polygonNoInFill % MaxGeneratedPolygonPerFrame == 0)
                     {
-                        yield return null;
-                        if (!terrain || terrain == null) yield break;
+                        await Awaitable.NextFrameAsync();
+                        if (cancellation.IsCancellationRequested) return;
+                        if (!terrain || terrain == null) return;
                     }
 
                     polygonNoInFill += 2;
@@ -348,7 +365,7 @@ namespace AirSticker.Runtime.Scripts.Core
             return numPolygon;
         }
 
-        // Renderer-driven so it stays consistent with FillFromMeshRenderers: a renderer without a MeshFilter
+        // Renderer-driven so it stays consistent with FillFromMeshRenderersAsync: a renderer without a MeshFilter
         // (or without a mesh) contributes nothing, and only a non-readable mesh aborts the whole mesh path.
         private static int GetNumPolygonsFromMeshRenderers(IReadOnlyList<MeshRenderer> meshRenderers)
         {

@@ -1,5 +1,6 @@
-using System.Collections;
+using System;
 using System.Collections.Generic;
+using System.Threading;
 using AirSticker.Runtime.Scripts.Core;
 using AirSticker.Runtime.Scripts.Core.Jobs;
 using Unity.Jobs;
@@ -59,11 +60,20 @@ namespace AirSticker.Runtime.Scripts
         // The pooled source mesh the current launch's jobs are reading, pinned so the pool does not dispose
         // its NativeArrays while the jobs run.
         private ReceiverConvexPolygonsMesh _currentSource;
-        // Holds a source mesh built by the frame-sliced extraction but not yet registered into the pool.
-        // Destroying the projector mid-extraction stops the coroutine before registration, so OnDestroy
-        // disposes it from here to avoid leaking its Persistent NativeArrays. Only one extraction is in flight
-        // at a time, and the holder is cleared as soon as the source is registered.
+        // Receives a source mesh built by the frame-sliced extraction, before it is registered into the pool.
+        // An async method cannot have an out parameter, so the result is handed over through this reused array
+        // rather than a per-launch one. The extraction owns the mesh until it returns and only publishes a
+        // complete one (see TrianglePolygonsFactory.BuildFromReceiverObjectAsync), so whatever is found here
+        // afterwards belongs to this launch: it is either registered into the pool or disposed below.
+        // Only one extraction is in flight at a time.
         private readonly ReceiverConvexPolygonsMesh[] _pendingSourceHolder = new ReceiverConvexPolygonsMesh[1];
+
+        // True from the moment the launcher starts the launch body until the body has returned. The body is an
+        // async method, so unlike the coroutine it used to be it keeps running after the projector is
+        // destroyed, and it is not finished just because NowState says so. DecalProjectorLauncher waits for
+        // this before starting the next launch, because the extraction and the job pipeline are shared between
+        // launches (see IsExecutingLaunch).
+        private bool _executingLaunch;
 
         // The working lists of ExecuteLaunch, kept as fields so the launch does not allocate a list (or an
         // array from GetComponentsInChildren) per receiver object. The renderer/terrain lists are held across
@@ -79,12 +89,23 @@ namespace AirSticker.Runtime.Scripts
         ///     True while this projector's jobs are scheduled and not yet completed.
         /// </summary>
         /// <remarks>
-        ///     Destroying the projector stops its coroutine but not the scheduled jobs, which write to the
-        ///     pipeline's pooled buffers. Starting the next launch in that state would corrupt those buffers,
-        ///     so DecalProjectorLauncher must wait until the jobs finish. The C# instance is still readable
-        ///     after the Unity object is destroyed. OnDestroy also completes the jobs to release the pool.
+        ///     Destroying the projector does not stop the scheduled jobs, which write to the pipeline's pooled
+        ///     buffers. Starting the next launch in that state would corrupt those buffers, so
+        ///     DecalProjectorLauncher must wait until the jobs finish. The C# instance is still readable after
+        ///     the Unity object is destroyed. OnDestroy also completes the jobs to release the pool.
         /// </remarks>
         internal bool IsWorkerThreadRunning => _jobsScheduled && !_currentJobHandle.IsCompleted;
+
+        /// <summary>
+        ///     True while the launch body has not returned yet, even if the projector was destroyed.
+        /// </summary>
+        /// <remarks>
+        ///     The launch body observes the destruction and unwinds at its next resume point, which is a frame
+        ///     later at the earliest. Until then it must not overlap the next launch: the triangle extraction
+        ///     shares its working buffers and write cursor across launches, as does the job pipeline. The body
+        ///     always clears this, including on cancellation and on an exception, so the launcher cannot stall.
+        /// </remarks>
+        internal bool IsExecutingLaunch => _executingLaunch;
 
         /// <summary>
         ///     State of decal projector.
@@ -103,30 +124,16 @@ namespace AirSticker.Runtime.Scripts
 
         private void OnDestroy()
         {
-            // The coroutine is stopped by the destruction, but the scheduled jobs are not, and they write to
-            // the pipeline's pooled buffers. Complete them here so the next launch can reuse the pool safely.
-            if (_jobsScheduled)
-            {
-                _currentJobHandle.Complete();
-                _jobsScheduled = false;
-            }
+            // The scheduled jobs are not stopped by the destruction, and they write to the pipeline's pooled
+            // buffers. Complete them here so the next launch can reuse the pool safely, and unpin the source
+            // so the pool can dispose it.
+            ReleaseJobResources();
 
-            // Release the pinned source so the pool can dispose it.
-            if (_currentSource != null)
-            {
-                _currentSource.InUse = false;
-                _currentSource = null;
-            }
-
-            // Dispose a source built by the frame-sliced extraction but not yet registered into the pool.
-            // Destroying the projector during extraction stops the coroutine before registration, so this is
-            // the only owner. No jobs read it yet (they are scheduled only after registration), so disposing
-            // here is safe; once registered the holder is cleared, so this never disposes a pooled source.
-            if (_pendingSourceHolder[0] != null)
-            {
-                _pendingSourceHolder[0].Dispose();
-                _pendingSourceHolder[0] = null;
-            }
+            // _pendingSourceHolder is deliberately not touched. The extraction may still be running (it only
+            // notices the destruction at its next resume point) and it owns the mesh it is filling, so
+            // disposing it here would free NativeArrays that are still being written. The extraction disposes
+            // its own result when it observes the cancellation, and the launch body drops anything that was
+            // handed over just before the destruction.
 
             // It may be deleted without completing the projection, so we finish it here too.
             // No geometry rollback is needed: the new pipeline appends to the decal meshes only on the main
@@ -165,15 +172,15 @@ namespace AirSticker.Runtime.Scripts
 
         private void OnFinished(State finishedState)
         {
-            // The launch is over (completed, canceled or destroyed), so the reused working lists must not keep
-            // the receiver's renderers alive until the next launch.
-            ClearWorkingLists();
-
             if (onFinishedLaunch == null) return;
 
-            onFinishedLaunch.Invoke(finishedState);
+            // The state is published before the callback runs, so that a listener throwing cannot leave
+            // NowState at Launching -- DecalProjectorLauncher would then wait for this projector forever.
+            // Listeners get the state as their argument anyway.
             NowState = finishedState;
+            var callback = onFinishedLaunch;
             onFinishedLaunch = null;
+            callback.Invoke(finishedState);
         }
 
         /// <summary>
@@ -183,107 +190,184 @@ namespace AirSticker.Runtime.Scripts
         ///     This process is performed over multiple frames.
         ///     Projection completion can be monitored using callback functions or by checking the NowState property.
         /// </remarks>
-        private IEnumerator ExecuteLaunch()
+        /// <remarks>
+        ///     Nothing awaits the returned Awaitable, so this method must never let an exception escape: it
+        ///     would go unobserved, NowState would stay Launching and the launcher's queue would wait for a
+        ///     state that never comes. Hence the try/catch/finally around the whole body.
+        ///     <br />
+        ///     Every resume point is followed immediately by a cancellation check, because unlike the coroutine
+        ///     this replaces, an async method is not stopped by the projector's destruction: OnDestroy has
+        ///     already completed the jobs and unpinned the source by then, so none of that state may be touched
+        ///     afterwards. Those paths deliberately do not call OnFinished -- OnDestroy did.
+        /// </remarks>
+        private async Awaitable ExecuteLaunchAsync()
         {
-            InitializeOriginAxisInDecalSpace();
-
-            foreach (var receiverObject in receiverObjects)
+            try
             {
-                if (receiverObject == null || !receiverObject) continue;
+                // Cached so the checks below never read the property off an already destroyed MonoBehaviour. The
+                // token is only polled and never handed to Awaitable.NextFrameAsync: a cancelable await
+                // registers a callback on the token's source, which would allocate on every frame this launch
+                // waits. Read inside the try so that nothing at all can throw past the finally below.
+                var cancellation = destroyCancellationToken;
 
-                _receiverDecalMeshes.Clear();
-                AirStickerSystem.CollectEditDecalMeshes(_receiverDecalMeshes, receiverObject, decalMaterial, groupId);
-                DecalMeshes.AddRange(_receiverDecalMeshes);
+                InitializeOriginAxisInDecalSpace();
 
-                receiverObject.GetComponentsInChildren(false, _skinnedMeshRenderers);
-                ExcludeDecalMeshRenderers(_skinnedMeshRenderers);
-                receiverObject.GetComponentsInChildren(false, _terrains);
-
-                if (AirStickerSystem.ReceiverObjectTrianglePolygonsPool.Contains(receiverObject) == false)
+                foreach (var receiverObject in receiverObjects)
                 {
-                    // New receiver object: extract its source triangle polygons (frame-sliced). The result is
-                    // tracked in _pendingSourceHolder so OnDestroy can dispose it if this projector is destroyed
-                    // mid-extraction, before it is registered into the pool below.
-                    _pendingSourceHolder[0] = null;
-                    receiverObject.GetComponentsInChildren(false, _meshRenderers);
-                    yield return AirStickerSystem.BuildTrianglePolygonsFromReceiverObject(
-                        _meshRenderers,
-                        _skinnedMeshRenderers,
-                        _terrains,
-                        _pendingSourceHolder);
+                    if (receiverObject == null || !receiverObject) continue;
 
-                    if (_pendingSourceHolder[0] == null)
+                    _receiverDecalMeshes.Clear();
+                    AirStickerSystem.CollectEditDecalMeshes(_receiverDecalMeshes, receiverObject, decalMaterial,
+                        groupId);
+                    DecalMeshes.AddRange(_receiverDecalMeshes);
+
+                    receiverObject.GetComponentsInChildren(false, _skinnedMeshRenderers);
+                    ExcludeDecalMeshRenderers(_skinnedMeshRenderers);
+                    receiverObject.GetComponentsInChildren(false, _terrains);
+
+                    if (AirStickerSystem.ReceiverObjectTrianglePolygonsPool.Contains(receiverObject) == false)
                     {
-                        // A receiver mesh is not Read/Write enabled, so there is nothing to build.
-                        OnFinished(State.LaunchingCanceled);
-                        yield break;
+                        // New receiver object: extract its source triangle polygons (frame-sliced). The
+                        // extraction owns the result until it returns and hands over only a complete one.
+                        receiverObject.GetComponentsInChildren(false, _meshRenderers);
+                        await AirStickerSystem.BuildTrianglePolygonsFromReceiverObjectAsync(
+                            _meshRenderers,
+                            _skinnedMeshRenderers,
+                            _terrains,
+                            _pendingSourceHolder,
+                            cancellation);
+
+                        if (cancellation.IsCancellationRequested)
+                        {
+                            // The extraction disposes its result when it observes the cancellation, but it may
+                            // also have completed just before the destruction, so drop whatever it handed over.
+                            DisposePendingSource();
+                            return;
+                        }
+
+                        if (_pendingSourceHolder[0] == null)
+                        {
+                            // A receiver mesh is not Read/Write enabled, so there is nothing to build.
+                            OnFinished(State.LaunchingCanceled);
+                            return;
+                        }
+
+                        // The pool takes ownership of the source; stop tracking it here so it is never disposed
+                        // as a pending one while it is pooled (and possibly pinned by a later launch).
+                        AirStickerSystem.ReceiverObjectTrianglePolygonsPool.RegisterTrianglePolygons(
+                            receiverObject, _pendingSourceHolder[0]);
+                        _pendingSourceHolder[0] = null;
                     }
 
-                    // The pool takes ownership of the source; stop tracking it here so OnDestroy never disposes
-                    // a mesh that is pooled (and may be pinned/in use by a later launch).
-                    AirStickerSystem.ReceiverObjectTrianglePolygonsPool.RegisterTrianglePolygons(
-                        receiverObject, _pendingSourceHolder[0]);
-                    _pendingSourceHolder[0] = null;
-                }
+                    if (!receiverObject)
+                    {
+                        OnFinished(State.LaunchingCanceled);
+                        return;
+                    }
 
-                if (!receiverObject)
-                {
-                    OnFinished(State.LaunchingCanceled);
-                    yield break;
-                }
+                    var source = AirStickerSystem.GetTrianglePolygonsFromPool(receiverObject);
+                    if (source == null)
+                    {
+                        OnFinished(State.LaunchingCanceled);
+                        return;
+                    }
 
-                var source = AirStickerSystem.GetTrianglePolygonsFromPool(receiverObject);
-                if (source == null)
-                {
-                    OnFinished(State.LaunchingCanceled);
-                    yield break;
-                }
+                    var pipeline = AirStickerSystem.JobPipeline;
+                    var trans = transform;
+                    // basePosition is the center of the decal box.
+                    var centerPositionOfDecalBox = trans.position + trans.forward * (depth * 0.5f);
 
-                var pipeline = AirStickerSystem.JobPipeline;
-                var trans = transform;
-                // basePosition is the center of the decal box.
-                var centerPositionOfDecalBox = trans.position + trans.forward * (depth * 0.5f);
+                    // Segment 1: skinning + broad phase + clip (parallel jobs).
+                    source.InUse = true;
+                    _currentSource = source;
+                    _currentJobHandle = pipeline.ScheduleClipStage(
+                        source, centerPositionOfDecalBox,
+                        _decalSpace.Ex, _decalSpace.Ey, _decalSpace.Ez,
+                        width, height, depth, projectionBackside);
+                    _jobsScheduled = true;
+                    JobHandle.ScheduleBatchedJobs();
+                    await CompleteJobHandleAsync("clip stage (skinning + broad phase + clip)", cancellation);
+                    if (cancellation.IsCancellationRequested) return;
 
-                // Segment 1: skinning + broad phase + clip (parallel jobs).
-                source.InUse = true;
-                _currentSource = source;
-                _currentJobHandle = pipeline.ScheduleClipStage(
-                    source, centerPositionOfDecalBox,
-                    _decalSpace.Ex, _decalSpace.Ey, _decalSpace.Ez,
-                    width, height, depth, projectionBackside);
-                _jobsScheduled = true;
-                JobHandle.ScheduleBatchedJobs();
-                yield return CompleteJobHandle("clip stage (skinning + broad phase + clip)");
+                    if (!receiverObject)
+                    {
+                        ReleaseJobResources();
+                        OnFinished(State.LaunchingCanceled);
+                        return;
+                    }
 
-                if (!receiverObject)
-                {
+                    // Main-thread step between the segments: size the output from the clip result.
+                    pipeline.CountBuild(source, _receiverDecalMeshes);
+
+                    // Segment 2: build the appended geometry (serial job, off the main thread).
+                    _currentJobHandle = pipeline.ScheduleBuildStage(
+                        source, centerPositionOfDecalBox, _decalSpace.Ex, _decalSpace.Ey,
+                        width, height, zOffsetInDecalSpace);
+                    JobHandle.ScheduleBatchedJobs();
+                    await CompleteJobHandleAsync("build stage (fan + uv + tangent)", cancellation);
+                    if (cancellation.IsCancellationRequested) return;
+
                     _jobsScheduled = false;
                     source.InUse = false;
                     _currentSource = null;
-                    OnFinished(State.LaunchingCanceled);
-                    yield break;
+
+                    // Merge the built geometry into the decal meshes and upload them (main thread).
+                    pipeline.ApplyToDecalMeshes(_receiverDecalMeshes);
+                    foreach (var decalMesh in _receiverDecalMeshes)
+                        decalMesh.ExecutePostProcessingAfterWorkerThread();
                 }
 
-                // Main-thread step between the segments: size the output from the clip result.
-                pipeline.CountBuild(source, _receiverDecalMeshes);
+                OnFinished(State.LaunchingCompleted);
+            }
+            catch (Exception e)
+            {
+                // Ordered so the least fragile work happens first: a throw from here on would escape into the
+                // unobserved Awaitable and leave the launcher waiting. Releasing what this launch owns keeps a
+                // failure from pinning the source (the pool could never dispose it) or leaving jobs
+                // uncompleted, and the log takes no context object so it cannot touch a destroyed projector.
+                ReleaseJobResources();
+                DisposePendingSource();
+                Debug.LogException(e);
+                OnFinished(State.LaunchingCanceled);
+            }
+            finally
+            {
+                _executingLaunch = false;
+                // Released here rather than in OnFinished: OnDestroy calls that while the extraction may still
+                // be iterating these very lists, and it unwinds only at its next resume point.
+                ClearWorkingLists();
+            }
+        }
 
-                // Segment 2: build the appended geometry (serial job, off the main thread).
-                _currentJobHandle = pipeline.ScheduleBuildStage(
-                    source, centerPositionOfDecalBox, _decalSpace.Ex, _decalSpace.Ey,
-                    width, height, zOffsetInDecalSpace);
-                JobHandle.ScheduleBatchedJobs();
-                yield return CompleteJobHandle("build stage (fan + uv + tangent)");
+        /// <summary>
+        ///     Complete the scheduled jobs and unpin the source mesh this launch was reading.
+        /// </summary>
+        private void ReleaseJobResources()
+        {
+            if (_jobsScheduled)
+            {
+                _currentJobHandle.Complete();
                 _jobsScheduled = false;
-                source.InUse = false;
-                _currentSource = null;
-
-                // Merge the built geometry into the decal meshes and upload them (main thread).
-                pipeline.ApplyToDecalMeshes(_receiverDecalMeshes);
-                foreach (var decalMesh in _receiverDecalMeshes) decalMesh.ExecutePostProcessingAfterWorkerThread();
             }
 
-            OnFinished(State.LaunchingCompleted);
-            yield return null;
+            if (_currentSource != null)
+            {
+                _currentSource.InUse = false;
+                _currentSource = null;
+            }
+        }
+
+        /// <summary>
+        ///     Dispose a source mesh that the extraction handed over but that was never registered into the
+        ///     pool, so its Persistent NativeArrays are not leaked. No job reads it yet, because jobs are
+        ///     scheduled only after registration.
+        /// </summary>
+        private void DisposePendingSource()
+        {
+            if (_pendingSourceHolder[0] == null) return;
+
+            _pendingSourceHolder[0].Dispose();
+            _pendingSourceHolder[0] = null;
         }
 
         /// <summary>
@@ -321,7 +405,7 @@ namespace AirSticker.Runtime.Scripts
         ///     synchronously so the actual job compute time is measured; otherwise the main thread polls the
         ///     handle across frames without blocking.
         /// </summary>
-        private IEnumerator CompleteJobHandle(string label)
+        private async Awaitable CompleteJobHandleAsync(string label, CancellationToken cancellation)
         {
             if (AirStickerPerformanceLog.Enabled)
             {
@@ -329,12 +413,18 @@ namespace AirSticker.Runtime.Scripts
                 _currentJobHandle.Complete();
                 sw.Stop();
                 Debug.Log($"[AirSticker][Perf] {label}: {sw.Elapsed.TotalMilliseconds:F2} ms");
+                return;
             }
-            else
+
+            while (!_currentJobHandle.IsCompleted)
             {
-                while (!_currentJobHandle.IsCompleted) yield return null;
-                _currentJobHandle.Complete();
+                await Awaitable.NextFrameAsync();
+                // Destroyed while waiting: OnDestroy has already completed the handle, so leave it alone. The
+                // caller checks the same token and stops.
+                if (cancellation.IsCancellationRequested) return;
             }
+
+            _currentJobHandle.Complete();
         }
 
         /// <summary>
@@ -499,11 +589,18 @@ namespace AirSticker.Runtime.Scripts
         /// </remarks>
         internal void OnLaunchRequestAccepted()
         {
-            if (receiverObjects != null)
-                StartCoroutine(ExecuteLaunch());
-            else
+            if (receiverObjects == null)
+            {
                 // Receiver object has been dead, so process is terminated.
                 OnFinished(State.LaunchingCanceled);
+                return;
+            }
+
+            // Started without being awaited. The body reports through onFinishedLaunch / NowState and handles
+            // its own exceptions, so there is nothing to observe here. It is an Awaitable-returning method
+            // rather than async void so that the state machine comes from Unity's pool.
+            _executingLaunch = true;
+            _ = ExecuteLaunchAsync();
         }
 
         private void InitializeOriginAxisInDecalSpace()
