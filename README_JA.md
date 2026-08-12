@@ -112,7 +112,7 @@ Air Stickerはメッシュ生成に数フレームかかりますが、描画パ
 
 バージョンを指定したい場合には以下のように記述します。
 
-* https://github.com/CyberAgentGameEntertainment/AirSticker.git?path=/Assets/AirSticker#2.1.0
+* https://github.com/CyberAgentGameEntertainment/AirSticker.git?path=/Assets/AirSticker#2.2.0
 
 なお`No 'git' executable was found. Please install Git on your system and restart Unity`のようなメッセージが出た場合、マシンにGitをセットアップする必要がある点にご注意ください。
 

@@ -5,6 +5,34 @@ All notable changes to this package are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-08-12
+
+Decal projection allocates far less on the managed heap, and the frame-sliced projection now
+runs on `UnityEngine.Awaitable` instead of coroutines. The public API is unchanged, so this is
+a drop-in update.
+
+### Changed
+
+- Pasting a decal no longer produces per-frame GC allocations, and the per-launch allocations
+  are largely gone. Measured on the demo scenes: 320 B every frame while the system was idle,
+  5.1 KB on the frame a launch starts, and 145.8 KB on the frame it finishes are all removed.
+  The last one also grew quadratically when decals were pasted onto the same receiver
+  repeatedly, because the CPU-side vertex buffers were reallocated to the exact new length on
+  every append; they are now `NativeArray`s with doubling capacity.
+- The frame-sliced projection uses `UnityEngine.Awaitable` instead of coroutines. No new
+  package dependency is introduced (`Awaitable` is part of Unity 6.0, this package's minimum).
+- **A projector that is disabled mid-launch now keeps projecting.** Previously the launch was
+  a coroutine, so disabling the projector's GameObject (or the component) stopped it where it
+  was and it never resumed. If your code relies on `SetActive(false)` to hold a launch back,
+  destroy the projector instead. Destroying it still cancels the launch as before.
+
+### Fixed
+
+- Disabling a projector while it was launching stalled every later decal: the projector stayed
+  in the `Launching` state forever, and `DecalProjectorLauncher` runs one launch at a time, so
+  its queue never advanced. The same stall happened when an `onFinishedLaunch` listener threw,
+  because the state was published only after the callback returned.
+
 ## [2.1.0] - 2026-08-03
 
 ### Added
