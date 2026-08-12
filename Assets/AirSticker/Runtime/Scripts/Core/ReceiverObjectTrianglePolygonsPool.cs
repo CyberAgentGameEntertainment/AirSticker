@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 using AirSticker.Runtime.Scripts.Core.Jobs;
 using UnityEngine;
 
@@ -28,6 +27,10 @@ namespace AirSticker.Runtime.Scripts.Core
         private readonly Dictionary<GameObject, ReceiverConvexPolygonsMesh> _trianglePolygonsPool =
             new Dictionary<GameObject, ReceiverConvexPolygonsMesh>();
 
+        // The keys to delete in the current GarbageCollect call. It is reused across calls because
+        // GarbageCollect runs every frame, so allocating a list per call would produce constant GC garbage.
+        private readonly List<GameObject> _deleteKeys = new List<GameObject>();
+
         IReadOnlyDictionary<GameObject, ReceiverConvexPolygonsMesh> IReceiverObjectTrianglePolygonsPool.Pool =>
             _trianglePolygonsPool;
 
@@ -47,13 +50,21 @@ namespace AirSticker.Runtime.Scripts.Core
         {
             // A mesh whose jobs are still running (InUse) is kept even if its receiver died, so the jobs
             // never read freed NativeArrays; a later GarbageCollect disposes it once InUse is cleared.
-            var deleteList = _trianglePolygonsPool
-                .Where(item => item.Key == null && (item.Value == null || !item.Value.InUse)).ToList();
-            foreach (var item in deleteList)
+            // The dictionary is enumerated directly (its enumerator is a struct) and the dead keys are
+            // gathered into the reused list, because entries cannot be removed while enumerating. Doing
+            // this with LINQ would allocate every frame even when there is nothing to delete.
+            foreach (var item in _trianglePolygonsPool)
+                if (item.Key == null && (item.Value == null || !item.Value.InUse))
+                    _deleteKeys.Add(item.Key);
+
+            for (var i = 0; i < _deleteKeys.Count; i++)
             {
-                item.Value?.Dispose();
-                _trianglePolygonsPool.Remove(item.Key);
+                var key = _deleteKeys[i];
+                if (_trianglePolygonsPool.TryGetValue(key, out var mesh)) mesh?.Dispose();
+                _trianglePolygonsPool.Remove(key);
             }
+
+            _deleteKeys.Clear();
         }
 
         void IReceiverObjectTrianglePolygonsPool.DisposeAll()

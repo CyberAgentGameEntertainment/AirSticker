@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 
 namespace AirSticker.Runtime.Scripts.Core
@@ -22,6 +21,13 @@ namespace AirSticker.Runtime.Scripts.Core
     public sealed class DecalMeshPool : IDecalMeshPool
     {
         private readonly Dictionary<int, DecalMesh> _decalMeshes = new Dictionary<int, DecalMesh>();
+
+        // The hashes to remove in the current call. They are reused across calls because GarbageCollect
+        // runs every frame, so allocating a list per call would produce constant GC garbage. The two
+        // methods keep their own list so a removal requested by the user cannot disturb a running
+        // garbage collection.
+        private readonly List<int> _garbageCollectHashes = new List<int>();
+        private readonly List<int> _removeHashes = new List<int>();
 
         public int GetPoolSize()
         {
@@ -86,13 +92,21 @@ namespace AirSticker.Runtime.Scripts.Core
         /// </summary>
         void IDecalMeshPool.GarbageCollect()
         {
-            // Create deletable list.
-            var removeList = _decalMeshes.Where(item => item.Value.CanRemoveFromPool()).ToList();
-            foreach (var item in removeList)
+            // Gather the deletable hashes into the reused list. The dictionary is enumerated directly (its
+            // enumerator is a struct) because entries cannot be removed while enumerating. Doing this with
+            // LINQ would allocate every frame even when there is nothing to remove.
+            foreach (var item in _decalMeshes)
+                if (item.Value.CanRemoveFromPool())
+                    _garbageCollectHashes.Add(item.Key);
+
+            for (var i = 0; i < _garbageCollectHashes.Count; i++)
             {
-                item.Value.Dispose();
-                _decalMeshes.Remove(item.Key);
+                var hash = _garbageCollectHashes[i];
+                if (_decalMeshes.TryGetValue(hash, out var decalMesh)) decalMesh.Dispose();
+                _decalMeshes.Remove(hash);
             }
+
+            _garbageCollectHashes.Clear();
         }
 
         /// <summary>
@@ -114,16 +128,25 @@ namespace AirSticker.Runtime.Scripts.Core
             GameObject receiverObject = null,
             Material decalMaterial = null)
         {
-            var removeList = _decalMeshes.Where(item =>
-                item.Value.GroupId == groupId
-                && (receiverObject == null || item.Value.ReceiverObject == receiverObject)
-                && (decalMaterial == null || item.Value.DecalMaterial == decalMaterial)).ToList();
-            foreach (var item in removeList)
+            foreach (var item in _decalMeshes)
+                if (item.Value.GroupId == groupId
+                    && (receiverObject == null || item.Value.ReceiverObject == receiverObject)
+                    && (decalMaterial == null || item.Value.DecalMaterial == decalMaterial))
+                    _removeHashes.Add(item.Key);
+
+            for (var i = 0; i < _removeHashes.Count; i++)
             {
-                item.Value.DestroyDecalMeshRenderer();
-                item.Value.Dispose();
-                _decalMeshes.Remove(item.Key);
+                var hash = _removeHashes[i];
+                if (_decalMeshes.TryGetValue(hash, out var decalMesh))
+                {
+                    decalMesh.DestroyDecalMeshRenderer();
+                    decalMesh.Dispose();
+                }
+
+                _decalMeshes.Remove(hash);
             }
+
+            _removeHashes.Clear();
         }
 
         /// <summary>
