@@ -22,6 +22,12 @@ namespace AirSticker.Runtime.Scripts
         private readonly IReceiverObjectTrianglePolygonsPool _receiverObjectTrianglePolygonsPool =
             new ReceiverObjectTrianglePolygonsPool();
 
+        // The working lists of CollectEditDecalMeshes, reused so that gathering the receiver's renderers does
+        // not allocate an array per launch. The method does not yield and only one launch runs at a time, so
+        // the lists are never read across calls.
+        private readonly List<Renderer> _collectedRenderers = new List<Renderer>();
+        private readonly List<Terrain> _collectedTerrains = new List<Terrain>();
+
         private TrianglePolygonsFactory _trianglePolygonsFactory;
         private DecalMeshJobPipeline _jobPipeline;
 
@@ -85,9 +91,9 @@ namespace AirSticker.Runtime.Scripts
         }
 
         internal static IEnumerator BuildTrianglePolygonsFromReceiverObject(
-            MeshRenderer[] meshRenderers,
-            SkinnedMeshRenderer[] skinnedMeshRenderers,
-            Terrain[] terrains,
+            IReadOnlyList<MeshRenderer> meshRenderers,
+            IReadOnlyList<SkinnedMeshRenderer> skinnedMeshRenderers,
+            IReadOnlyList<Terrain> terrains,
             ReceiverConvexPolygonsMesh[] resultHolder)
         {
             yield return Instance._trianglePolygonsFactory.BuildFromReceiverObject(
@@ -114,7 +120,8 @@ namespace AirSticker.Runtime.Scripts
             // But the renderer of decal mesh hanging from receiver object.
             // Therefore, temporarily disable to the renderer of decal mesh.
             Instance._decalMeshPool.DisableDecalMeshRenderers();
-            var renderers = receiverObject.GetComponentsInChildren<Renderer>();
+            var renderers = Instance._collectedRenderers;
+            receiverObject.GetComponentsInChildren(false, renderers);
             foreach (var renderer in renderers)
             {
                 if (!renderer) return;
@@ -133,7 +140,8 @@ namespace AirSticker.Runtime.Scripts
                 }
             }
 
-            var terrains = receiverObject.GetComponentsInChildren<Terrain>();
+            var terrains = Instance._collectedTerrains;
+            receiverObject.GetComponentsInChildren(false, terrains);
             foreach (var terrain in terrains)
             {
                 if (!terrain) return;

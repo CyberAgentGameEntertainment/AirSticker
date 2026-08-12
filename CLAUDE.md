@@ -45,7 +45,7 @@ All runtime code is in `Assets/AirSticker/Runtime/Scripts` (single asmdef `AirSt
 3. Hands off to a **ThreadPool worker thread**: skinning matrices applied, broad-phase cull (`BroadPhaseConvexPolygonsDetection` — face-normal + distance rejection), six clip planes built from the decal box (width/height/depth in decal space), convex polygons split against them (`ConvexPolygon.SplitAndRemoveByPlane`), and resulting triangle fans appended to the decal meshes. The coroutine polls a flag until the worker finishes.
 4. Back on the main thread, `DecalMesh.ExecutePostProcessingAfterWorkerThread()` uploads the results to Unity `Mesh` objects.
 
-`DecalMesh` spawns a child GameObject named **`"AirStickerRenderer"`** under the receiver (`DecalMeshRenderer`), with a `MeshRenderer` or `SkinnedMeshRenderer` (bones copied from the receiver) matching the source. That literal name is load-bearing: `ExecuteLaunch()` filters out skinned renderers named `AirStickerRenderer` when gathering receiver geometry.
+`DecalMesh` spawns a child GameObject named **`"AirStickerRenderer"`** under the receiver (`DecalMeshRenderer`), with a `MeshRenderer` or `SkinnedMeshRenderer` (bones copied from the receiver) matching the source. It also carries an internal `DecalMeshRendererMarker` component, which is how `ExecuteLaunch()` filters those renderers out when gathering receiver geometry (the name itself is only for hierarchy readability — `Renderer.name` allocates, so it is not used for the check). `Assets/Demo/Demo_Benchmark` still matches on the literal name, so keep the name stable.
 
 ### Constraints to keep in mind
 

@@ -8,6 +8,9 @@ namespace AirSticker.Runtime.Scripts.Core
         public DecalMeshRenderer(Component receiverComponent, Material decalMaterial, Mesh mesh)
         {
             Owner = new GameObject("AirStickerRenderer");
+            // Let the projector recognize this renderer without touching GameObject.name (see
+            // DecalMeshRendererMarker).
+            Owner.AddComponent<DecalMeshRendererMarker>();
             if (receiverComponent is MeshRenderer || receiverComponent is Terrain)
             {
                 var meshRenderer = Owner.AddComponent<MeshRenderer>();

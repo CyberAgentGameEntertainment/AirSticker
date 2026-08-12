@@ -1,6 +1,5 @@
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using AirSticker.Runtime.Scripts.Core;
 using AirSticker.Runtime.Scripts.Core.Jobs;
 using Unity.Jobs;
@@ -65,6 +64,16 @@ namespace AirSticker.Runtime.Scripts
         // disposes it from here to avoid leaking its Persistent NativeArrays. Only one extraction is in flight
         // at a time, and the holder is cleared as soon as the source is registered.
         private readonly ReceiverConvexPolygonsMesh[] _pendingSourceHolder = new ReceiverConvexPolygonsMesh[1];
+
+        // The working lists of ExecuteLaunch, kept as fields so the launch does not allocate a list (or an
+        // array from GetComponentsInChildren) per receiver object. The renderer/terrain lists are held across
+        // the frame-sliced extraction, so they belong to the projector instance rather than being shared by
+        // AirStickerSystem: a list shared between projectors would be refilled by the next launch while this
+        // one is still reading it.
+        private readonly List<DecalMesh> _receiverDecalMeshes = new List<DecalMesh>();
+        private readonly List<MeshRenderer> _meshRenderers = new List<MeshRenderer>();
+        private readonly List<SkinnedMeshRenderer> _skinnedMeshRenderers = new List<SkinnedMeshRenderer>();
+        private readonly List<Terrain> _terrains = new List<Terrain>();
 
         /// <summary>
         ///     True while this projector's jobs are scheduled and not yet completed.
@@ -156,6 +165,10 @@ namespace AirSticker.Runtime.Scripts
 
         private void OnFinished(State finishedState)
         {
+            // The launch is over (completed, canceled or destroyed), so the reused working lists must not keep
+            // the receiver's renderers alive until the next launch.
+            ClearWorkingLists();
+
             if (onFinishedLaunch == null) return;
 
             onFinishedLaunch.Invoke(finishedState);
@@ -178,13 +191,13 @@ namespace AirSticker.Runtime.Scripts
             {
                 if (receiverObject == null || !receiverObject) continue;
 
-                var receiverDecalMeshes = new List<DecalMesh>();
-                AirStickerSystem.CollectEditDecalMeshes(receiverDecalMeshes, receiverObject, decalMaterial, groupId);
-                DecalMeshes.AddRange(receiverDecalMeshes);
+                _receiverDecalMeshes.Clear();
+                AirStickerSystem.CollectEditDecalMeshes(_receiverDecalMeshes, receiverObject, decalMaterial, groupId);
+                DecalMeshes.AddRange(_receiverDecalMeshes);
 
-                var skinnedMeshRenderers = receiverObject.GetComponentsInChildren<SkinnedMeshRenderer>()
-                    .Where(s => s.name != "AirStickerRenderer").ToArray();
-                var terrains = receiverObject.GetComponentsInChildren<Terrain>();
+                receiverObject.GetComponentsInChildren(false, _skinnedMeshRenderers);
+                ExcludeDecalMeshRenderers(_skinnedMeshRenderers);
+                receiverObject.GetComponentsInChildren(false, _terrains);
 
                 if (AirStickerSystem.ReceiverObjectTrianglePolygonsPool.Contains(receiverObject) == false)
                 {
@@ -192,10 +205,11 @@ namespace AirSticker.Runtime.Scripts
                     // tracked in _pendingSourceHolder so OnDestroy can dispose it if this projector is destroyed
                     // mid-extraction, before it is registered into the pool below.
                     _pendingSourceHolder[0] = null;
+                    receiverObject.GetComponentsInChildren(false, _meshRenderers);
                     yield return AirStickerSystem.BuildTrianglePolygonsFromReceiverObject(
-                        receiverObject.GetComponentsInChildren<MeshRenderer>(),
-                        skinnedMeshRenderers,
-                        terrains,
+                        _meshRenderers,
+                        _skinnedMeshRenderers,
+                        _terrains,
                         _pendingSourceHolder);
 
                     if (_pendingSourceHolder[0] == null)
@@ -251,7 +265,7 @@ namespace AirSticker.Runtime.Scripts
                 }
 
                 // Main-thread step between the segments: size the output from the clip result.
-                pipeline.CountBuild(source, receiverDecalMeshes);
+                pipeline.CountBuild(source, _receiverDecalMeshes);
 
                 // Segment 2: build the appended geometry (serial job, off the main thread).
                 _currentJobHandle = pipeline.ScheduleBuildStage(
@@ -264,12 +278,42 @@ namespace AirSticker.Runtime.Scripts
                 _currentSource = null;
 
                 // Merge the built geometry into the decal meshes and upload them (main thread).
-                pipeline.ApplyToDecalMeshes(receiverDecalMeshes);
-                foreach (var decalMesh in receiverDecalMeshes) decalMesh.ExecutePostProcessingAfterWorkerThread();
+                pipeline.ApplyToDecalMeshes(_receiverDecalMeshes);
+                foreach (var decalMesh in _receiverDecalMeshes) decalMesh.ExecutePostProcessingAfterWorkerThread();
             }
 
             OnFinished(State.LaunchingCompleted);
             yield return null;
+        }
+
+        /// <summary>
+        ///     Drop the decal renderers that hang under the receiver object, so they are not gathered as
+        ///     receivers themselves. They are identified by <see cref="DecalMeshRendererMarker" />; see that
+        ///     class for why the GameObject's name is not used.
+        /// </summary>
+        private static void ExcludeDecalMeshRenderers<T>(List<T> renderers) where T : Component
+        {
+            // Compacted in place so that neither the filtering nor the removal allocates.
+            var writeNo = 0;
+            for (var readNo = 0; readNo < renderers.Count; readNo++)
+            {
+                var renderer = renderers[readNo];
+                if (renderer.TryGetComponent<DecalMeshRendererMarker>(out _)) continue;
+                renderers[writeNo++] = renderer;
+            }
+
+            renderers.RemoveRange(writeNo, renderers.Count - writeNo);
+        }
+
+        /// <summary>
+        ///     Release the receivers held by the reused working lists once the launch no longer needs them.
+        /// </summary>
+        private void ClearWorkingLists()
+        {
+            _receiverDecalMeshes.Clear();
+            _meshRenderers.Clear();
+            _skinnedMeshRenderers.Clear();
+            _terrains.Clear();
         }
 
         /// <summary>
@@ -442,16 +486,24 @@ namespace AirSticker.Runtime.Scripts
             NowState = State.Launching;
             if (onFinishedLaunch != null) this.onFinishedLaunch.AddListener(onFinishedLaunch);
             // Request the launching of the decal.
-            AirStickerSystem.DecalProjectorLauncher.Request(
-                this,
-                () =>
-                {
-                    if (receiverObjects != null)
-                        StartCoroutine(ExecuteLaunch());
-                    else
-                        // Receiver object has been dead, so process is terminated.
-                        OnFinished(State.LaunchingCanceled);
-                });
+            AirStickerSystem.DecalProjectorLauncher.Request(this);
+        }
+
+        /// <summary>
+        ///     Start this projector's launch. Called by the launcher when the queued request reaches the front
+        ///     of the queue.
+        /// </summary>
+        /// <remarks>
+        ///     This is a method instead of a callback handed to <c>Request</c>, because a lambda there
+        ///     allocated a delegate for every decal.
+        /// </remarks>
+        internal void OnLaunchRequestAccepted()
+        {
+            if (receiverObjects != null)
+                StartCoroutine(ExecuteLaunch());
+            else
+                // Receiver object has been dead, so process is terminated.
+                OnFinished(State.LaunchingCanceled);
         }
 
         private void InitializeOriginAxisInDecalSpace()

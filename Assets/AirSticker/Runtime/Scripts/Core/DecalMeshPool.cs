@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -157,8 +158,14 @@ namespace AirSticker.Runtime.Scripts.Core
         {
             // Use instance IDs instead of names, because different objects can have the same name
             // (e.g. clones of the same prefab) and must not share a decal mesh.
-            var key = $"{receiverObject.GetInstanceID()}_{decalMaterial.GetInstanceID()}_{component.GetInstanceID()}_{groupId}";
-            return key.GetHashCode();
+            // The IDs are combined with HashCode instead of being formatted into a string, because this is
+            // called once per renderer of the receiver object on every launch and the string interpolation
+            // allocated for each of them.
+            return HashCode.Combine(
+                receiverObject.GetInstanceID(),
+                decalMaterial.GetInstanceID(),
+                component.GetInstanceID(),
+                groupId);
         }
     }
 }

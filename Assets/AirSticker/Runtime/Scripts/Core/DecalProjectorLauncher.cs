@@ -19,6 +19,7 @@ namespace AirSticker.Runtime.Scripts.Core
     {
         private readonly Queue<LaunchRequest> _launchRequestQueues = new Queue<LaunchRequest>();
         private LaunchRequest _currentRequest;
+        private bool _hasCurrentRequest;
 
         void IDecalProjectorLauncher.Update()
         {
@@ -32,6 +33,19 @@ namespace AirSticker.Runtime.Scripts.Core
         /// <summary>
         ///     Queueing startup requests to the queue.
         /// </summary>
+        /// <remarks>
+        ///     The projector's own launch method is called when the request is processed, so no callback has
+        ///     to be allocated per decal. <see cref="Request(AirStickerProjector, Action)" /> remains for
+        ///     callers that need a custom callback.
+        /// </remarks>
+        internal void Request(AirStickerProjector projector)
+        {
+            _launchRequestQueues.Enqueue(new LaunchRequest(projector, null));
+        }
+
+        /// <summary>
+        ///     Queueing startup requests to the queue.
+        /// </summary>
         public void Request(AirStickerProjector projector, Action onLaunch)
         {
             _launchRequestQueues.Enqueue(new LaunchRequest(projector, onLaunch));
@@ -39,7 +53,7 @@ namespace AirSticker.Runtime.Scripts.Core
 
         private bool IsCurrentRequestFinished()
         {
-            if (_currentRequest == null) return true; // The request is empty.
+            if (!_hasCurrentRequest) return true; // The request is empty.
 
             var projector = _currentRequest.Projector;
             // Even if the projector is dead or the launching is canceled, its scheduled jobs may still be
@@ -58,10 +72,13 @@ namespace AirSticker.Runtime.Scripts.Core
         {
             while (_launchRequestQueues.Count > 0)
             {
-                _currentRequest = _launchRequestQueues.Peek();
-                _launchRequestQueues.Dequeue();
+                _currentRequest = _launchRequestQueues.Dequeue();
+                _hasCurrentRequest = true;
                 if (!_currentRequest.Projector) continue; // This request was dead, so skipped.
-                _currentRequest.OnLaunch();
+                if (_currentRequest.OnLaunch != null)
+                    _currentRequest.OnLaunch();
+                else
+                    _currentRequest.Projector.OnLaunchRequestAccepted();
                 break;
             }
         }
@@ -71,7 +88,9 @@ namespace AirSticker.Runtime.Scripts.Core
             return _launchRequestQueues.Count;
         }
 
-        private class LaunchRequest
+        // A struct so that queueing a request does not allocate. OnLaunch is null for the projector's own
+        // launch path, which calls AirStickerProjector.OnLaunchRequestAccepted instead of a delegate.
+        private readonly struct LaunchRequest
         {
             public LaunchRequest(AirStickerProjector projector, Action onLaunch)
             {

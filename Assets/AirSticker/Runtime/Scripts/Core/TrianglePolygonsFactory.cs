@@ -28,6 +28,10 @@ namespace AirSticker.Runtime.Scripts.Core
         private NativeArray<Vector3> _workingVertexPositions =
             new NativeArray<Vector3>(MaxWorkingVertexCount, Allocator.Persistent);
 
+        // Reused across launches. It is created on the first skinned receiver instead of in the constructor,
+        // because its capacity is worth ~2 MB and projects without skinned receivers never need it.
+        private List<BoneWeight> _workingBoneWeights;
+
         private bool _disposed;
         private static int _maxGeneratedPolygonPerFrame = 100000;
 
@@ -59,9 +63,9 @@ namespace AirSticker.Runtime.Scripts.Core
         ///     resultHolder[0]; it is left null if a mesh is not Read/Write enabled (nothing to build).
         /// </summary>
         internal IEnumerator BuildFromReceiverObject(
-            MeshRenderer[] meshRenderers,
-            SkinnedMeshRenderer[] skinnedMeshRenderers,
-            Terrain[] terrains,
+            IReadOnlyList<MeshRenderer> meshRenderers,
+            IReadOnlyList<SkinnedMeshRenderer> skinnedMeshRenderers,
+            IReadOnlyList<Terrain> terrains,
             ReceiverConvexPolygonsMesh[] resultHolder)
         {
             var numTerrainMeshPolygon = GetNumPolygonsFromTerrains(terrains, 1.0f);
@@ -81,7 +85,7 @@ namespace AirSticker.Runtime.Scripts.Core
             if (!buildSkin) skinTriangleCount = 0;
 
             var triangleCount = meshTriangleCount + skinTriangleCount + terrainTriangleCount;
-            var componentCount = meshRenderers.Length + skinnedMeshRenderers.Length + terrains.Length;
+            var componentCount = meshRenderers.Count + skinnedMeshRenderers.Count + terrains.Count;
 
             var result = new ReceiverConvexPolygonsMesh(triangleCount, componentCount, Allocator.Persistent);
             // Expose the freshly allocated result to the caller immediately so its OnDestroy can dispose it if
@@ -91,16 +95,16 @@ namespace AirSticker.Runtime.Scripts.Core
 
             // Unify the receiver components into one global index space: mesh renderers, then skinned mesh
             // renderers, then terrains.
-            var skinnedBase = meshRenderers.Length;
-            var terrainBase = meshRenderers.Length + skinnedMeshRenderers.Length;
-            for (var i = 0; i < meshRenderers.Length; i++) result.ComponentByIndex[i] = meshRenderers[i];
-            for (var j = 0; j < skinnedMeshRenderers.Length; j++)
+            var skinnedBase = meshRenderers.Count;
+            var terrainBase = meshRenderers.Count + skinnedMeshRenderers.Count;
+            for (var i = 0; i < meshRenderers.Count; i++) result.ComponentByIndex[i] = meshRenderers[i];
+            for (var j = 0; j < skinnedMeshRenderers.Count; j++)
             {
                 result.ComponentByIndex[skinnedBase + j] = skinnedMeshRenderers[j];
                 result.ComponentIsSkinned[skinnedBase + j] = true;
             }
 
-            for (var k = 0; k < terrains.Length; k++) result.ComponentByIndex[terrainBase + k] = terrains[k];
+            for (var k = 0; k < terrains.Count; k++) result.ComponentByIndex[terrainBase + k] = terrains[k];
 
             _writeTriangleCursor = 0;
             if (buildMesh) yield return FillFromMeshRenderers(meshRenderers, result);
@@ -124,10 +128,11 @@ namespace AirSticker.Runtime.Scripts.Core
         // matches the mesh-renderer region of ComponentByIndex, even when a child has a MeshFilter without a
         // MeshRenderer or vice versa. The polygon count (GetNumPolygonsFromMeshRenderers) is driven the same
         // way, so the total stays consistent with BuildFromReceiverObject's completeness check.
-        private IEnumerator FillFromMeshRenderers(MeshRenderer[] meshRenderers, ReceiverConvexPolygonsMesh result)
+        private IEnumerator FillFromMeshRenderers(
+            IReadOnlyList<MeshRenderer> meshRenderers, ReceiverConvexPolygonsMesh result)
         {
             var polygonNoInFill = 0;
-            for (var rendererNo = 0; rendererNo < meshRenderers.Length; rendererNo++)
+            for (var rendererNo = 0; rendererNo < meshRenderers.Count; rendererNo++)
             {
                 var meshRenderer = meshRenderers[rendererNo];
                 if (!meshRenderer) continue;
@@ -168,11 +173,12 @@ namespace AirSticker.Runtime.Scripts.Core
         }
 
         private IEnumerator FillFromSkinnedMeshRenderers(
-            SkinnedMeshRenderer[] skinnedMeshRenderers, int componentBase, ReceiverConvexPolygonsMesh result)
+            IReadOnlyList<SkinnedMeshRenderer> skinnedMeshRenderers, int componentBase,
+            ReceiverConvexPolygonsMesh result)
         {
-            var workingBoneWeights = new List<BoneWeight>(MaxWorkingVertexCount);
+            var workingBoneWeights = _workingBoneWeights ??= new List<BoneWeight>(MaxWorkingVertexCount);
             var polygonNoInFill = 0;
-            for (var rendererNo = 0; rendererNo < skinnedMeshRenderers.Length; rendererNo++)
+            for (var rendererNo = 0; rendererNo < skinnedMeshRenderers.Count; rendererNo++)
             {
                 var skinnedMeshRenderer = skinnedMeshRenderers[rendererNo];
                 if (!skinnedMeshRenderer || skinnedMeshRenderer.sharedMesh == null) yield break;
@@ -216,9 +222,10 @@ namespace AirSticker.Runtime.Scripts.Core
         }
 
         private IEnumerator FillFromTerrains(
-            Terrain[] terrains, int componentBase, float terrainMeshResolutionScale, ReceiverConvexPolygonsMesh result)
+            IReadOnlyList<Terrain> terrains, int componentBase, float terrainMeshResolutionScale,
+            ReceiverConvexPolygonsMesh result)
         {
-            for (var terrainNo = 0; terrainNo < terrains.Length; terrainNo++)
+            for (var terrainNo = 0; terrainNo < terrains.Count; terrainNo++)
             {
                 var terrain = terrains[terrainNo];
                 if (!terrain || terrain == null) yield break;
@@ -290,11 +297,12 @@ namespace AirSticker.Runtime.Scripts.Core
             _writeTriangleCursor++;
         }
 
-        private static int GetNumPolygonsFromSkinModelRenderers(SkinnedMeshRenderer[] skinnedMeshRenderers)
+        private static int GetNumPolygonsFromSkinModelRenderers(IReadOnlyList<SkinnedMeshRenderer> skinnedMeshRenderers)
         {
             var numPolygon = 0;
-            foreach (var renderer in skinnedMeshRenderers)
+            for (var rendererNo = 0; rendererNo < skinnedMeshRenderers.Count; rendererNo++)
             {
+                var renderer = skinnedMeshRenderers[rendererNo];
                 if (!renderer || renderer.sharedMesh == null) return -1;
                 var mesh = renderer.sharedMesh;
                 if (mesh.isReadable == false)
@@ -304,8 +312,21 @@ namespace AirSticker.Runtime.Scripts.Core
                     return -1;
                 }
 
-                numPolygon += mesh.triangles.Length / 3;
+                numPolygon += GetNumPolygonsFromMesh(mesh);
             }
+
+            return numPolygon;
+        }
+
+        // Counted from the index counts instead of mesh.triangles, which copies the whole index buffer into a
+        // managed array just to be measured (360 KB of garbage for a 30k-polygon model). The per-submesh
+        // division matches how the Fill* methods walk the submeshes, so the count and the fill always agree.
+        private static int GetNumPolygonsFromMesh(Mesh mesh)
+        {
+            var numPolygon = 0;
+            var subMeshCount = mesh.subMeshCount;
+            for (var meshNo = 0; meshNo < subMeshCount; meshNo++)
+                numPolygon += (int)(mesh.GetIndexCount(meshNo) / 3);
 
             return numPolygon;
         }
@@ -318,20 +339,23 @@ namespace AirSticker.Runtime.Scripts.Core
             return (vertexCountX - 1) * (vertexCountY - 1) * 2;
         }
 
-        private static int GetNumPolygonsFromTerrains(Terrain[] terrains, float terrainMeshResolutionScale)
+        private static int GetNumPolygonsFromTerrains(
+            IReadOnlyList<Terrain> terrains, float terrainMeshResolutionScale)
         {
             var numPolygon = 0;
-            foreach (var terrain in terrains) numPolygon += GetNumPolygonsFromTerrain(terrain, terrainMeshResolutionScale);
+            for (var terrainNo = 0; terrainNo < terrains.Count; terrainNo++)
+                numPolygon += GetNumPolygonsFromTerrain(terrains[terrainNo], terrainMeshResolutionScale);
             return numPolygon;
         }
 
         // Renderer-driven so it stays consistent with FillFromMeshRenderers: a renderer without a MeshFilter
         // (or without a mesh) contributes nothing, and only a non-readable mesh aborts the whole mesh path.
-        private static int GetNumPolygonsFromMeshRenderers(MeshRenderer[] meshRenderers)
+        private static int GetNumPolygonsFromMeshRenderers(IReadOnlyList<MeshRenderer> meshRenderers)
         {
             var numPolygon = 0;
-            foreach (var meshRenderer in meshRenderers)
+            for (var rendererNo = 0; rendererNo < meshRenderers.Count; rendererNo++)
             {
+                var meshRenderer = meshRenderers[rendererNo];
                 if (!meshRenderer) continue;
                 var meshFilter = meshRenderer.GetComponent<MeshFilter>();
                 if (!meshFilter || meshFilter.sharedMesh == null) continue;
@@ -343,7 +367,7 @@ namespace AirSticker.Runtime.Scripts.Core
                     return -1;
                 }
 
-                numPolygon += mesh.triangles.Length / 3;
+                numPolygon += GetNumPolygonsFromMesh(mesh);
             }
 
             return numPolygon;
