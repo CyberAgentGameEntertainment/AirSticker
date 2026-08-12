@@ -23,6 +23,7 @@ There is no CI, lint config, or build script in this repo; everything runs throu
   ```
 
   To run a single test, use the Test Runner window or add `-testFilter <Namespace.Class.Method>` to the CLI call.
+- `Assets/Tests/PlayMode` (assembly `Tests.PlayMode`) holds a PlayMode regression harness for the async launch pipeline: launch-cancellation races (`TestLaunchCancellation.cs`) and GC.Alloc regressions (`TestGCAllocRegression.cs`). It must be PlayMode because `AirStickerSystem.Update()` only runs in Play mode. Run via the Test Runner's **PlayMode** tab, or headless with `-testPlatform PlayMode`. Headless runs fail silently while the editor is already open on this project — close it first, or use the Test Runner window instead.
 
 ## Architecture
 
@@ -56,6 +57,10 @@ All runtime code is in `Assets/AirSticker/Runtime/Scripts` (single asmdef `AirSt
   - Nothing awaits the launch body, so an escaping exception would be swallowed and `DecalProjectorLauncher`'s FIFO would wait forever for a state that never arrives. Keep the whole body in try/catch/finally.
 - Receiver models must have **Read/Write enabled** in import settings; the code paths that read mesh data error out otherwise (see commit history for the error-message handling).
 - Z-fighting is inherent to the technique; `zOffsetInDecalSpace` (default 0.005) is the mitigation knob.
+
+### Regression harness (PlayMode)
+
+`Assets/Tests/PlayMode` exercises exactly the hazards the constraints above describe, on procedurally-built receivers (no dependency on `Assets/Demo` assets): destroying the projector/receiver/`AirStickerSystem` at each of the resume points named above and asserting the state machine still reaches a terminal state and `DecalProjectorLauncher` isn't left stuck, plus GC.Alloc checks that lock in the already-fixed zero-alloc idle-poll/launch-start frames and watch steady-state per-launch allocation for regressions. `AirStickerProjector.IsWorkerThreadRunning`/`IsExecutingLaunch` are visible to it via `[assembly: InternalsVisibleTo("Tests.PlayMode")]` in `AssemblyInfo.cs`. `TestGCAllocRegression`'s absolute per-launch byte ceiling is a placeholder pending a real calibration run in the editor.
 
 ## Repo cautions
 
