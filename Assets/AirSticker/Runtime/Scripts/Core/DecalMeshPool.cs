@@ -161,11 +161,21 @@ namespace AirSticker.Runtime.Scripts.Core
             // The IDs are combined with HashCode instead of being formatted into a string, because this is
             // called once per renderer of the receiver object on every launch and the string interpolation
             // allocated for each of them.
+            // GetInstanceID is deprecated since Unity 6.3 and an error since Unity 6.6, so use EntityId
+            // from Unity 6.3. HashCode.Combine is generic, so the struct is not boxed.
+#if UNITY_6000_3_OR_NEWER
+            return HashCode.Combine(
+                receiverObject.GetEntityId(),
+                decalMaterial.GetEntityId(),
+                component.GetEntityId(),
+                groupId);
+#else
             return HashCode.Combine(
                 receiverObject.GetInstanceID(),
                 decalMaterial.GetInstanceID(),
                 component.GetInstanceID(),
                 groupId);
+#endif
         }
     }
 }
